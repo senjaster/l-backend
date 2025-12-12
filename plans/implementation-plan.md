@@ -33,11 +33,15 @@
     - Models (EquipmentType + ControlPointTemplate)
     - Queries, repository, router
 
+### Phase 4: Plant
+
 11. Implement Plant
     - Models (Plant + Facility + PlantListItem + PlantListResponse)
     - Queries (including get_all_plants, get_equipment_ids_by_facility)
     - Repository (with facility sync and equipment ID loading)
     - Router (including GET /plants, lock/unlock endpoints)
+
+### Phase 5: Equipment
 
 12. Implement Equipment
     - Models (Equipment + ControlPoint + Defect)
@@ -45,21 +49,13 @@
     - Repository (with children sync and inspection ID loading)
     - Router
 
+### Phase 6: Inspection
+
 13. Implement Inspection
     - Models (Inspection + InspectionStep)
     - Queries (including get_image_ids)
     - Repository (with step sync and image ID loading)
     - Router
-
-### Phase 4: Testing & Documentation
-14. Test each endpoint manually using Swagger UI
-15. Fix any issues found during testing
-16. Update README.md with setup and running instructions
-
-### Phase 5: Deployment Preparation
-17. Create Dockerfile
-18. Test with Docker
-19. Document deployment process
 
 ---
 
