@@ -1,7 +1,9 @@
 """FastAPI application entry point"""
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+import asyncpg
 from app.database import init_db_pool, close_db_pool
+from app.exceptions import asyncpg_exception_handler
 
 
 @asynccontextmanager
@@ -21,6 +23,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Register exception handlers
+app.add_exception_handler(asyncpg.PostgresError, asyncpg_exception_handler)
+
 
 @app.get("/")
 async def root():
@@ -28,12 +33,16 @@ async def root():
     return {"status": "ok", "message": "L-Inspector Backend API"}
 
 
-# Routers will be included here as they are implemented
-# app.include_router(inspector.router)
+# Include routers
+from app.routers import inspector, image, log
+
+app.include_router(inspector.router)
+app.include_router(image.router)
+app.include_router(log.router)
+
+# Additional routers will be included as they are implemented
 # app.include_router(sticker_type.router)
 # app.include_router(equipment_type.router)
 # app.include_router(plant.router)
 # app.include_router(equipment.router)
 # app.include_router(inspection.router)
-# app.include_router(image.router)
-# app.include_router(log.router)

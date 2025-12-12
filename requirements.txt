@@ -3,5 +3,5 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 asyncpg
-pugsql
+aiosql
 python-dotenv

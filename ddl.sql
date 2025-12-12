@@ -13,7 +13,7 @@ CREATE TABLE lesiv.inspector (
     full_name TEXT NOT NULL,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    last_modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_inspector_username ON lesiv.inspector(username);
@@ -26,7 +26,7 @@ CREATE TABLE lesiv.sticker_type (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    last_modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE lesiv.sticker_temp_range (
@@ -48,7 +48,7 @@ CREATE INDEX idx_sticker_temp_range_sticker ON lesiv.sticker_temp_range(sticker_
 CREATE TABLE lesiv.equipment_type (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    last_modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE lesiv.equipment_control_point_template (
@@ -74,7 +74,7 @@ CREATE TYPE lesiv.log_operation AS ENUM ('CREATE', 'UPDATE', 'DELETE');
 
 CREATE TABLE lesiv.log (
     id SERIAL PRIMARY KEY,
-    logged_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    logged_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     plant_id UUID,  -- Reference to plant (no FK between aggregates)
     employee_id INTEGER NOT NULL,
     CONSTRAINT fk_log_employee
@@ -100,9 +100,9 @@ CREATE TABLE lesiv.plant (
     name TEXT NOT NULL,
     locked_by_device_id UUID,
     locked_by_user_id INTEGER,
-    locked_at TIMESTAMP,
+    locked_at TIMESTAMPTZ,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    last_modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_plant_locked_by_user
         FOREIGN KEY (locked_by_user_id) REFERENCES lesiv.inspector(id)
 );
@@ -136,7 +136,7 @@ CREATE TABLE lesiv.equipment (
     equipment_type_id INTEGER,
     estimated_point_count INTEGER,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    last_modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_equipment_type
         FOREIGN KEY (equipment_type_id) REFERENCES lesiv.equipment_type(id)
 );
@@ -171,8 +171,8 @@ CREATE TABLE lesiv.equipment_defect (
     unit_name TEXT NOT NULL,  -- Specific unit name, e.g., "верхний БКС фаза В"
     t_max INTEGER,
     t_excess INTEGER,
-    detected_at TIMESTAMP NOT NULL,
-    resolved_at TIMESTAMP,
+    detected_at TIMESTAMPTZ NOT NULL,
+    resolved_at TIMESTAMPTZ,
     status lesiv.defect_status NOT NULL DEFAULT 'DETECTED',
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_defect_equipment 
@@ -194,11 +194,11 @@ CREATE TABLE lesiv.inspection (
     id UUID PRIMARY KEY,
     equipment_id UUID NOT NULL,  -- Reference to equipment (no FK between aggregates)
     inspector_id INTEGER NOT NULL,
-    started_at TIMESTAMP NOT NULL,
-    completed_at TIMESTAMP,
+    started_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ,
     status lesiv.inspection_status NOT NULL DEFAULT 'PLANNED',
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    last_modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_inspection_inspector
         FOREIGN KEY (inspector_id) REFERENCES lesiv.inspector(id)
 );
@@ -210,7 +210,7 @@ CREATE INDEX idx_inspection_started_at ON lesiv.inspection(started_at);
 
 CREATE TABLE lesiv.inspection_step (
     id UUID PRIMARY KEY,
-    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    TIMESTAMPTZ TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     inspection_id UUID NOT NULL,
     step_number INTEGER NOT NULL,  -- for sorting
     step_type lesiv.inspection_step_type NOT NULL,
@@ -262,7 +262,7 @@ CREATE TABLE lesiv.image (
     original_file_name TEXT NOT NULL,
     image_type lesiv.image_type NOT NULL,
     metadata JSONB,
-    last_modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    last_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_image_equipment ON lesiv.image(equipment_id);
