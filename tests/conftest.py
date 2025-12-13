@@ -15,7 +15,7 @@ async def seed_test_inspector():
     try:
         # Insert test inspector if not exists
         await conn.execute("""
-            INSERT INTO lesiv.inspector (id, full_name, username, password_hash, last_modified_at)
+            INSERT INTO lesiv.inspector (id, full_name, username, password_hash, server_modified_at)
             VALUES (1, 'Test Inspector', 'test', 'hash', CURRENT_TIMESTAMP)
             ON CONFLICT (id) DO NOTHING
         """)

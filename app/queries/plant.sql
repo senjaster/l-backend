@@ -1,6 +1,6 @@
 -- name: get_by_id^
 -- Get plant by ID
-SELECT id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, last_modified_at
+SELECT id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, server_modified_at
 FROM lesiv.plant
 WHERE id = :id;
 
@@ -37,15 +37,15 @@ ORDER BY name;
 
 -- name: upsert_plant!
 -- Insert or update plant
-INSERT INTO lesiv.plant (id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, last_modified_at)
-VALUES (:id, :name, :locked_by_device_id, :locked_by_user_id, :locked_at, :is_deleted, :last_modified_at)
+INSERT INTO lesiv.plant (id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, server_modified_at)
+VALUES (:id, :name, :locked_by_device_id, :locked_by_user_id, :locked_at, :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     locked_by_device_id = EXCLUDED.locked_by_device_id,
     locked_by_user_id = EXCLUDED.locked_by_user_id,
     locked_at = EXCLUDED.locked_at,
     is_deleted = EXCLUDED.is_deleted,
-    last_modified_at = EXCLUDED.last_modified_at;
+    server_modified_at = EXCLUDED.server_modified_at;
 
 -- name: upsert_facility!
 -- Insert or update facility
