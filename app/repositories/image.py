@@ -16,7 +16,11 @@ class ImageRepository:
         """Get image by ID"""
         row = await queries.get_by_id(conn, id=image_id)
         if row:
-            return Image(**row)
+            # Parse JSONB metadata if it's a string
+            row_dict = dict(row)
+            if row_dict.get('metadata') and isinstance(row_dict['metadata'], str):
+                row_dict['metadata'] = json.loads(row_dict['metadata'])
+            return Image(**row_dict)
         return None
     
     async def save(self, conn, image: Image) -> Image:

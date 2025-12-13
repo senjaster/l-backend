@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def test_create_equipment_type(client: TestClient, clean_db):
+def test_create_equipment_type(client: TestClient):
     """Test creating a new equipment type with control point templates"""
     equipment_type_data = {
         "id": 1,
@@ -40,7 +40,7 @@ def test_create_equipment_type(client: TestClient, clean_db):
     assert len(data["control_point_templates"]) == 2
 
 
-def test_get_equipment_type(client: TestClient, clean_db):
+def test_get_equipment_type(client: TestClient):
     """Test retrieving an equipment type"""
     # First create
     equipment_type_data = {
@@ -71,13 +71,13 @@ def test_get_equipment_type(client: TestClient, clean_db):
     assert len(data["control_point_templates"]) == 1
 
 
-def test_get_nonexistent_equipment_type(client: TestClient, clean_db):
+def test_get_nonexistent_equipment_type(client: TestClient):
     """Test retrieving a non-existent equipment type"""
     response = client.get("/equipment-type/999")
     assert response.status_code == 404
 
 
-def test_update_equipment_type(client: TestClient, clean_db):
+def test_update_equipment_type(client: TestClient):
     """Test updating an equipment type"""
     # Create initial
     equipment_type_data = {
@@ -124,7 +124,7 @@ def test_update_equipment_type(client: TestClient, clean_db):
     assert data["control_point_templates"][0]["t_max"] == 90
 
 
-def test_sync_templates_add_new(client: TestClient, clean_db):
+def test_sync_templates_add_new(client: TestClient):
     """Test adding new control point templates"""
     # Create with one template
     equipment_type_data = {
@@ -178,7 +178,7 @@ def test_sync_templates_add_new(client: TestClient, clean_db):
     assert len(data["control_point_templates"]) == 2
 
 
-def test_sync_templates_remove(client: TestClient, clean_db):
+def test_sync_templates_remove(client: TestClient):
     """Test removing control point templates"""
     # Create with two templates
     equipment_type_data = {
@@ -233,7 +233,7 @@ def test_sync_templates_remove(client: TestClient, clean_db):
     assert data["control_point_templates"][0]["id"] == 1
 
 
-def test_delete_equipment_type(client: TestClient, clean_db):
+def test_delete_equipment_type(client: TestClient):
     """Test deletion of equipment type"""
     # Create
     equipment_type_data = {
@@ -253,7 +253,7 @@ def test_delete_equipment_type(client: TestClient, clean_db):
     assert get_response.status_code == 404
 
 
-def test_id_mismatch(client: TestClient, clean_db):
+def test_id_mismatch(client: TestClient):
     """Test ID mismatch in URL and body"""
     equipment_type_data = {
         "id": 2,
@@ -266,7 +266,7 @@ def test_id_mismatch(client: TestClient, clean_db):
     assert response.status_code == 400
 
 
-def test_template_with_sticker_reference(client: TestClient, clean_db):
+def test_template_with_sticker_reference(client: TestClient):
     """Test control point template with sticker type reference"""
     equipment_type_data = {
         "id": 1,

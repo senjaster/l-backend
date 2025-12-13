@@ -2,7 +2,7 @@
 INSERT INTO lesiv.log (
     logged_at,
     plant_id,
-    employee_id,
+    inspector_id,
     entity_id,
     entity_type,
     op,
@@ -11,7 +11,7 @@ INSERT INTO lesiv.log (
 ) VALUES (
     :logged_at,
     :plant_id,
-    :employee_id,
+    :inspector_id,
     :entity_id,
     :entity_type,
     :op,

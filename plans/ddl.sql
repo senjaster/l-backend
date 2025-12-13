@@ -76,9 +76,9 @@ CREATE TABLE lesiv.log (
     id SERIAL PRIMARY KEY,
     logged_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     plant_id UUID,  -- Reference to plant (no FK between aggregates)
-    employee_id INTEGER NOT NULL,
+    inspector_id INTEGER NOT NULL,
     CONSTRAINT fk_log_employee
-        FOREIGN KEY (employee_id) REFERENCES lesiv.inspector(id),
+        FOREIGN KEY (inspector_id) REFERENCES lesiv.inspector(id),
     entity_id TEXT NOT NULL,  -- Can be UUID or integer depending on entity_type
     entity_type lesiv.log_entity_type NOT NULL,
     op lesiv.log_operation NOT NULL,
@@ -89,7 +89,7 @@ CREATE TABLE lesiv.log (
 CREATE INDEX idx_log_logged_at ON lesiv.log(logged_at);
 CREATE INDEX idx_log_plant_id ON lesiv.log(plant_id);
 CREATE INDEX idx_log_entity ON lesiv.log(entity_type, entity_id);
-CREATE INDEX idx_log_employee ON lesiv.log(employee_id);
+CREATE INDEX idx_log_employee ON lesiv.log(inspector_id);
 
 -- ============================================================================
 -- Plant Aggregate
@@ -267,3 +267,4 @@ CREATE TABLE lesiv.image (
 
 CREATE INDEX idx_image_equipment ON lesiv.image(equipment_id);
 CREATE INDEX idx_image_type ON lesiv.image(image_type);
+

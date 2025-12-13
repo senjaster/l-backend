@@ -27,7 +27,7 @@ class LogEntry(BaseModel):
     """Log entry model"""
     logged_at: datetime
     plant_id: Optional[UUID] = None
-    employee_id: int
+    inspector_id: int
     entity_id: str
     entity_type: LogEntityType
     op: LogOperation

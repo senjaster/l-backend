@@ -18,7 +18,7 @@ class LogRepository:
                 conn,
                 logged_at=log.logged_at,
                 plant_id=log.plant_id,
-                employee_id=log.employee_id,
+                inspector_id=log.inspector_id,
                 entity_id=log.entity_id,
                 entity_type=log.entity_type.value,
                 op=log.op.value,

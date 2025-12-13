@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def test_create_sticker_type(client: TestClient, clean_db):
+def test_create_sticker_type(client: TestClient):
     """Test creating a new sticker type with temperature ranges"""
     sticker_type_data = {
         "id": 1,
@@ -37,7 +37,7 @@ def test_create_sticker_type(client: TestClient, clean_db):
     assert len(data["temp_ranges"]) == 2
 
 
-def test_get_sticker_type(client: TestClient, clean_db):
+def test_get_sticker_type(client: TestClient):
     """Test retrieving a sticker type"""
     # First create
     sticker_type_data = {
@@ -67,13 +67,13 @@ def test_get_sticker_type(client: TestClient, clean_db):
     assert len(data["temp_ranges"]) == 1
 
 
-def test_get_nonexistent_sticker_type(client: TestClient, clean_db):
+def test_get_nonexistent_sticker_type(client: TestClient):
     """Test retrieving a non-existent sticker type"""
     response = client.get("/sticker-type/999")
     assert response.status_code == 404
 
 
-def test_update_sticker_type(client: TestClient, clean_db):
+def test_update_sticker_type(client: TestClient):
     """Test updating a sticker type"""
     # Create initial
     sticker_type_data = {
@@ -118,7 +118,7 @@ def test_update_sticker_type(client: TestClient, clean_db):
     assert data["temp_ranges"][0]["t_max"] == 60
 
 
-def test_sync_temp_ranges_add_new(client: TestClient, clean_db):
+def test_sync_temp_ranges_add_new(client: TestClient):
     """Test adding new temperature ranges"""
     # Create with one range
     sticker_type_data = {
@@ -168,7 +168,7 @@ def test_sync_temp_ranges_add_new(client: TestClient, clean_db):
     assert len(data["temp_ranges"]) == 2
 
 
-def test_sync_temp_ranges_remove(client: TestClient, clean_db):
+def test_sync_temp_ranges_remove(client: TestClient):
     """Test removing temperature ranges"""
     # Create with two ranges
     sticker_type_data = {
@@ -219,7 +219,7 @@ def test_sync_temp_ranges_remove(client: TestClient, clean_db):
     assert data["temp_ranges"][0]["id"] == 1
 
 
-def test_delete_sticker_type(client: TestClient, clean_db):
+def test_delete_sticker_type(client: TestClient):
     """Test logical deletion of sticker type"""
     # Create
     sticker_type_data = {
@@ -242,7 +242,7 @@ def test_delete_sticker_type(client: TestClient, clean_db):
     assert data["is_deleted"] is True
 
 
-def test_id_mismatch(client: TestClient, clean_db):
+def test_id_mismatch(client: TestClient):
     """Test ID mismatch in URL and body"""
     sticker_type_data = {
         "id": 2,
