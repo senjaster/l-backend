@@ -34,7 +34,7 @@ async def root():
 
 
 # Include routers
-from app.routers import inspector, image, log, sticker_type, equipment_type, plant
+from app.routers import inspector, image, log, sticker_type, equipment_type, plant, equipment
 
 app.include_router(inspector.router)
 app.include_router(image.router)
@@ -42,7 +42,7 @@ app.include_router(log.router)
 app.include_router(sticker_type.router)
 app.include_router(equipment_type.router)
 app.include_router(plant.router)
+app.include_router(equipment.router)
 
 # Additional routers will be included as they are implemented
-# app.include_router(equipment.router)
 # app.include_router(inspection.router)
