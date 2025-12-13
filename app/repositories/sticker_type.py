@@ -18,7 +18,7 @@ class StickerTypeRepository:
             return None
         
         # Get temperature ranges
-        temp_range_rows = await queries.get_temp_ranges(conn, sticker_id=sticker_type_id)
+        temp_range_rows = [row async for row in queries.get_temp_ranges(conn, sticker_id=sticker_type_id)]
         temp_ranges = [StickerTempRange(**row) for row in temp_range_rows]
         
         return StickerType(**sticker_row, temp_ranges=temp_ranges)
@@ -42,12 +42,13 @@ class StickerTypeRepository:
     async def delete(self, conn, sticker_type_id: int) -> bool:
         """Logically delete sticker type (must be called within transaction)"""
         result = await queries.delete_sticker_type(conn, id=sticker_type_id)
-        return result > 0
+        # aiosql returns status string like "UPDATE 1" for affected rows
+        return result is not None and "0" not in result
     
     async def _sync_temp_ranges(self, conn, sticker_id: int, temp_ranges: list[StickerTempRange]):
         """Synchronize temperature ranges: match by ID, add new, delete removed"""
         # Get existing temp range IDs
-        existing_rows = await queries.get_temp_range_ids(conn, sticker_id=sticker_id)
+        existing_rows = [row async for row in queries.get_temp_range_ids(conn, sticker_id=sticker_id)]
         existing_ids = {row['id'] for row in existing_rows}
         
         incoming_ids = {tr.id for tr in temp_ranges}

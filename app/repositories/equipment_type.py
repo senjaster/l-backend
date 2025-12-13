@@ -18,10 +18,10 @@ class EquipmentTypeRepository:
             return None
         
         # Get control point templates
-        template_rows = await queries.get_control_point_templates(
-            conn, 
+        template_rows = [row async for row in queries.get_control_point_templates(
+            conn,
             equipment_type_id=equipment_type_id
-        )
+        )]
         templates = [ControlPointTemplate(**row) for row in template_rows]
         
         return EquipmentType(**equipment_type_row, control_point_templates=templates)
@@ -48,17 +48,18 @@ class EquipmentTypeRepository:
     async def delete(self, conn, equipment_type_id: int) -> bool:
         """Delete equipment type (must be called within transaction)"""
         result = await queries.delete_equipment_type(conn, id=equipment_type_id)
-        return result > 0
+        # aiosql returns status string like "DELETE 1" for affected rows
+        return result is not None and "0" not in result
     
     async def _sync_templates(
-        self, 
-        conn, 
-        equipment_type_id: int, 
+        self,
+        conn,
+        equipment_type_id: int,
         templates: list[ControlPointTemplate]
     ):
         """Synchronize control point templates: match by ID, add new, delete removed"""
         # Get existing template IDs
-        existing_rows = await queries.get_template_ids(conn, equipment_type_id=equipment_type_id)
+        existing_rows = [row async for row in queries.get_template_ids(conn, equipment_type_id=equipment_type_id)]
         existing_ids = {row['id'] for row in existing_rows}
         
         incoming_ids = {t.id for t in templates}
