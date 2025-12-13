@@ -5,7 +5,7 @@ INSERT INTO lesiv.image (
     original_file_name,
     image_type,
     metadata,
-    last_modified_at
+    server_modified_at
 ) VALUES (
     :id,
     :equipment_id,
@@ -19,4 +19,4 @@ ON CONFLICT (id) DO UPDATE SET
     original_file_name = EXCLUDED.original_file_name,
     image_type = EXCLUDED.image_type,
     metadata = EXCLUDED.metadata,
-    last_modified_at = CURRENT_TIMESTAMP;
+    server_modified_at = CURRENT_TIMESTAMP;

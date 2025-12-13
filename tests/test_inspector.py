@@ -18,7 +18,7 @@ def test_get_inspector(client: TestClient):
         assert "full_name" in data
         assert "username" in data
         assert "password_hash" in data
-        assert "last_modified_at" in data
+        assert "server_modified_at" in data
 
 
 def test_get_nonexistent_inspector(client: TestClient):

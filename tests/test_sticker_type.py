@@ -9,7 +9,7 @@ def test_create_sticker_type(client: TestClient):
         "id": 1,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -44,7 +44,7 @@ def test_get_sticker_type(client: TestClient):
         "id": 1,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -80,7 +80,7 @@ def test_update_sticker_type(client: TestClient):
         "id": 1,
         "name": "Original Name",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -98,7 +98,7 @@ def test_update_sticker_type(client: TestClient):
         "id": 1,
         "name": "Updated Name",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -125,7 +125,7 @@ def test_sync_temp_ranges_add_new(client: TestClient):
         "id": 1,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -143,7 +143,7 @@ def test_sync_temp_ranges_add_new(client: TestClient):
         "id": 1,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -175,7 +175,7 @@ def test_sync_temp_ranges_remove(client: TestClient):
         "id": 1,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -200,7 +200,7 @@ def test_sync_temp_ranges_remove(client: TestClient):
         "id": 1,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": [
             {
                 "id": 1,
@@ -226,7 +226,7 @@ def test_delete_sticker_type(client: TestClient):
         "id": 1,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": []
     }
     client.put("/sticker-type/1", json=sticker_type_data)
@@ -248,7 +248,7 @@ def test_id_mismatch(client: TestClient):
         "id": 2,
         "name": "Test Sticker",
         "is_deleted": False,
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "temp_ranges": []
     }
     

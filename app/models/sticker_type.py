@@ -18,5 +18,5 @@ class StickerType(BaseModel):
     id: int
     name: str
     is_deleted: bool = False
-    last_modified_at: datetime
+    server_modified_at: datetime
     temp_ranges: list[StickerTempRange] = Field(default_factory=list)

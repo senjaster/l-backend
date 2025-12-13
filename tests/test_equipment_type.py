@@ -8,7 +8,7 @@ def test_create_equipment_type(client: TestClient):
     equipment_type_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -46,7 +46,7 @@ def test_get_equipment_type(client: TestClient):
     equipment_type_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -83,7 +83,7 @@ def test_update_equipment_type(client: TestClient):
     equipment_type_data = {
         "id": 1,
         "name": "Original Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -102,7 +102,7 @@ def test_update_equipment_type(client: TestClient):
     updated_data = {
         "id": 1,
         "name": "Updated Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -130,7 +130,7 @@ def test_sync_templates_add_new(client: TestClient):
     equipment_type_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -149,7 +149,7 @@ def test_sync_templates_add_new(client: TestClient):
     updated_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -184,7 +184,7 @@ def test_sync_templates_remove(client: TestClient):
     equipment_type_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -212,7 +212,7 @@ def test_sync_templates_remove(client: TestClient):
     updated_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,
@@ -239,7 +239,7 @@ def test_delete_equipment_type(client: TestClient):
     equipment_type_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": []
     }
     client.put("/equipment-type/1", json=equipment_type_data)
@@ -258,7 +258,7 @@ def test_id_mismatch(client: TestClient):
     equipment_type_data = {
         "id": 2,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": []
     }
     
@@ -271,7 +271,7 @@ def test_template_with_sticker_reference(client: TestClient):
     equipment_type_data = {
         "id": 1,
         "name": "Test Motor",
-        "last_modified_at": "2024-01-01T00:00:00Z",
+        "server_modified_at": "2024-01-01T00:00:00Z",
         "control_point_templates": [
             {
                 "id": 1,

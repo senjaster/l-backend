@@ -15,7 +15,7 @@ def test_create_image(client: TestClient):
         "original_file_name": "test_image.jpg",
         "image_type": "VISUAL",
         "metadata": {"camera": "Canon EOS", "resolution": "1920x1080"},
-        "last_modified_at": "2024-01-01T00:00:00Z"
+        "server_modified_at": "2024-01-01T00:00:00Z"
     }
     
     response = client.put(f"/image/{image_id}", json=image_data)
@@ -41,7 +41,7 @@ def test_get_image(client: TestClient):
         "original_file_name": "test_image.jpg",
         "image_type": "THERMAL",
         "metadata": None,
-        "last_modified_at": "2024-01-01T00:00:00Z"
+        "server_modified_at": "2024-01-01T00:00:00Z"
     }
     client.put(f"/image/{image_id}", json=image_data)
     
@@ -73,7 +73,7 @@ def test_update_image(client: TestClient):
         "original_file_name": "original.jpg",
         "image_type": "VISUAL",
         "metadata": None,
-        "last_modified_at": "2024-01-01T00:00:00Z"
+        "server_modified_at": "2024-01-01T00:00:00Z"
     }
     client.put(f"/image/{image_id}", json=image_data)
     
@@ -84,7 +84,7 @@ def test_update_image(client: TestClient):
         "original_file_name": "updated.jpg",
         "image_type": "THERMAL",
         "metadata": {"updated": True},
-        "last_modified_at": "2024-01-02T00:00:00Z"
+        "server_modified_at": "2024-01-02T00:00:00Z"
     }
     response = client.put(f"/image/{image_id}", json=updated_data)
     assert response.status_code == 200
@@ -107,7 +107,7 @@ def test_delete_image(client: TestClient):
         "original_file_name": "test.jpg",
         "image_type": "VISUAL",
         "metadata": None,
-        "last_modified_at": "2024-01-01T00:00:00Z"
+        "server_modified_at": "2024-01-01T00:00:00Z"
     }
     client.put(f"/image/{image_id}", json=image_data)
     
@@ -132,7 +132,7 @@ def test_id_mismatch(client: TestClient):
         "original_file_name": "test.jpg",
         "image_type": "VISUAL",
         "metadata": None,
-        "last_modified_at": "2024-01-01T00:00:00Z"
+        "server_modified_at": "2024-01-01T00:00:00Z"
     }
     
     response = client.put(f"/image/{image_id_1}", json=image_data)
@@ -151,7 +151,7 @@ def test_image_types(client: TestClient):
             "original_file_name": f"test_{image_type.lower()}.jpg",
             "image_type": image_type,
             "metadata": None,
-            "last_modified_at": "2024-01-01T00:00:00Z"
+            "server_modified_at": "2024-01-01T00:00:00Z"
         }
         
         response = client.put(f"/image/{image_id}", json=image_data)

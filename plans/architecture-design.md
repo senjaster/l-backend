@@ -257,7 +257,7 @@ class Plant(BaseModel):
     locked_by_user_id: Optional[int] = None
     locked_at: Optional[datetime] = None
     is_deleted: bool = False
-    last_modified_at: datetime
+    server_modified_at: datetime
     facilities: list[Facility] = Field(default_factory=list)
 
 
@@ -319,7 +319,7 @@ class Equipment(BaseModel):
     equipment_type_id: Optional[int] = None
     estimated_point_count: Optional[int] = None
     is_deleted: bool = False
-    last_modified_at: datetime
+    server_modified_at: datetime
     control_points: list[EquipmentControlPoint] = Field(default_factory=list)
     defects: list[EquipmentDefect] = Field(default_factory=list)
     inspection_ids: list[UUID] = Field(default_factory=list)  # Navigation
@@ -381,7 +381,7 @@ class Inspection(BaseModel):
     completed_at: Optional[datetime] = None
     status: InspectionStatus = InspectionStatus.PLANNED
     is_deleted: bool = False
-    last_modified_at: datetime
+    server_modified_at: datetime
     steps: list[InspectionStep] = Field(default_factory=list)
 ```
 
@@ -542,7 +542,7 @@ SET
     locked_by_user_id = :locked_by_user_id,
     locked_at = :locked_at,
     is_deleted = :is_deleted,
-    last_modified_at = CURRENT_TIMESTAMP
+    server_modified_at = CURRENT_TIMESTAMP
 WHERE id = :id;
 ```
 

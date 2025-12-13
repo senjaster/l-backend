@@ -19,4 +19,4 @@ class Image(BaseModel):
     original_file_name: str
     image_type: ImageType
     metadata: Optional[dict] = None
-    last_modified_at: datetime
+    server_modified_at: datetime

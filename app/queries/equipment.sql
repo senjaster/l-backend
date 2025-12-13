@@ -1,7 +1,7 @@
 -- name: get_by_id^
 -- Get equipment by ID
 SELECT id, plant_id, parent_id, name, is_container, equipment_type_id, 
-       estimated_point_count, is_deleted, last_modified_at
+       estimated_point_count, is_deleted, server_modified_at
 FROM lesiv.equipment
 WHERE id = :id;
 
@@ -56,10 +56,10 @@ ORDER BY started_at DESC;
 -- Insert or update equipment
 INSERT INTO lesiv.equipment (id, plant_id, parent_id, name, is_container, 
                              equipment_type_id, estimated_point_count, 
-                             is_deleted, last_modified_at)
+                             is_deleted, server_modified_at)
 VALUES (:id, :plant_id, :parent_id, :name, :is_container, 
         :equipment_type_id, :estimated_point_count, 
-        :is_deleted, :last_modified_at)
+        :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     plant_id = EXCLUDED.plant_id,
     parent_id = EXCLUDED.parent_id,
@@ -68,7 +68,7 @@ ON CONFLICT (id) DO UPDATE SET
     equipment_type_id = EXCLUDED.equipment_type_id,
     estimated_point_count = EXCLUDED.estimated_point_count,
     is_deleted = EXCLUDED.is_deleted,
-    last_modified_at = EXCLUDED.last_modified_at;
+    server_modified_at = EXCLUDED.server_modified_at;
 
 -- name: upsert_control_point!
 -- Insert or update control point

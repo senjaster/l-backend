@@ -19,5 +19,5 @@ class EquipmentType(BaseModel):
     """EquipmentType aggregate with control point templates"""
     id: int
     name: str
-    last_modified_at: datetime
+    server_modified_at: datetime
     control_point_templates: list[ControlPointTemplate] = Field(default_factory=list)

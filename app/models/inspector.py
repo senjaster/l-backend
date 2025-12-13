@@ -9,4 +9,4 @@ class Inspector(BaseModel):
     full_name: str
     username: str
     password_hash: str
-    last_modified_at: datetime
+    server_modified_at: datetime
