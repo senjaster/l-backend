@@ -1,6 +1,19 @@
+-- name: get_all_equipment
+-- Get all equipment (lightweight list)
+SELECT id, plant_id, parent_id, name, is_container, equipment_type_id, is_deleted
+FROM lesiv.equipment
+ORDER BY name;
+
+-- name: get_by_plant_id
+-- Get all equipment for a plant
+SELECT id, plant_id, parent_id, name, is_container, equipment_type_id, is_deleted
+FROM lesiv.equipment
+WHERE plant_id = :plant_id
+ORDER BY name;
+
 -- name: get_by_id^
 -- Get equipment by ID
-SELECT id, plant_id, parent_id, name, is_container, equipment_type_id, 
+SELECT id, plant_id, parent_id, name, is_container, equipment_type_id,
        estimated_point_count, is_deleted, server_modified_at
 FROM lesiv.equipment
 WHERE id = :id;
@@ -71,15 +84,16 @@ ON CONFLICT (id) DO UPDATE SET
     server_modified_at = EXCLUDED.server_modified_at;
 
 -- name: upsert_control_point!
--- Insert or update control point
-INSERT INTO lesiv.equipment_control_point (id, equipment_id, control_point_type, 
+-- Insert or update control point (match by ID, not by equipment_id + control_point_type)
+INSERT INTO lesiv.equipment_control_point (id, equipment_id, control_point_type,
                                            point_count, sticker_count, sticker_type_id,
                                            t_max, t_excess, is_deleted)
-VALUES (:id, :equipment_id, :control_point_type, 
+VALUES (:id, :equipment_id, :control_point_type,
         :point_count, :sticker_count, :sticker_type_id,
         :t_max, :t_excess, :is_deleted)
-ON CONFLICT (equipment_id, control_point_type) DO UPDATE SET
-    id = EXCLUDED.id,
+ON CONFLICT (id) DO UPDATE SET
+    equipment_id = EXCLUDED.equipment_id,
+    control_point_type = EXCLUDED.control_point_type,
     point_count = EXCLUDED.point_count,
     sticker_count = EXCLUDED.sticker_count,
     sticker_type_id = EXCLUDED.sticker_type_id,
@@ -112,7 +126,7 @@ WHERE id = :id;
 -- Mark control point as deleted (logical deletion)
 UPDATE lesiv.equipment_control_point
 SET is_deleted = true
-WHERE equipment_id = :equipment_id AND control_point_type = :control_point_type;
+WHERE id = :id;
 
 -- name: mark_defect_deleted!
 -- Mark defect as deleted (logical deletion)

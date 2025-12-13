@@ -155,14 +155,14 @@ CREATE TABLE lesiv.equipment_control_point (
     t_max INTEGER NOT NULL,  -- Maximum temperature for this control point type, °C
     t_excess INTEGER NOT NULL,  -- Maximum temperature excess over ambient, °C
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (equipment_id, control_point_type),
+    PRIMARY KEY (id),
+    UNIQUE (equipment_id, control_point_type),
     CONSTRAINT fk_control_point_equipment
         FOREIGN KEY (equipment_id) REFERENCES lesiv.equipment(id),
     CONSTRAINT fk_control_point_sticker_type
         FOREIGN KEY (sticker_type_id) REFERENCES lesiv.sticker_type(id)
 );
 
-CREATE INDEX idx_equipment_control_point_id ON lesiv.equipment_control_point(id);
 CREATE INDEX idx_equipment_control_point_sticker_type ON lesiv.equipment_control_point(sticker_type_id);
 
 CREATE TABLE lesiv.equipment_defect (
