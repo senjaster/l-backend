@@ -5,11 +5,38 @@ FROM lesiv.equipment
 ORDER BY name;
 
 -- name: get_by_plant_id
--- Get all equipment for a plant
-SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
+-- Get all equipment for a plant (full data for aggregates)
+SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id,
+       estimated_point_count, is_deleted, server_modified_at
 FROM lesiv.equipment
 WHERE plant_id = :plant_id
 ORDER BY name;
+
+-- name: get_control_points_by_plant
+-- Get all control points for equipment in a plant
+SELECT cp.id, cp.equipment_id, cp.control_point_type, cp.point_count, cp.sticker_count,
+       cp.sticker_type_id, cp.t_max, cp.t_excess, cp.is_deleted
+FROM lesiv.equipment_control_point cp
+JOIN lesiv.equipment e ON cp.equipment_id = e.id
+WHERE e.plant_id = :plant_id
+ORDER BY cp.equipment_id, cp.control_point_type;
+
+-- name: get_defects_by_plant
+-- Get all defects for equipment in a plant
+SELECT d.id, d.equipment_id, d.unit_name, d.t_max, d.t_excess, d.detected_at,
+       d.resolved_at, d.status, d.is_deleted
+FROM lesiv.equipment_defect d
+JOIN lesiv.equipment e ON d.equipment_id = e.id
+WHERE e.plant_id = :plant_id
+ORDER BY d.equipment_id, d.detected_at DESC;
+
+-- name: get_inspections_by_plant
+-- Get all inspection IDs for equipment in a plant
+SELECT i.id, i.equipment_id
+FROM lesiv.inspection i
+JOIN lesiv.equipment e ON i.equipment_id = e.id
+WHERE e.plant_id = :plant_id AND i.is_deleted = false
+ORDER BY i.equipment_id, i.started_at DESC;
 
 -- name: get_by_id^
 -- Get equipment by ID

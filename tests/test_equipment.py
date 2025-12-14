@@ -870,7 +870,7 @@ def test_get_all_equipment_includes_deleted(client: TestClient, equipment_data):
 
 
 def test_get_equipment_by_plant_id(client: TestClient, equipment_data, plant_id):
-    """Test #9: GET /equipment/by_plant_id/{plant_id} returns equipment for specific plant"""
+    """Test #9: GET /equipment/by_plant_id/{plant_id} returns full equipment aggregates for specific plant"""
     # Create equipment for plant
     client.put(f"/equipment", json=equipment_data)
     
@@ -894,16 +894,22 @@ def test_get_equipment_by_plant_id(client: TestClient, equipment_data, plant_id)
     assert response.status_code == 200
     
     data = response.json()
-    assert "items" in data
-    assert len(data["items"]) >= 1
+    assert isinstance(data, list)
+    assert len(data) >= 1
     
     # Verify only equipment from first plant is returned
-    for equipment in data["items"]:
+    for equipment in data:
         assert equipment["plant_id"] == str(plant_id)
+        # Verify it's a full Equipment aggregate with control_points, defects, and inspection_ids
+        assert "control_points" in equipment
+        assert "defects" in equipment
+        assert "inspection_ids" in equipment
     
     # Verify our equipment is in the list
-    our_equipment = next((e for e in data["items"] if e["id"] == equipment_data["id"]), None)
+    our_equipment = next((e for e in data if e["id"] == equipment_data["id"]), None)
     assert our_equipment is not None
+    assert len(our_equipment["control_points"]) == 1
+    assert len(our_equipment["defects"]) == 1
 
 
 def test_concurrent_modification_with_control_points(client: TestClient, equipment_data, control_point_id_1):

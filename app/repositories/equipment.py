@@ -23,6 +23,67 @@ class ConcurrentModificationError(Exception):
 class EquipmentRepository:
     """Repository for Equipment aggregate with control point and defect synchronization and optimistic concurrency control"""
     
+    def _build_equipment_aggregates(
+        self,
+        equipment_rows: list,
+        control_point_rows: list,
+        defect_rows: list,
+        inspection_rows: list
+    ) -> list[Equipment]:
+        """
+        Build Equipment aggregates from separate row lists.
+        
+        Args:
+            equipment_rows: List of equipment rows
+            control_point_rows: List of control point rows (must have equipment_id)
+            defect_rows: List of defect rows (must have equipment_id)
+            inspection_rows: List of inspection rows (must have equipment_id)
+        
+        Returns:
+            List of Equipment instances
+        """
+        # Group control points by equipment_id
+        control_points_by_equipment = {}
+        for row in control_point_rows:
+            equipment_id = row['equipment_id']
+            if equipment_id not in control_points_by_equipment:
+                control_points_by_equipment[equipment_id] = []
+            control_points_by_equipment[equipment_id].append(
+                ControlPoint(**{k: v for k, v in row.items() if k != 'equipment_id'})
+            )
+        
+        # Group defects by equipment_id
+        defects_by_equipment = {}
+        for row in defect_rows:
+            equipment_id = row['equipment_id']
+            if equipment_id not in defects_by_equipment:
+                defects_by_equipment[equipment_id] = []
+            defects_by_equipment[equipment_id].append(
+                Defect(**{k: v for k, v in row.items() if k != 'equipment_id'})
+            )
+        
+        # Group inspection IDs by equipment_id
+        inspections_by_equipment = {}
+        for row in inspection_rows:
+            equipment_id = row['equipment_id']
+            if equipment_id not in inspections_by_equipment:
+                inspections_by_equipment[equipment_id] = []
+            inspections_by_equipment[equipment_id].append(row['id'])
+        
+        # Build Equipment instances
+        equipment_list = []
+        for equipment_row in equipment_rows:
+            equipment_id = equipment_row['id']
+            equipment = Equipment(
+                **equipment_row,
+                control_points=control_points_by_equipment.get(equipment_id, []),
+                defects=defects_by_equipment.get(equipment_id, []),
+                inspection_ids=inspections_by_equipment.get(equipment_id, [])
+            )
+            equipment_list.append(equipment)
+        
+        return equipment_list
+    
     async def get_by_id(self, conn, equipment_id: UUID) -> Optional[Equipment]:
         """Get equipment by ID with control points, defects, and inspection IDs"""
         # Get equipment
@@ -30,30 +91,24 @@ class EquipmentRepository:
         if not equipment_row:
             return None
         
-        # Get control points (exclude equipment_id from row data)
+        # Get control points
         control_point_rows = [row async for row in queries.get_control_points(conn, equipment_id=equipment_id)]
-        control_points = [
-            ControlPoint(**{k: v for k, v in row.items() if k != 'equipment_id'})
-            for row in control_point_rows
-        ]
         
-        # Get defects (exclude equipment_id from row data)
+        # Get defects
         defect_rows = [row async for row in queries.get_defects(conn, equipment_id=equipment_id)]
-        defects = [
-            Defect(**{k: v for k, v in row.items() if k != 'equipment_id'})
-            for row in defect_rows
-        ]
         
         # Get inspection IDs
         inspection_rows = [row async for row in queries.get_inspection_ids(conn, equipment_id=equipment_id)]
-        inspection_ids = [row['id'] for row in inspection_rows]
         
-        return Equipment(
-            **equipment_row,
-            control_points=control_points,
-            defects=defects,
-            inspection_ids=inspection_ids
+        # Build and return single equipment aggregate
+        equipment_list = self._build_equipment_aggregates(
+            [equipment_row],
+            control_point_rows,
+            defect_rows,
+            inspection_rows
         )
+        
+        return equipment_list[0] if equipment_list else None
     
     async def get_all(self, conn) -> EquipmentListResponse:
         """Get all equipment as lightweight list"""
@@ -61,11 +116,26 @@ class EquipmentRepository:
         equipment_list = [EquipmentListItem(**row) for row in equipment_rows]
         return EquipmentListResponse(items=equipment_list)
     
-    async def get_by_plant_id(self, conn, plant_id: UUID) -> EquipmentListResponse:
-        """Get all equipment for a plant"""
+    async def get_by_plant_id(self, conn, plant_id: UUID) -> list[Equipment]:
+        """Get all equipment for a plant (full aggregates) - uses batch queries for efficiency"""
+        # Fetch all data in parallel using batch queries
         equipment_rows = [row async for row in queries.get_by_plant_id(conn, plant_id=plant_id)]
-        equipment_list = [EquipmentListItem(**row) for row in equipment_rows]
-        return EquipmentListResponse(items=equipment_list)
+        
+        if not equipment_rows:
+            return []
+        
+        # Fetch all related data for the plant in batch
+        control_point_rows = [row async for row in queries.get_control_points_by_plant(conn, plant_id=plant_id)]
+        defect_rows = [row async for row in queries.get_defects_by_plant(conn, plant_id=plant_id)]
+        inspection_rows = [row async for row in queries.get_inspections_by_plant(conn, plant_id=plant_id)]
+        
+        # Build and return equipment aggregates
+        return self._build_equipment_aggregates(
+            equipment_rows,
+            control_point_rows,
+            defect_rows,
+            inspection_rows
+        )
     
     async def save(self, conn, equipment: Equipment, force: bool = False) -> Equipment:
         """

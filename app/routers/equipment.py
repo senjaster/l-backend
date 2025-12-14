@@ -24,9 +24,9 @@ async def get_equipment_by_id(equipment_id: UUID, conn=Depends(get_db_connection
     return equipment
 
 
-@router.get("/by_plant_id/{plant_id}", response_model=EquipmentListResponse)
+@router.get("/by_plant_id/{plant_id}", response_model=list[Equipment])
 async def get_equipment_by_plant_id(plant_id: UUID, conn=Depends(get_db_connection)):
-    """Get all equipment for a plant"""
+    """Get all equipment for a plant (full aggregates with control points, defects, and inspection IDs)"""
     return await equipment_repo.get_by_plant_id(conn, plant_id)
 
 
