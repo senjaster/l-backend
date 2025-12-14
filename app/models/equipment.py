@@ -4,6 +4,7 @@ from typing import Optional
 from uuid import UUID
 from enum import Enum
 from pydantic import BaseModel, Field
+from app.models import ConflictDetail, ConflictError
 
 
 class DefectStatus(str, Enum):
@@ -67,21 +68,3 @@ class EquipmentListResponse(BaseModel):
     """Wrapped response for equipment list with items key"""
     items: list[EquipmentListItem]
 
-
-# Conflict error models
-class ConflictDetail(BaseModel):
-    """Details about a specific conflict"""
-    field: str
-    message: str
-    server_value: Optional[str] = None
-    client_value: Optional[str] = None
-
-
-class ConflictError(BaseModel):
-    """Conflict error response (409)"""
-    error: str = "conflict"
-    message: str
-    server_modified_at: datetime
-    client_modified_at: Optional[datetime] = None
-    conflicts: list[ConflictDetail] = Field(default_factory=list)
-    extra_child_ids: list[UUID] = Field(default_factory=list)

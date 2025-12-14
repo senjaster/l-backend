@@ -5,8 +5,9 @@ from datetime import datetime, timezone
 import aiosql
 from app.models.equipment import (
     Equipment, ControlPoint, Defect,
-    EquipmentListItem, EquipmentListResponse, ConflictError, ConflictDetail
+    EquipmentListItem, EquipmentListResponse
 )
+from app.models import ConflictError, ConflictDetail
 
 # Load queries from single file
 queries = aiosql.from_path("app/queries/equipment.sql", "asyncpg")

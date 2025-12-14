@@ -1,7 +1,7 @@
 """Equipment router - implements new API design principles"""
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Query
-from app.models.equipment import Equipment, EquipmentListResponse, ConflictError
+from app.models.equipment import Equipment, EquipmentListResponse
 from app.repositories.equipment import EquipmentRepository, ConcurrentModificationError
 from app.database import get_db_connection
 

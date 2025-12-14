@@ -2,7 +2,7 @@
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
-from app.models.plant import Plant, PlantListResponse, ConflictError
+from app.models.plant import Plant, PlantListResponse
 from app.repositories.plant import PlantRepository, ConcurrentModificationError
 from app.database import get_db_connection
 

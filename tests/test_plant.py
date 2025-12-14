@@ -219,7 +219,7 @@ def test_concurrent_modification_detected(client: TestClient):
     assert response.status_code == 409
     
     error_data = response.json()["detail"]
-    assert error_data["error"] == "conflict"
+    assert error_data["type"] == "conflict"
     assert "modified by another client" in error_data["message"].lower()
     assert "server_modified_at" in error_data
 
@@ -274,7 +274,7 @@ def test_extra_facilities_rejected_without_force(client: TestClient):
     assert response.status_code == 409
     
     error_data = response.json()["detail"]
-    assert error_data["error"] == "conflict"
+    assert error_data["type"] == "conflict"
     assert "extra child facilities" in error_data["message"].lower()
     assert len(error_data["extra_child_ids"]) == 1
     assert str(facility_id_2) in error_data["extra_child_ids"]
