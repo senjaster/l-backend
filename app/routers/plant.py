@@ -2,7 +2,7 @@
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
-from app.models.plant import Plant, PlantWrite, PlantListResponse, ConflictError
+from app.models.plant import Plant, PlantListResponse, ConflictError
 from app.repositories.plant import PlantRepository, ConcurrentModificationError
 from app.database import get_db_connection
 
@@ -31,10 +31,9 @@ async def get_plant_by_id(plant_id: UUID, conn=Depends(get_db_connection)):
     return plant
 
 
-@router.put("/by_id/{plant_id}", response_model=Plant)
+@router.put("", response_model=Plant)
 async def upsert_plant(
-    plant_id: UUID,
-    plant: PlantWrite,
+    plant: Plant,
     force: bool = Query(default=False, description="If true, ignore server_modified_at and mark extra children as deleted"),
     conn=Depends(get_db_connection)
 ):
@@ -53,7 +52,7 @@ async def upsert_plant(
     """
     try:
         async with conn.transaction():
-            result = await plant_repo.save(conn, plant_id, plant, force=force)
+            result = await plant_repo.save(conn, plant, force=force)
         return result
     except ConcurrentModificationError as e:
         raise HTTPException(

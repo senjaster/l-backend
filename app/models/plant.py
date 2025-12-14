@@ -11,7 +11,7 @@ class Facility(BaseModel):
     id: UUID
     name: str
     is_deleted: bool = False
-    equipment_ids: list[UUID] = Field(default_factory=list)
+    equipment_ids: Optional[list[UUID]] = Field(default_factory=list)
 
 
 class Plant(BaseModel):
@@ -24,23 +24,6 @@ class Plant(BaseModel):
     is_deleted: bool = False
     server_modified_at: datetime
     facilities: list[Facility] = Field(default_factory=list)
-
-
-# Write models (used in PUT requests)
-class FacilityWrite(BaseModel):
-    """Energy facility write model - for creating/updating facilities"""
-    id: UUID
-    name: str
-
-
-class PlantWrite(BaseModel):
-    """Plant write model - for creating/updating plants"""
-    name: str
-    locked_by_device_id: Optional[UUID] = None
-    locked_by_user_id: Optional[int] = None
-    locked_at: Optional[datetime] = None
-    server_modified_at: Optional[datetime] = None  # Required for updates, ignored for new instances
-    facilities: list[FacilityWrite] = Field(default_factory=list)
 
 
 # List models

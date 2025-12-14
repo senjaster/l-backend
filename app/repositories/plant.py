@@ -4,7 +4,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 import aiosql
 from app.models.plant import (
-    Plant, Facility, PlantWrite, FacilityWrite,
+    Plant, Facility,
     PlantListItem, PlantListResponse, ConflictError, ConflictDetail
 )
 
@@ -55,7 +55,7 @@ class PlantRepository:
         plants = [PlantListItem(**row) for row in plant_rows]
         return PlantListResponse(items=plants)
     
-    async def save(self, conn, plant_id: UUID, plant: PlantWrite, force: bool = False) -> Plant:
+    async def save(self, conn, plant: Plant, force: bool = False) -> Plant:
         """
         Save plant with facility synchronization and optimistic concurrency control.
         Must be called within transaction.
@@ -69,11 +69,9 @@ class PlantRepository:
         Raises:
             ConcurrentModificationError: If concurrent modification detected (force=False)
         """
+        plant_id = plant.id
         # Get current state if exists
         current = await self.get_by_id(conn, plant_id)
-        
-        # Determine is_deleted value (PlantWrite doesn't have it, so default to False)
-        is_deleted = False
         
         # New server_modified_at timestamp
         new_server_modified_at = datetime.now(timezone.utc)
@@ -140,7 +138,7 @@ class PlantRepository:
             locked_by_device_id=plant.locked_by_device_id,
             locked_by_user_id=plant.locked_by_user_id,
             locked_at=plant.locked_at,
-            is_deleted=is_deleted,
+            is_deleted=plant.is_deleted,
             server_modified_at=new_server_modified_at
         )
         
@@ -174,7 +172,7 @@ class PlantRepository:
         result = await queries.unlock_plant(conn, id=plant_id)
         return result is not None and "0" not in result
     
-    async def _sync_facilities(self, conn, plant_id: UUID, facilities: list[FacilityWrite], force: bool):
+    async def _sync_facilities(self, conn, plant_id: UUID, facilities: list[Facility], force: bool):
         """
         Synchronize facilities: match by ID, add new, mark removed as deleted.
         
@@ -202,14 +200,14 @@ class PlantRepository:
                         f"({existing_plant_row['plant_id']}). Child entities cannot be stolen."
                     )
         
-        # Update or insert (is_deleted is always False for incoming facilities)
+        # Update or insert facilities with their is_deleted values
         for facility in facilities:
             await queries.upsert_facility(
                 conn,
                 id=facility.id,
                 plant_id=plant_id,
                 name=facility.name,
-                is_deleted=False
+                is_deleted=facility.is_deleted
             )
         
         # Mark removed facilities as deleted (logical deletion)

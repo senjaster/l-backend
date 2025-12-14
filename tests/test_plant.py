@@ -11,11 +11,13 @@ def test_create_plant(client: TestClient):
     facility_id_2 = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Power Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,  # Ignored for new plants
+        "server_modified_at": "2024-01-01T00:00:00Z",  # Will be ignored for new plants
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id_1),
@@ -28,7 +30,7 @@ def test_create_plant(client: TestClient):
         ]
     }
     
-    response = client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    response = client.put("/plant", json=plant_data)
     assert response.status_code == 200
     
     data = response.json()
@@ -45,11 +47,13 @@ def test_get_plant(client: TestClient):
     facility_id = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -57,7 +61,7 @@ def test_get_plant(client: TestClient):
             }
         ]
     }
-    client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    client.put("/plant", json=plant_data)
     
     # Then get
     response = client.get(f"/plant/by_id/{plant_id}")
@@ -83,25 +87,29 @@ def test_get_all_plants(client: TestClient):
     plant_id_2 = uuid4()
     
     plant_data_1 = {
+        "id": str(plant_id_1),
         "name": "Plant One",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": []
     }
     
     plant_data_2 = {
+        "id": str(plant_id_2),
         "name": "Plant Two",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": []
     }
     
-    client.put(f"/plant/by_id/{plant_id_1}", json=plant_data_1)
-    client.put(f"/plant/by_id/{plant_id_2}", json=plant_data_2)
+    client.put("/plant", json=plant_data_1)
+    client.put("/plant", json=plant_data_2)
     
     # Get all plants
     response = client.get("/plant/all")
@@ -124,11 +132,13 @@ def test_update_plant_with_correct_timestamp(client: TestClient):
     facility_id = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Original Name",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -136,17 +146,19 @@ def test_update_plant_with_correct_timestamp(client: TestClient):
             }
         ]
     }
-    create_response = client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    create_response = client.put("/plant", json=plant_data)
     assert create_response.status_code == 200
     server_modified_at = create_response.json()["server_modified_at"]
     
     # Update with correct timestamp
     updated_data = {
+        "id": str(plant_id),
         "name": "Updated Name",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
         "server_modified_at": server_modified_at,
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -154,7 +166,7 @@ def test_update_plant_with_correct_timestamp(client: TestClient):
             }
         ]
     }
-    response = client.put(f"/plant/by_id/{plant_id}", json=updated_data)
+    response = client.put("/plant", json=updated_data)
     assert response.status_code == 200
     
     data = response.json()
@@ -170,11 +182,13 @@ def test_concurrent_modification_detected(client: TestClient):
     facility_id = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -182,16 +196,18 @@ def test_concurrent_modification_detected(client: TestClient):
             }
         ]
     }
-    create_response = client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    create_response = client.put("/plant", json=plant_data)
     assert create_response.status_code == 200
     
     # Try to update with wrong timestamp
     wrong_data = {
+        "id": str(plant_id),
         "name": "Updated Name",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
         "server_modified_at": "2020-01-01T00:00:00Z",  # Wrong timestamp
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -199,7 +215,7 @@ def test_concurrent_modification_detected(client: TestClient):
             }
         ]
     }
-    response = client.put(f"/plant/by_id/{plant_id}", json=wrong_data)
+    response = client.put("/plant", json=wrong_data)
     assert response.status_code == 409
     
     error_data = response.json()["detail"]
@@ -216,11 +232,13 @@ def test_extra_facilities_rejected_without_force(client: TestClient):
     facility_id_2 = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id_1),
@@ -232,17 +250,19 @@ def test_extra_facilities_rejected_without_force(client: TestClient):
             }
         ]
     }
-    create_response = client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    create_response = client.put("/plant", json=plant_data)
     assert create_response.status_code == 200
     server_modified_at = create_response.json()["server_modified_at"]
     
     # Try to update with only one facility (force=false)
     updated_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
         "server_modified_at": server_modified_at,
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id_1),
@@ -250,7 +270,7 @@ def test_extra_facilities_rejected_without_force(client: TestClient):
             }
         ]
     }
-    response = client.put(f"/plant/by_id/{plant_id}?force=false", json=updated_data)
+    response = client.put("/plant?force=false", json=updated_data)
     assert response.status_code == 409
     
     error_data = response.json()["detail"]
@@ -268,11 +288,13 @@ def test_extra_facilities_deleted_with_force(client: TestClient):
     facility_id_2 = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id_1),
@@ -284,15 +306,17 @@ def test_extra_facilities_deleted_with_force(client: TestClient):
             }
         ]
     }
-    client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    client.put("/plant", json=plant_data)
     
     # Update with only one facility (force=true)
     updated_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,  # Ignored when force=true
+        "server_modified_at": "2024-01-01T00:00:00Z",  # Ignored when force=true
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id_1),
@@ -300,7 +324,7 @@ def test_extra_facilities_deleted_with_force(client: TestClient):
             }
         ]
     }
-    response = client.put(f"/plant/by_id/{plant_id}?force=true", json=updated_data)
+    response = client.put("/plant?force=true", json=updated_data)
     assert response.status_code == 200
     
     data = response.json()
@@ -318,17 +342,19 @@ def test_extra_facilities_deleted_with_force(client: TestClient):
 
 
 def test_missing_timestamp_for_update(client: TestClient):
-    """Test that missing server_modified_at is rejected for existing plants"""
+    """Test that outdated server_modified_at is rejected for existing plants"""
     # Create plant
     plant_id = uuid4()
     facility_id = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -336,15 +362,18 @@ def test_missing_timestamp_for_update(client: TestClient):
             }
         ]
     }
-    client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    create_response = client.put("/plant", json=plant_data)
+    assert create_response.status_code == 200
     
-    # Try to update without server_modified_at
+    # Try to update with old/wrong timestamp (simulating outdated timestamp)
     updated_data = {
+        "id": str(plant_id),
         "name": "Updated Name",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,  # Missing timestamp
+        "server_modified_at": "2020-01-01T00:00:00Z",  # Old timestamp
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -352,11 +381,11 @@ def test_missing_timestamp_for_update(client: TestClient):
             }
         ]
     }
-    response = client.put(f"/plant/by_id/{plant_id}?force=false", json=updated_data)
+    response = client.put("/plant?force=false", json=updated_data)
     assert response.status_code == 409
     
     error_data = response.json()["detail"]
-    assert "server_modified_at is required" in error_data["message"].lower()
+    assert "modified by another client" in error_data["message"].lower()
 
 
 def test_lock_plant(client: TestClient):
@@ -364,14 +393,16 @@ def test_lock_plant(client: TestClient):
     # Create plant
     plant_id = uuid4()
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": []
     }
-    client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    client.put("/plant", json=plant_data)
     
     # Lock plant
     device_id = uuid4()
@@ -398,14 +429,16 @@ def test_unlock_plant(client: TestClient):
     device_id = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": str(device_id),
         "locked_by_user_id": 1,
         "locked_at": "2024-01-01T00:00:00Z",
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": []
     }
-    client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    client.put("/plant", json=plant_data)
     
     # Unlock plant
     response = client.post(f"/plant/by_id/{plant_id}/unlock")
@@ -427,11 +460,13 @@ def test_facility_transfer_not_allowed(client: TestClient):
     facility_id = uuid4()
     
     plant_data_1 = {
+        "id": str(plant_id_1),
         "name": "Plant One",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -439,16 +474,18 @@ def test_facility_transfer_not_allowed(client: TestClient):
             }
         ]
     }
-    client.put(f"/plant/by_id/{plant_id_1}", json=plant_data_1)
+    client.put("/plant", json=plant_data_1)
     
     # Try to create second plant and "steal" the facility
     plant_id_2 = uuid4()
     plant_data_2 = {
+        "id": str(plant_id_2),
         "name": "Plant Two",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),  # Same facility ID from plant 1
@@ -458,7 +495,7 @@ def test_facility_transfer_not_allowed(client: TestClient):
     }
     
     # This should fail with 400 error (stealing never allowed, even with force=true)
-    response = client.put(f"/plant/by_id/{plant_id_2}", json=plant_data_2)
+    response = client.put("/plant", json=plant_data_2)
     assert response.status_code == 400
     assert "cannot transfer" in response.json()["detail"].lower()
 
@@ -470,11 +507,13 @@ def test_force_mode_ignores_timestamp(client: TestClient):
     facility_id = uuid4()
     
     plant_data = {
+        "id": str(plant_id),
         "name": "Test Plant",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
-        "server_modified_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -482,15 +521,17 @@ def test_force_mode_ignores_timestamp(client: TestClient):
             }
         ]
     }
-    client.put(f"/plant/by_id/{plant_id}", json=plant_data)
+    client.put("/plant", json=plant_data)
     
     # Update with wrong timestamp but force=true
     updated_data = {
+        "id": str(plant_id),
         "name": "Updated Name",
         "locked_by_device_id": None,
         "locked_by_user_id": None,
         "locked_at": None,
         "server_modified_at": "2020-01-01T00:00:00Z",  # Wrong timestamp
+        "is_deleted": False,
         "facilities": [
             {
                 "id": str(facility_id),
@@ -498,8 +539,93 @@ def test_force_mode_ignores_timestamp(client: TestClient):
             }
         ]
     }
-    response = client.put(f"/plant/by_id/{plant_id}?force=true", json=updated_data)
+    response = client.put("/plant?force=true", json=updated_data)
     assert response.status_code == 200  # Should succeed with force=true
     
     data = response.json()
     assert data["name"] == "Updated Name"
+
+
+def test_is_deleted_honored_for_plant(client: TestClient):
+    """Test that is_deleted value is honored for plants"""
+    # Create plant with is_deleted=True
+    plant_id = uuid4()
+    
+    plant_data = {
+        "id": str(plant_id),
+        "name": "Deleted Plant",
+        "locked_by_device_id": None,
+        "locked_by_user_id": None,
+        "locked_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": True,  # Explicitly set as deleted
+        "facilities": []
+    }
+    
+    response = client.put("/plant", json=plant_data)
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["is_deleted"] is True
+    
+    # Verify by retrieving
+    get_response = client.get(f"/plant/by_id/{plant_id}")
+    assert get_response.status_code == 200
+    assert get_response.json()["is_deleted"] is True
+
+
+def test_is_deleted_honored_for_facility(client: TestClient):
+    """Test that is_deleted value is honored for facilities"""
+    # Create plant with one deleted and one active facility
+    plant_id = uuid4()
+    facility_id_1 = uuid4()
+    facility_id_2 = uuid4()
+    
+    plant_data = {
+        "id": str(plant_id),
+        "name": "Test Plant",
+        "locked_by_device_id": None,
+        "locked_by_user_id": None,
+        "locked_at": None,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
+        "facilities": [
+            {
+                "id": str(facility_id_1),
+                "name": "Active Facility",
+                "is_deleted": False
+            },
+            {
+                "id": str(facility_id_2),
+                "name": "Deleted Facility",
+                "is_deleted": True  # Explicitly set as deleted
+            }
+        ]
+    }
+    
+    response = client.put("/plant", json=plant_data)
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert len(data["facilities"]) == 2
+    
+    # Find facilities by ID
+    facility_1 = next((f for f in data["facilities"] if f["id"] == str(facility_id_1)), None)
+    facility_2 = next((f for f in data["facilities"] if f["id"] == str(facility_id_2)), None)
+    
+    assert facility_1 is not None
+    assert facility_1["is_deleted"] is False
+    
+    assert facility_2 is not None
+    assert facility_2["is_deleted"] is True
+    
+    # Verify by retrieving
+    get_response = client.get(f"/plant/by_id/{plant_id}")
+    assert get_response.status_code == 200
+    
+    retrieved_data = get_response.json()
+    facility_1_retrieved = next((f for f in retrieved_data["facilities"] if f["id"] == str(facility_id_1)), None)
+    facility_2_retrieved = next((f for f in retrieved_data["facilities"] if f["id"] == str(facility_id_2)), None)
+    
+    assert facility_1_retrieved["is_deleted"] is False
+    assert facility_2_retrieved["is_deleted"] is True
