@@ -9,6 +9,7 @@ PUT_BODY_TEMPLATE = {
         "is_container": False,
         "equipment_type_id": None,
         "estimated_point_count": 50,
+        "qr_code": None,
         "server_modified_at": "2024-01-01T10:00:00Z",
         "control_points": [
             {
@@ -339,6 +340,7 @@ def test_defect_transfer_not_allowed(client: TestClient, equipment_data, equipme
         "plant_id": str(plant_id), 
         "facility_id": str(facility_id),
         "name": "Test Motor 2",
+        "qr_code": None,
         "is_container": False,
         "equipment_type_id": None,
         "estimated_point_count": 50,
@@ -364,6 +366,7 @@ def test_control_point_transfer_not_allowed(client: TestClient, equipment_data, 
         "plant_id": str(plant_id),
         "parent_id": str(facility_id),
         "name": "Test Motor 2",
+        "qr_code": None,
         "is_container": False,
         "equipment_type_id": None,
         "estimated_point_count": 50,

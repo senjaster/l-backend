@@ -1,19 +1,19 @@
 -- name: get_all_equipment
 -- Get all equipment (lightweight list)
-SELECT id, plant_id, parent_id, name, is_container, equipment_type_id, is_deleted
+SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
 FROM lesiv.equipment
 ORDER BY name;
 
 -- name: get_by_plant_id
 -- Get all equipment for a plant
-SELECT id, plant_id, parent_id, name, is_container, equipment_type_id, is_deleted
+SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
 FROM lesiv.equipment
 WHERE plant_id = :plant_id
 ORDER BY name;
 
 -- name: get_by_id^
 -- Get equipment by ID
-SELECT id, plant_id, parent_id, name, is_container, equipment_type_id,
+SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id,
        estimated_point_count, is_deleted, server_modified_at
 FROM lesiv.equipment
 WHERE id = :id;
@@ -67,16 +67,17 @@ ORDER BY started_at DESC;
 
 -- name: upsert_equipment!
 -- Insert or update equipment
-INSERT INTO lesiv.equipment (id, plant_id, parent_id, name, is_container, 
+INSERT INTO lesiv.equipment (id, plant_id, parent_id, name, qr_code, is_container, 
                              equipment_type_id, estimated_point_count, 
                              is_deleted, server_modified_at)
-VALUES (:id, :plant_id, :parent_id, :name, :is_container, 
+VALUES (:id, :plant_id, :parent_id, :name, :qr_code, :is_container, 
         :equipment_type_id, :estimated_point_count, 
         :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     plant_id = EXCLUDED.plant_id,
     parent_id = EXCLUDED.parent_id,
     name = EXCLUDED.name,
+    qr_code = EXCLUDED.qr_code,
     is_container = EXCLUDED.is_container,
     equipment_type_id = EXCLUDED.equipment_type_id,
     estimated_point_count = EXCLUDED.estimated_point_count,

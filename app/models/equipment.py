@@ -43,6 +43,7 @@ class Equipment(BaseModel):
     plant_id: UUID
     parent_id: Optional[UUID] = None
     name: str
+    qr_code: Optional[str]
     is_container: bool = False
     equipment_type_id: Optional[int] = None
     estimated_point_count: Optional[int] = None

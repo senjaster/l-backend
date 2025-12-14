@@ -168,6 +168,7 @@ class EquipmentRepository:
             plant_id=equipment.plant_id,
             parent_id=equipment.parent_id,
             name=equipment.name,
+            qr_code=equipment.qr_code,
             is_container=equipment.is_container,
             equipment_type_id=equipment.equipment_type_id,
             estimated_point_count=equipment.estimated_point_count,

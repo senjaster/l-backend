@@ -132,6 +132,7 @@ CREATE TABLE lesiv.equipment (
     plant_id UUID NOT NULL,  -- Reference to plant (no FK between aggregates)
     parent_id UUID,  -- Reference to facility OR equipment (polymorphic, no FK)
     name TEXT NOT NULL,
+    qr_code TEXT,
     is_container BOOLEAN NOT NULL DEFAULT FALSE,  -- true = may have child equipment, but no control_points and defects
     equipment_type_id INTEGER,
     estimated_point_count INTEGER,
