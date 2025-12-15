@@ -30,6 +30,9 @@ env/
 .env
 .env.local
 
+# RSA keys (keep private key secure!)
+*.pem
+
 # IDE
 .vscode/
 .idea/

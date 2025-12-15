@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import asyncpg
 from app.database import init_db_pool, close_db_pool
 from app.exceptions import asyncpg_exception_handler
+from app.middleware.auth import AuthMiddleware
 
 
 @asynccontextmanager
@@ -26,6 +27,9 @@ app = FastAPI(
 # Register exception handlers
 app.add_exception_handler(asyncpg.PostgresError, asyncpg_exception_handler)
 
+# Register authentication middleware (applies to all routes except /auth)
+app.add_middleware(AuthMiddleware)
+
 
 @app.get("/")
 async def root():
@@ -34,8 +38,9 @@ async def root():
 
 
 # Include routers
-from app.routers import inspector, image, log, sticker_type, equipment_type, plant, equipment
+from app.routers import auth, inspector, image, log, sticker_type, equipment_type, plant, equipment
 
+app.include_router(auth.router)
 app.include_router(inspector.router)
 app.include_router(image.router)
 app.include_router(log.router)

@@ -18,6 +18,28 @@ CREATE TABLE lesiv.inspector (
 
 CREATE INDEX idx_inspector_username ON lesiv.inspector(username);
 
+-- Refresh tokens table for authentication
+CREATE TABLE lesiv.tokens (
+    id UUID PRIMARY KEY,
+    inspector_id INTEGER NOT NULL,
+    device_id UUID NOT NULL,
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked BOOLEAN NOT NULL DEFAULT FALSE,
+    replaced_by_id UUID,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_tokens_inspector
+        FOREIGN KEY (inspector_id) REFERENCES lesiv.inspector(id),
+    CONSTRAINT fk_tokens_replaced_by
+        FOREIGN KEY (replaced_by_id) REFERENCES lesiv.tokens(id)
+);
+
+CREATE INDEX idx_tokens_inspector ON lesiv.tokens(inspector_id);
+CREATE INDEX idx_tokens_device ON lesiv.tokens(device_id);
+CREATE INDEX idx_tokens_hash ON lesiv.tokens(token_hash);
+CREATE UNIQUE INDEX idx_tokens_hash_unique ON lesiv.tokens(token_hash) WHERE NOT revoked;
+
 -- ============================================================================
 -- StickerType Aggregate
 -- ============================================================================

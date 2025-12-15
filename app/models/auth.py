@@ -1,0 +1,53 @@
+"""Authentication models"""
+from datetime import datetime
+from uuid import UUID
+from pydantic import BaseModel, Field
+
+
+class Token(BaseModel):
+    """Refresh token stored in database"""
+    id: UUID
+    inspector_id: int
+    device_id: UUID
+    token_hash: str
+    expires_at: datetime
+    revoked: bool
+    replaced_by_id: UUID | None
+    used_at: datetime | None
+    created_at: datetime
+
+
+class LoginRequest(BaseModel):
+    """Login request payload"""
+    username: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=1)
+    device_id: UUID
+
+
+class LoginResponse(BaseModel):
+    """Login response with tokens"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    """Refresh token request payload"""
+    refresh_token: str = Field(..., min_length=1)
+
+
+class RefreshResponse(BaseModel):
+    """Refresh token response"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class TokenPayload(BaseModel):
+    """JWT token payload"""
+    sub: int   # inspector_id
+    dev: UUID  # device id
+    exp: int   # expiration time
+    iat: int   # issued at time
+    iss: str   # issuer
+    aud: str   # audience

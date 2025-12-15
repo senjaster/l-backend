@@ -6,6 +6,9 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
 
+# Disable authentication for all tests
+settings.require_auth = False
+
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def seed_test_inspector():
