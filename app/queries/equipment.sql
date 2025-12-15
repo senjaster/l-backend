@@ -1,16 +1,17 @@
 -- name: get_all_equipment
 -- Get all equipment (lightweight list)
-SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
+SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
 FROM lesiv.equipment
 ORDER BY name;
 
 -- name: get_by_plant_id
--- Get all equipment for a plant (full data for aggregates)
-SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id,
-       estimated_point_count, is_deleted, server_modified_at
-FROM lesiv.equipment
-WHERE plant_id = :plant_id
-ORDER BY name;
+-- Get all equipment for a plant (full data for aggregates) - joins through facility
+SELECT e.id, e.facility_id, e.parent_id, e.name, e.qr_code, e.is_container, e.equipment_type_id,
+       e.estimated_point_count, e.is_deleted, e.server_modified_at
+FROM lesiv.equipment e
+JOIN lesiv.facility f ON e.facility_id = f.id
+WHERE f.plant_id = :plant_id
+ORDER BY e.name;
 
 -- name: get_control_points_by_plant
 -- Get all control points for equipment in a plant
@@ -18,7 +19,8 @@ SELECT cp.id, cp.equipment_id, cp.control_point_type, cp.point_count, cp.sticker
        cp.sticker_type_id, cp.t_max, cp.t_excess, cp.is_deleted
 FROM lesiv.equipment_control_point cp
 JOIN lesiv.equipment e ON cp.equipment_id = e.id
-WHERE e.plant_id = :plant_id
+JOIN lesiv.facility f ON e.facility_id = f.id
+WHERE f.plant_id = :plant_id
 ORDER BY cp.equipment_id, cp.control_point_type;
 
 -- name: get_defects_by_plant
@@ -27,7 +29,8 @@ SELECT d.id, d.equipment_id, d.unit_name, d.t_max, d.t_excess, d.detected_at,
        d.resolved_at, d.status, d.is_deleted
 FROM lesiv.equipment_defect d
 JOIN lesiv.equipment e ON d.equipment_id = e.id
-WHERE e.plant_id = :plant_id
+JOIN lesiv.facility f ON e.facility_id = f.id
+WHERE f.plant_id = :plant_id
 ORDER BY d.equipment_id, d.detected_at DESC;
 
 -- name: get_inspections_by_plant
@@ -35,12 +38,13 @@ ORDER BY d.equipment_id, d.detected_at DESC;
 SELECT i.id, i.equipment_id
 FROM lesiv.inspection i
 JOIN lesiv.equipment e ON i.equipment_id = e.id
-WHERE e.plant_id = :plant_id AND i.is_deleted = false
+JOIN lesiv.facility f ON e.facility_id = f.id
+WHERE f.plant_id = :plant_id AND i.is_deleted = false
 ORDER BY i.equipment_id, i.started_at DESC;
 
 -- name: get_by_id^
 -- Get equipment by ID
-SELECT id, plant_id, parent_id, name, qr_code, is_container, equipment_type_id,
+SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id,
        estimated_point_count, is_deleted, server_modified_at
 FROM lesiv.equipment
 WHERE id = :id;
@@ -94,14 +98,14 @@ ORDER BY started_at DESC;
 
 -- name: upsert_equipment!
 -- Insert or update equipment
-INSERT INTO lesiv.equipment (id, plant_id, parent_id, name, qr_code, is_container, 
-                             equipment_type_id, estimated_point_count, 
+INSERT INTO lesiv.equipment (id, facility_id, parent_id, name, qr_code, is_container,
+                             equipment_type_id, estimated_point_count,
                              is_deleted, server_modified_at)
-VALUES (:id, :plant_id, :parent_id, :name, :qr_code, :is_container, 
-        :equipment_type_id, :estimated_point_count, 
+VALUES (:id, :facility_id, :parent_id, :name, :qr_code, :is_container,
+        :equipment_type_id, :estimated_point_count,
         :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
-    plant_id = EXCLUDED.plant_id,
+    facility_id = EXCLUDED.facility_id,
     parent_id = EXCLUDED.parent_id,
     name = EXCLUDED.name,
     qr_code = EXCLUDED.qr_code,

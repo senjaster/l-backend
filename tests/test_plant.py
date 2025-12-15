@@ -369,7 +369,7 @@ def test_child_aggregate_ids_in_get_response(client: TestClient, plant_data, pla
     
     equipment_data_1 = {
         "id": str(equipment_id_1),
-        "plant_id": str(plant_id),
+        "facility_id": str(facility_id_1),
         "parent_id": str(facility_id_1),
         "name": "Motor 1",
         "is_container": False,
@@ -383,7 +383,7 @@ def test_child_aggregate_ids_in_get_response(client: TestClient, plant_data, pla
     
     equipment_data_2 = {
         "id": str(equipment_id_2),
-        "plant_id": str(plant_id),
+        "facility_id": str(facility_id_1),
         "parent_id": str(facility_id_1),
         "name": "Motor 2",
         "is_container": False,

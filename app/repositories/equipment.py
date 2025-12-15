@@ -235,7 +235,7 @@ class EquipmentRepository:
         await queries.upsert_equipment(
             conn,
             id=equipment_id,
-            plant_id=equipment.plant_id,
+            facility_id=equipment.facility_id,
             parent_id=equipment.parent_id,
             name=equipment.name,
             qr_code=equipment.qr_code,

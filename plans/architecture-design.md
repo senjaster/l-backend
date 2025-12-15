@@ -364,7 +364,7 @@ class InspectionStep(BaseModel):
     is_resolved: Optional[bool] = None
     sticker_type_id: Optional[int] = None
     sticker_temp_range_id: Optional[int] = None
-    max_temp: Optional[float] = None
+    t_observed: Optional[float] = None
     measured_current: Optional[int] = None
     nominal_current: Optional[int] = None
     severity: Optional[DefectSeverity] = None

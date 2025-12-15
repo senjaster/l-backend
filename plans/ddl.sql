@@ -129,7 +129,7 @@ CREATE TYPE lesiv.defect_status AS ENUM ('DETECTED', 'RESOLVED');
 
 CREATE TABLE lesiv.equipment (
     id UUID PRIMARY KEY,
-    plant_id UUID NOT NULL,  -- Reference to plant (no FK between aggregates)
+    facility_id UUID NOT NULL,  -- Reference to facility (no FK between aggregates)
     parent_id UUID,  -- Reference to facility OR equipment (polymorphic, no FK)
     name TEXT NOT NULL,
     qr_code TEXT,
@@ -142,7 +142,7 @@ CREATE TABLE lesiv.equipment (
         FOREIGN KEY (equipment_type_id) REFERENCES lesiv.equipment_type(id)
 );
 
-CREATE INDEX idx_equipment_plant ON lesiv.equipment(plant_id);
+CREATE INDEX idx_equipment_plant ON lesiv.equipment(facility_id);
 CREATE INDEX idx_equipment_parent ON lesiv.equipment(parent_id);
 CREATE INDEX idx_equipment_type ON lesiv.equipment(equipment_type_id);
 
@@ -221,7 +221,7 @@ CREATE TABLE lesiv.inspection_step (
     is_resolved BOOLEAN,  -- for DEFECT_FOLLOW_UP
     sticker_type_id INTEGER,
     sticker_temp_range_id INTEGER,
-    max_temp DECIMAL(5,1),
+    t_observed DECIMAL(5,1),
     measured_current INTEGER,
     nominal_current INTEGER,
     severity lesiv.defect_severity,

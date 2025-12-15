@@ -60,10 +60,10 @@ def defect_id_1():
     return uuid4()
 
 @pytest.fixture
-def equipment_data(equipment_id, plant_id, facility_id, control_point_id_1, defect_id_1):
+def equipment_data(equipment_id, plant_id, facility_id, control_point_id_1, defect_id_1, seed_test_plant_and_facility):
     data = deepcopy(PUT_BODY_TEMPLATE)
     data["id"] = str(equipment_id)
-    data["plant_id"] = str(plant_id)
+    data["facility_id"] = str(facility_id)
     data["parent_id"] = str(facility_id)
     data["control_points"][0]["id"] = str(control_point_id_1)
     data["defects"][0]["id"] = str(defect_id_1)
@@ -78,7 +78,7 @@ def test_create_equipment(client: TestClient, equipment_data, equipment_id, plan
     data = response.json()
     assert data["id"] == str(equipment_id)
     assert data["name"] == "Test Motor"
-    assert data["plant_id"] == str(plant_id)
+    assert data["facility_id"] == str(facility_id)
     assert data["parent_id"] == str(facility_id)
     assert len(data["control_points"]) == 1
     assert len(data["defects"]) == 1
@@ -337,8 +337,8 @@ def test_defect_transfer_not_allowed(client: TestClient, equipment_data, equipme
 
     equipment_data2 = {
         "id": str(equipment_id2),
-        "plant_id": str(plant_id), 
         "facility_id": str(facility_id),
+        "parent_id": str(facility_id),
         "name": "Test Motor 2",
         "qr_code": None,
         "is_container": False,
@@ -346,7 +346,7 @@ def test_defect_transfer_not_allowed(client: TestClient, equipment_data, equipme
         "estimated_point_count": 50,
         "server_modified_at": "2024-01-01T10:00:00Z",
         "control_points": [],
-        "defects": equipment_data['defects']  # Transfer 
+        "defects": equipment_data['defects']  # Transfer
     }
 
     response = client.put(f"/equipment", json=equipment_data2)
@@ -363,7 +363,7 @@ def test_control_point_transfer_not_allowed(client: TestClient, equipment_data, 
 
     equipment_data2 = {
         "id": str(equipment_id2),
-        "plant_id": str(plant_id),
+        "facility_id": str(facility_id),
         "parent_id": str(facility_id),
         "name": "Test Motor 2",
         "qr_code": None,
@@ -591,7 +591,7 @@ def test_force_mode_with_control_point_stealing_attempt(client: TestClient, equi
     equipment_id_2 = uuid4()
     equipment_data_2 = deepcopy(PUT_BODY_TEMPLATE)
     equipment_data_2["id"] = str(equipment_id_2)
-    equipment_data_2["plant_id"] = str(plant_id)
+    equipment_data_2["facility_id"] = str(facility_id)
     equipment_data_2["parent_id"] = str(facility_id)
     equipment_data_2["name"] = "Equipment Two"
     equipment_data_2["control_points"][0]["id"] = str(control_point_id_1)  # Steal control point
@@ -869,7 +869,7 @@ def test_get_all_equipment_includes_deleted(client: TestClient, equipment_data):
     assert deleted_equipment["is_deleted"] is True
 
 
-def test_get_equipment_by_plant_id(client: TestClient, equipment_data, plant_id):
+def test_get_equipment_by_plant_id(client: TestClient, equipment_data, plant_id, facility_id):
     """Test #9: GET /equipment/by_plant_id/{plant_id} returns full equipment aggregates for specific plant"""
     # Create equipment for plant
     client.put(f"/equipment", json=equipment_data)
@@ -881,7 +881,7 @@ def test_get_equipment_by_plant_id(client: TestClient, equipment_data, plant_id)
     
     equipment_data_2 = deepcopy(PUT_BODY_TEMPLATE)
     equipment_data_2["id"] = str(equipment_id_2)
-    equipment_data_2["plant_id"] = str(plant_id_2)
+    equipment_data_2["facility_id"] = str(facility_id_2)
     equipment_data_2["parent_id"] = str(facility_id_2)
     equipment_data_2["name"] = "Equipment for Plant 2"
     equipment_data_2["control_points"][0]["id"] = str(uuid4())
@@ -897,9 +897,9 @@ def test_get_equipment_by_plant_id(client: TestClient, equipment_data, plant_id)
     assert isinstance(data, list)
     assert len(data) >= 1
     
-    # Verify only equipment from first plant is returned
+    # Verify only equipment from first plant is returned (via facility)
     for equipment in data:
-        assert equipment["plant_id"] == str(plant_id)
+        assert equipment["facility_id"] == str(facility_id)
         # Verify it's a full Equipment aggregate with control_points, defects, and inspection_ids
         assert "control_points" in equipment
         assert "defects" in equipment

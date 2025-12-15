@@ -40,7 +40,7 @@ class Defect(BaseModel):
 class Equipment(BaseModel):
     """Equipment aggregate root - read model"""
     id: UUID
-    plant_id: UUID
+    facility_id: UUID
     parent_id: Optional[UUID] = None
     name: str
     qr_code: Optional[str]
@@ -57,7 +57,7 @@ class Equipment(BaseModel):
 class EquipmentListItem(BaseModel):
     """Lightweight equipment item for list view"""
     id: UUID
-    plant_id: UUID
+    facility_id: UUID
     parent_id: Optional[UUID] = None
     name: str
     is_container: bool

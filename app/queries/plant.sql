@@ -21,7 +21,7 @@ WHERE plant_id = :plant_id;
 -- Get equipment IDs for a facility
 SELECT id
 FROM lesiv.equipment
-WHERE parent_id = :facility_id AND is_deleted = false;
+WHERE facility_id = :facility_id AND is_deleted = false;
 
 -- name: get_facility_plant_id^
 -- Get the plant_id for a facility (to check ownership)
