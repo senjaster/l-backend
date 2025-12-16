@@ -6,8 +6,7 @@ from uuid import UUID, uuid4
 from typing import Optional
 import bcrypt
 import jwt
-from app.models.auth import Token, TokenPayload, LoginResponse, RefreshResponse
-from app.models.inspector import Inspector
+from app.models.auth import Token, TokenPayload, LoginResponse, RefreshResponse, InspectorWithPassword
 from app.repositories.auth import AuthRepository
 from app.config import settings
 
@@ -202,8 +201,8 @@ class AuthService:
             refresh_token=new_refresh_token_string
         )
     
-    async def get_current_inspector(self, conn, token: str) -> Optional[Inspector]:
-        """Get current inspector from access token"""
+    async def get_current_inspector(self, conn, token: str) -> Optional[InspectorWithPassword]:
+        """Get current inspector from access token (returns internal model with password)"""
         payload = self.verify_access_token(token)
         if not payload:
             return None

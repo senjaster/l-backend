@@ -2,8 +2,7 @@
 from typing import Optional
 from uuid import UUID
 import aiosql
-from app.models.auth import Token
-from app.models.inspector import Inspector
+from app.models.auth import Token, InspectorWithPassword
 
 # Load queries from SQL file
 queries = aiosql.from_path("app/queries/auth.sql", "asyncpg")
@@ -59,16 +58,16 @@ class AuthRepository:
         """Revoke entire token chain (for theft detection)"""
         await queries.revoke_token_chain(conn, token_id=token_id)
     
-    async def get_inspector_by_username(self, conn, username: str) -> Optional[Inspector]:
-        """Get inspector by username"""
+    async def get_inspector_by_username(self, conn, username: str) -> Optional[InspectorWithPassword]:
+        """Get inspector by username (with password hash for authentication)"""
         row = await queries.get_inspector_by_username(conn, username=username)
         if row:
-            return Inspector(**row)
+            return InspectorWithPassword(**row)
         return None
     
-    async def get_inspector_by_id(self, conn, inspector_id: int) -> Optional[Inspector]:
-        """Get inspector by ID"""
+    async def get_inspector_by_id(self, conn, inspector_id: int) -> Optional[InspectorWithPassword]:
+        """Get inspector by ID (with password hash for authentication)"""
         row = await queries.get_inspector_by_id(conn, id=inspector_id)
         if row:
-            return Inspector(**row)
+            return InspectorWithPassword(**row)
         return None

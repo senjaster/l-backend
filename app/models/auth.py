@@ -51,3 +51,12 @@ class TokenPayload(BaseModel):
     iat: int   # issued at time
     iss: str   # issuer
     aud: str   # audience
+
+
+class InspectorWithPassword(BaseModel):
+    """Inspector with password hash - Internal use only (for authentication)"""
+    id: int
+    full_name: str
+    username: str
+    password_hash: str
+    server_modified_at: datetime

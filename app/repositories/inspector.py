@@ -4,7 +4,7 @@ import aiosql
 from app.models.inspector import Inspector
 
 # Load queries
-queries = aiosql.from_path("app/queries/inspector", "asyncpg")
+queries = aiosql.from_path("app/queries/inspector.sql", "asyncpg")
 
 
 class InspectorRepository:
