@@ -1,6 +1,8 @@
 """Equipment router - implements new API design principles"""
 from uuid import UUID
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.equipment import Equipment, EquipmentListResponse
 from app.repositories.equipment import EquipmentRepository, ConcurrentModificationError
 from app.database import get_db_connection
@@ -10,9 +12,12 @@ equipment_repo = EquipmentRepository()
 
 
 @router.get("/all", response_model=EquipmentListResponse)
-async def get_all_equipment(conn=Depends(get_db_connection)):
-    """Get all equipment IDs (lightweight list) - for completeness"""
-    return await equipment_repo.get_all(conn)
+async def get_all_equipment(
+    modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Only return equipment modified after this timestamp"),
+    conn=Depends(get_db_connection)
+):
+    """Get all equipment IDs (lightweight list), optionally filtered by modification date"""
+    return await equipment_repo.get_all(conn, modified_since=modified_since)
 
 
 @router.get("/by_id/{equipment_id}", response_model=Equipment)
@@ -25,9 +30,13 @@ async def get_equipment_by_id(equipment_id: UUID, conn=Depends(get_db_connection
 
 
 @router.get("/by_plant_id/{plant_id}", response_model=list[Equipment])
-async def get_equipment_by_plant_id(plant_id: UUID, conn=Depends(get_db_connection)):
-    """Get all equipment for a plant (full aggregates with control points, defects, and inspection IDs)"""
-    return await equipment_repo.get_by_plant_id(conn, plant_id)
+async def get_equipment_by_plant_id(
+    plant_id: UUID,
+    modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Only return equipment modified after this timestamp"),
+    conn=Depends(get_db_connection)
+):
+    """Get all equipment for a plant (full aggregates with control points, defects, and inspection IDs), optionally filtered by modification date"""
+    return await equipment_repo.get_by_plant_id(conn, plant_id, modified_since=modified_since)
 
 
 @router.put("", response_model=Equipment)

@@ -1,7 +1,9 @@
 -- name: get_all_equipment_types
 -- Get all equipment types
+-- :modified_since defaults to 1790-01-01 - only return equipment types modified after that timestamp
 SELECT id, name, server_modified_at
 FROM lesiv.equipment_type
+WHERE server_modified_at > :modified_since
 ORDER BY name;
 
 -- name: get_all_control_point_templates

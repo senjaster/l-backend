@@ -1,6 +1,8 @@
 """Image router - implements API design principles"""
 from uuid import UUID
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image
 from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
@@ -19,9 +21,13 @@ async def get_image_by_id(image_id: UUID, conn=Depends(get_db_connection)):
 
 
 @router.get("/by_plant_id/{plant_id}", response_model=list[Image])
-async def get_images_by_plant_id(plant_id: UUID, conn=Depends(get_db_connection)):
-    """Get all images for a plant"""
-    return await image_repo.get_by_plant_id(conn, plant_id)
+async def get_images_by_plant_id(
+    plant_id: UUID,
+    modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Only return images modified after this timestamp"),
+    conn=Depends(get_db_connection)
+):
+    """Get all images for a plant, optionally filtered by modification date"""
+    return await image_repo.get_by_plant_id(conn, plant_id, modified_since=modified_since)
 
 
 @router.put("", response_model=Image)

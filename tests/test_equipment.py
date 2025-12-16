@@ -953,3 +953,107 @@ def test_concurrent_modification_with_control_points(client: TestClient, equipme
     # because timestamp validation happens first
     assert "modified by another client" in error_data["message"].lower()
     assert error_data["server_modified_at"] == client_b_timestamp
+
+
+# Tests for modified_since filter
+
+def test_get_all_equipment_with_modified_since_filter(client: TestClient, equipment_data, plant_id, facility_id):
+    """Test filtering equipment by modified_since parameter"""
+    import time
+    
+    # Create first equipment
+    equipment_id_1 = uuid4()
+    equipment_data["id"] = str(equipment_id_1)
+    equipment_data["name"] = "Equipment One"
+    response1 = client.put("/equipment", json=equipment_data)
+    assert response1.status_code == 200
+    timestamp1 = response1.json()["server_modified_at"]
+    
+    # Wait a moment and create second equipment
+    time.sleep(0.1)
+    
+    equipment_id_2 = uuid4()
+    equipment_data_2 = deepcopy(PUT_BODY_TEMPLATE)
+    equipment_data_2["id"] = str(equipment_id_2)
+    equipment_data_2["facility_id"] = str(facility_id)
+    equipment_data_2["parent_id"] = str(facility_id)
+    equipment_data_2["name"] = "Equipment Two"
+    equipment_data_2["control_points"][0]["id"] = str(uuid4())
+    equipment_data_2["defects"][0]["id"] = str(uuid4())
+    response2 = client.put("/equipment", json=equipment_data_2)
+    assert response2.status_code == 200
+    timestamp2 = response2.json()["server_modified_at"]
+    
+    # Get all equipment without filter - should return both
+    response = client.get("/equipment/all")
+    assert response.status_code == 200
+    all_equipment = response.json()["items"]
+    equipment_ids = [e["id"] for e in all_equipment]
+    assert str(equipment_id_1) in equipment_ids
+    assert str(equipment_id_2) in equipment_ids
+    
+    # Get equipment modified after timestamp1 - should only return equipment 2
+    response = client.get(f"/equipment/all?modified_since={timestamp1}")
+    assert response.status_code == 200
+    filtered_equipment = response.json()["items"]
+    filtered_ids = [e["id"] for e in filtered_equipment]
+    assert str(equipment_id_1) not in filtered_ids
+    assert str(equipment_id_2) in filtered_ids
+    
+    # Get equipment modified after timestamp2 - should return none
+    response = client.get(f"/equipment/all?modified_since={timestamp2}")
+    assert response.status_code == 200
+    filtered_equipment = response.json()["items"]
+    filtered_ids = [e["id"] for e in filtered_equipment]
+    assert str(equipment_id_1) not in filtered_ids
+    assert str(equipment_id_2) not in filtered_ids
+
+
+def test_get_equipment_by_plant_with_modified_since_filter(client: TestClient, equipment_data, plant_id, facility_id):
+    """Test filtering equipment by plant and modified_since parameter"""
+    import time
+    
+    # Create first equipment
+    equipment_id_1 = uuid4()
+    equipment_data["id"] = str(equipment_id_1)
+    equipment_data["name"] = "Equipment One"
+    response1 = client.put("/equipment", json=equipment_data)
+    assert response1.status_code == 200
+    timestamp1 = response1.json()["server_modified_at"]
+    
+    # Wait a moment and create second equipment
+    time.sleep(0.1)
+    
+    equipment_id_2 = uuid4()
+    equipment_data_2 = deepcopy(PUT_BODY_TEMPLATE)
+    equipment_data_2["id"] = str(equipment_id_2)
+    equipment_data_2["facility_id"] = str(facility_id)
+    equipment_data_2["parent_id"] = str(facility_id)
+    equipment_data_2["name"] = "Equipment Two"
+    equipment_data_2["control_points"][0]["id"] = str(uuid4())
+    equipment_data_2["defects"][0]["id"] = str(uuid4())
+    response2 = client.put("/equipment", json=equipment_data_2)
+    assert response2.status_code == 200
+    timestamp2 = response2.json()["server_modified_at"]
+    
+    # Get all equipment for plant without filter - should return both
+    response = client.get(f"/equipment/by_plant_id/{plant_id}")
+    assert response.status_code == 200
+    all_equipment = response.json()
+    equipment_ids = [e["id"] for e in all_equipment]
+    assert str(equipment_id_1) in equipment_ids
+    assert str(equipment_id_2) in equipment_ids
+    
+    # Get equipment modified after timestamp1 - should only return equipment 2
+    response = client.get(f"/equipment/by_plant_id/{plant_id}?modified_since={timestamp1}")
+    assert response.status_code == 200
+    filtered_equipment = response.json()
+    filtered_ids = [e["id"] for e in filtered_equipment]
+    assert str(equipment_id_1) not in filtered_ids
+    assert str(equipment_id_2) in filtered_ids
+    
+    # Get equipment modified after timestamp2 - should return none
+    response = client.get(f"/equipment/by_plant_id/{plant_id}?modified_since={timestamp2}")
+    assert response.status_code == 200
+    filtered_equipment = response.json()
+    assert len(filtered_equipment) == 0

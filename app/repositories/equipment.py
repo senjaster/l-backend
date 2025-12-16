@@ -3,6 +3,7 @@ from typing import Optional, Sequence
 from uuid import UUID
 from datetime import datetime, timezone
 import aiosql
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.equipment import (
     Equipment, ControlPoint, Defect,
     EquipmentListItem, EquipmentListResponse
@@ -104,16 +105,16 @@ class EquipmentRepository:
         
         return equipment_list[0] if equipment_list else None
     
-    async def get_all(self, conn) -> EquipmentListResponse:
-        """Get all equipment as lightweight list"""
-        equipment_rows = [row async for row in queries.get_all_equipment(conn)]
+    async def get_all(self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> EquipmentListResponse:
+        """Get all equipment as lightweight list, optionally filtered by modification date"""
+        equipment_rows = [row async for row in queries.get_all_equipment(conn, modified_since=modified_since)]
         equipment_list = [EquipmentListItem(**row) for row in equipment_rows]
         return EquipmentListResponse(items=equipment_list)
     
-    async def get_by_plant_id(self, conn, plant_id: UUID) -> list[Equipment]:
+    async def get_by_plant_id(self, conn, plant_id: UUID, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> list[Equipment]:
         """Get all equipment for a plant (full aggregates) - uses batch queries for efficiency"""
         # Fetch all data in parallel using batch queries
-        equipment_rows = [row async for row in queries.get_by_plant_id(conn, plant_id=plant_id)]
+        equipment_rows = [row async for row in queries.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)]
         
         if not equipment_rows:
             return []

@@ -602,3 +602,72 @@ def test_multiple_facility_operations_in_single_request(client: TestClient, plan
     assert facility_3 is not None
     assert facility_3["name"] == "New Facility 3"
     assert facility_3["is_deleted"] is False
+
+
+# Tests for modified_since filter
+
+def test_get_all_plants_with_modified_since_filter(client: TestClient, plant_data):
+    """Test filtering plants by modified_since parameter"""
+    from datetime import datetime, timezone, timedelta
+    
+    # Create first plant
+    plant_id_1 = uuid4()
+    plant_data["id"] = str(plant_id_1)
+    plant_data["name"] = "Plant One"
+    response1 = client.put("/plant", json=plant_data)
+    assert response1.status_code == 200
+    timestamp1 = response1.json()["server_modified_at"]
+    
+    # Wait a moment and create second plant
+    import time
+    time.sleep(0.1)
+    
+    plant_id_2 = uuid4()
+    facility_id_2 = uuid4()
+    plant_data_2 = deepcopy(PUT_BODY_TEMPLATE)
+    plant_data_2["id"] = str(plant_id_2)
+    plant_data_2["name"] = "Plant Two"
+    plant_data_2["facilities"][0]["id"] = str(facility_id_2)
+    response2 = client.put("/plant", json=plant_data_2)
+    assert response2.status_code == 200
+    timestamp2 = response2.json()["server_modified_at"]
+    
+    # Get all plants without filter - should return both
+    response = client.get("/plant/all")
+    assert response.status_code == 200
+    all_plants = response.json()["items"]
+    plant_ids = [p["id"] for p in all_plants]
+    assert str(plant_id_1) in plant_ids
+    assert str(plant_id_2) in plant_ids
+    
+    # Get plants modified after timestamp1 - should only return plant 2
+    response = client.get(f"/plant/all?modified_since={timestamp1}")
+    assert response.status_code == 200
+    filtered_plants = response.json()["items"]
+    filtered_ids = [p["id"] for p in filtered_plants]
+    assert str(plant_id_1) not in filtered_ids
+    assert str(plant_id_2) in filtered_ids
+    
+    # Get plants modified after timestamp2 - should return none
+    response = client.get(f"/plant/all?modified_since={timestamp2}")
+    assert response.status_code == 200
+    filtered_plants = response.json()["items"]
+    filtered_ids = [p["id"] for p in filtered_plants]
+    assert str(plant_id_1) not in filtered_ids
+    assert str(plant_id_2) not in filtered_ids
+
+
+def test_get_all_plants_modified_since_default(client: TestClient, plant_data):
+    """Test that without modified_since parameter, all plants are returned"""
+    # Create a plant
+    response = client.put("/plant", json=plant_data)
+    assert response.status_code == 200
+    
+    # Get all plants without modified_since parameter
+    response = client.get("/plant/all")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "items" in data
+    plant_ids = [p["id"] for p in data["items"]]
+    assert str(plant_data["id"]) in plant_ids

@@ -4,6 +4,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 import json
 import aiosql
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image
 from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
@@ -26,9 +27,9 @@ class ImageRepository:
             return Image(**row_dict)
         return None
     
-    async def get_by_plant_id(self, conn, plant_id: UUID) -> list[Image]:
+    async def get_by_plant_id(self, conn, plant_id: UUID, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> list[Image]:
         """Get all images for a plant (joins through equipment and facility)"""
-        rows = [row async for row in queries.get_by_plant_id(conn, plant_id=plant_id)]
+        rows = [row async for row in queries.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)]
         images = []
         for row in rows:
             row_dict = dict(row)

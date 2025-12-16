@@ -313,3 +313,82 @@ def test_get_images_by_plant_id(client: TestClient, plant_id, facility_id, seed_
     # Verify all images belong to equipment in this plant
     for image in data:
         assert image["equipment_id"] == str(equipment_id)
+
+
+# Tests for modified_since filter
+
+def test_get_images_by_plant_with_modified_since_filter(client: TestClient, plant_id, facility_id, seed_test_plant_and_facility):
+    """Test filtering images by plant and modified_since parameter"""
+    import time
+    
+    # Create equipment for the plant
+    equipment_id = uuid4()
+    equipment_data = {
+        "id": str(equipment_id),
+        "facility_id": str(facility_id),
+        "parent_id": str(facility_id),
+        "name": "Test Equipment",
+        "qr_code": None,
+        "is_container": False,
+        "equipment_type_id": None,
+        "estimated_point_count": 10,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "control_points": [],
+        "defects": []
+    }
+    client.put("/equipment", json=equipment_data)
+    
+    # Create first image
+    image_id_1 = uuid4()
+    image_data_1 = {
+        "id": str(image_id_1),
+        "equipment_id": str(equipment_id),
+        "original_file_name": "image1.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z"
+    }
+    response1 = client.put("/image", json=image_data_1)
+    assert response1.status_code == 200
+    timestamp1 = response1.json()["server_modified_at"]
+    
+    # Wait a moment and create second image
+    time.sleep(0.1)
+    
+    image_id_2 = uuid4()
+    image_data_2 = {
+        "id": str(image_id_2),
+        "equipment_id": str(equipment_id),
+        "original_file_name": "image2.jpg",
+        "image_type": "THERMAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z"
+    }
+    response2 = client.put("/image", json=image_data_2)
+    assert response2.status_code == 200
+    timestamp2 = response2.json()["server_modified_at"]
+    
+    # Get all images for plant without filter - should return both
+    response = client.get(f"/image/by_plant_id/{plant_id}")
+    assert response.status_code == 200
+    all_images = response.json()
+    image_ids = [img["id"] for img in all_images]
+    assert str(image_id_1) in image_ids
+    assert str(image_id_2) in image_ids
+    
+    # Get images modified after timestamp1 - should only return image 2
+    response = client.get(f"/image/by_plant_id/{plant_id}?modified_since={timestamp1}")
+    assert response.status_code == 200
+    filtered_images = response.json()
+    filtered_ids = [img["id"] for img in filtered_images]
+    assert str(image_id_1) not in filtered_ids
+    assert str(image_id_2) in filtered_ids
+    
+    # Get images modified after timestamp2 - should return none
+    response = client.get(f"/image/by_plant_id/{plant_id}?modified_since={timestamp2}")
+    assert response.status_code == 200
+    filtered_images = response.json()
+    assert len(filtered_images) == 0

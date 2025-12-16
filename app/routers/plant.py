@@ -1,7 +1,9 @@
 """Plant router - implements new API design principles"""
 from uuid import UUID
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant import Plant, PlantListResponse
 from app.repositories.plant import PlantRepository, ConcurrentModificationError
 from app.database import get_db_connection
@@ -17,9 +19,12 @@ class LockRequest(BaseModel):
 
 
 @router.get("/all", response_model=PlantListResponse)
-async def get_all_plants(conn=Depends(get_db_connection)):
-    """Get all plant IDs (lightweight list) - for completeness"""
-    return await plant_repo.get_all(conn)
+async def get_all_plants(
+    modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Only return plants modified after this timestamp"),
+    conn=Depends(get_db_connection)
+):
+    """Get all plant IDs (lightweight list), optionally filtered by modification date"""
+    return await plant_repo.get_all(conn, modified_since=modified_since)
 
 
 @router.get("/by_id/{plant_id}", response_model=Plant)

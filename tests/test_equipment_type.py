@@ -94,3 +94,29 @@ def test_multiple_equipment_types_with_different_templates(client: TestClient):
     assert "Core" in template_names
     assert "Winding Primary" in template_names
     assert "Winding Secondary" in template_names
+
+
+# Tests for modified_since filter
+
+def test_get_all_equipment_types_with_modified_since_filter(client: TestClient):
+    """Test filtering equipment types by modified_since parameter"""
+    # Note: Equipment types are seeded data, so we can't easily create new ones with different timestamps
+    # This test verifies the parameter works without errors
+    
+    # Get all equipment types without filter
+    response = client.get("/equipment-type/all")
+    assert response.status_code == 200
+    all_types = response.json()["items"]
+    assert len(all_types) == 3
+    
+    # Get equipment types with a very old timestamp - should return all
+    response = client.get("/equipment-type/all?modified_since=1900-01-01T00:00:00Z")
+    assert response.status_code == 200
+    filtered_types = response.json()["items"]
+    assert len(filtered_types) == 3
+    
+    # Get equipment types with a future timestamp - should return none
+    response = client.get("/equipment-type/all?modified_since=2099-12-31T23:59:59Z")
+    assert response.status_code == 200
+    filtered_types = response.json()["items"]
+    assert len(filtered_types) == 0

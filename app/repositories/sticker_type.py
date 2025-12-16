@@ -1,6 +1,8 @@
 """StickerType repository"""
 from typing import List
+from datetime import datetime, timezone
 import aiosql
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.sticker_type import StickerType, StickerTempRange
 from itertools import groupby
 
@@ -11,10 +13,10 @@ queries = aiosql.from_path("app/queries/sticker_type.sql", "asyncpg")
 class StickerTypeRepository:
     """Repository for StickerType aggregate with child synchronization"""
 
-    async def get_all(self, conn) -> List[StickerType]:
-        """Get all sticker types with temperature ranges"""
+    async def get_all(self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> List[StickerType]:
+        """Get all sticker types with temperature ranges, optionally filtered by modification date"""
         # Get sticker types
-        sticker_types = [row async for row in queries.get_sticker_types(conn)]
+        sticker_types = [row async for row in queries.get_sticker_types(conn, modified_since=modified_since)]
         if not sticker_types:
             return []
         temp_ranges_raw: list[dict] = [row async for row in queries.get_temp_ranges(conn)]

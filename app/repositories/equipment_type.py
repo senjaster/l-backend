@@ -1,7 +1,9 @@
 """EquipmentType repository"""
 from typing import Optional, List
+from datetime import datetime, timezone
 import aiosql
 from itertools import groupby
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.equipment_type import EquipmentType, ControlPointTemplate
 
 # Load queries
@@ -11,10 +13,10 @@ queries = aiosql.from_path("app/queries/equipment_type.sql", "asyncpg")
 class EquipmentTypeRepository:
     """Repository for EquipmentType aggregate with child synchronization"""
     
-    async def get_all(self, conn) -> List[EquipmentType]:
-        """Get all equipment types with control point templates"""
+    async def get_all(self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> List[EquipmentType]:
+        """Get all equipment types with control point templates, optionally filtered by modification date"""
         # Get all equipment types
-        equipment_types = [row async for row in queries.get_all_equipment_types(conn)]
+        equipment_types = [row async for row in queries.get_all_equipment_types(conn, modified_since=modified_since)]
         if not equipment_types:
             return []
         

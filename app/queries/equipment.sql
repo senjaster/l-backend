@@ -1,16 +1,20 @@
 -- name: get_all_equipment
 -- Get all equipment (lightweight list)
+-- :modified_since defaults to 1790-01-01 - only return equipment modified after that timestamp
 SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
 FROM lesiv.equipment
+WHERE server_modified_at > :modified_since
 ORDER BY name;
 
 -- name: get_by_plant_id
 -- Get all equipment for a plant (full data for aggregates) - joins through facility
+-- :modified_since defaults to 1790-01-01 - only return equipment modified after that timestamp
 SELECT e.id, e.facility_id, e.parent_id, e.name, e.qr_code, e.is_container, e.equipment_type_id,
        e.estimated_point_count, e.is_deleted, e.server_modified_at
 FROM lesiv.equipment e
 JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
+  AND e.server_modified_at > :modified_since
 ORDER BY e.name;
 
 -- name: get_control_points_by_plant

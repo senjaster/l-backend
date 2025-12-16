@@ -1,8 +1,9 @@
 """Plant repository"""
-from typing import Optional, Union
+from typing import Optional
 from uuid import UUID
 from datetime import datetime, timezone
 import aiosql
+from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant import (
     Plant, Facility,
     PlantListItem, PlantListResponse
@@ -44,9 +45,9 @@ class PlantRepository:
         
         return Plant(**plant_row, facilities=facilities)
     
-    async def get_all(self, conn) -> PlantListResponse:
-        """Get all plants as lightweight list"""
-        plant_rows = [row async for row in queries.get_all_plants(conn)]
+    async def get_all(self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> PlantListResponse:
+        """Get all plants as lightweight list, optionally filtered by modification date"""
+        plant_rows = [row async for row in queries.get_all_plants(conn, modified_since=modified_since)]
         plants = [PlantListItem(**row) for row in plant_rows]
         return PlantListResponse(items=plants)
     

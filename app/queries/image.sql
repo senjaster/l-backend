@@ -14,6 +14,7 @@ FROM lesiv.image
 WHERE id = :id;
 
 -- name: get_by_plant_id
+-- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
 SELECT
     i.id,
     i.equipment_id,
@@ -26,6 +27,7 @@ FROM lesiv.image i
 INNER JOIN lesiv.equipment e ON i.equipment_id = e.id
 INNER JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
+  AND i.server_modified_at > :modified_since
 ORDER BY i.server_modified_at DESC;
 
 -- name: upsert!
