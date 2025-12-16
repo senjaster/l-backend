@@ -285,6 +285,7 @@ CREATE TABLE lesiv.image (
     original_file_name TEXT NOT NULL,
     image_type lesiv.image_type NOT NULL,
     metadata JSONB,
+    is_deleted BOOL DEFAULT false,
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

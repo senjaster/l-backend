@@ -1,12 +1,21 @@
 """Image repository"""
 from typing import Optional
 from uuid import UUID
+from datetime import datetime, timezone
 import json
 import aiosql
 from app.models.image import Image
+from app.models import ConflictError, ConflictDetail
 
-# Load queries
-queries = aiosql.from_path("app/queries/image", "asyncpg")
+# Load queries from single file
+queries = aiosql.from_path("app/queries/image.sql", "asyncpg")
+
+
+class ConcurrentModificationError(Exception):
+    """Raised when concurrent modification is detected"""
+    def __init__(self, conflict_error: ConflictError):
+        self.conflict_error = conflict_error
+        super().__init__(conflict_error.message)
 
 
 class ImageRepository:
@@ -23,19 +32,86 @@ class ImageRepository:
             return Image(**row_dict)
         return None
     
-    async def save(self, conn, image: Image) -> Image:
-        """Create or update image"""
+    async def get_by_plant_id(self, conn, plant_id: UUID) -> list[Image]:
+        """Get all images for a plant (joins through equipment and facility)"""
+        rows = [row async for row in queries.get_by_plant_id(conn, plant_id=plant_id)]
+        images = []
+        for row in rows:
+            row_dict = dict(row)
+            if row_dict.get('metadata') and isinstance(row_dict['metadata'], str):
+                row_dict['metadata'] = json.loads(row_dict['metadata'])
+            images.append(Image(**row_dict))
+        return images
+    
+    async def save(self, conn, image: Image, force: bool = False) -> Image:
+        """
+        Create or update image with optimistic concurrency control.
+        Must be called within transaction.
+        
+        Args:
+            conn: Database connection
+            image: Image data to save
+            force: If True, ignore server_modified_at validation
+        
+        Raises:
+            ConcurrentModificationError: If concurrent modification detected (force=False)
+        """
+        image_id = image.id
+        
+        # Get current state if exists
+        current = await self.get_by_id(conn, image_id)
+        
+        # New server_modified_at timestamp
+        new_server_modified_at = datetime.now(timezone.utc)
+        
+        if current and not force:
+            # Validate server_modified_at for existing image
+            if image.server_modified_at is None:
+                raise ConcurrentModificationError(
+                    ConflictError(
+                        message="server_modified_at is required for updating existing image",
+                        server_modified_at=current.server_modified_at,
+                        conflicts=[
+                            ConflictDetail(
+                                field="server_modified_at",
+                                message="Missing server_modified_at in request"
+                            )
+                        ]
+                    )
+                )
+            
+            if image.server_modified_at != current.server_modified_at:
+                raise ConcurrentModificationError(
+                    ConflictError(
+                        message="Image was modified by another client",
+                        server_modified_at=current.server_modified_at,
+                        client_modified_at=image.server_modified_at,
+                        conflicts=[
+                            ConflictDetail(
+                                field="server_modified_at",
+                                message="Timestamp mismatch",
+                                server_value=current.server_modified_at.isoformat(),
+                                client_value=image.server_modified_at.isoformat()
+                            )
+                        ]
+                    )
+                )
+        
+        # Upsert image
         await queries.upsert(
             conn,
-            id=image.id,
+            id=image_id,
             equipment_id=image.equipment_id,
             original_file_name=image.original_file_name,
             image_type=image.image_type.value,
-            metadata=json.dumps(image.metadata) if image.metadata else None
+            metadata=json.dumps(image.metadata) if image.metadata else None,
+            is_deleted=image.is_deleted,
+            server_modified_at=new_server_modified_at
         )
-        result = await self.get_by_id(conn, image.id)
+        
+        result = await self.get_by_id(conn, image_id)
         if not result:
-            raise Exception("Failed to save image")
+            raise ValueError(f"Image {image_id} not found after save")
         return result
     
     async def delete(self, conn, image_id: UUID) -> bool:

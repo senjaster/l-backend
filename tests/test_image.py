@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from uuid import uuid4
 
 
-def test_create_image(client: TestClient):
+def test_create_image(client: TestClient, seed_test_plant_and_facility):
     """Test creating a new image"""
     image_id = uuid4()
     equipment_id = uuid4()
@@ -15,10 +15,11 @@ def test_create_image(client: TestClient):
         "original_file_name": "test_image.jpg",
         "image_type": "VISUAL",
         "metadata": {"camera": "Canon EOS", "resolution": "1920x1080"},
+        "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z"
     }
     
-    response = client.put(f"/image/{image_id}", json=image_data)
+    response = client.put("/image", json=image_data)
     assert response.status_code == 200
     
     data = response.json()
@@ -27,9 +28,10 @@ def test_create_image(client: TestClient):
     assert data["original_file_name"] == "test_image.jpg"
     assert data["image_type"] == "VISUAL"
     assert data["metadata"]["camera"] == "Canon EOS"
+    assert data["is_deleted"] is False
 
 
-def test_get_image(client: TestClient):
+def test_get_image(client: TestClient, seed_test_plant_and_facility):
     """Test retrieving an image"""
     image_id = uuid4()
     equipment_id = uuid4()
@@ -41,12 +43,13 @@ def test_get_image(client: TestClient):
         "original_file_name": "test_image.jpg",
         "image_type": "THERMAL",
         "metadata": None,
+        "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z"
     }
-    client.put(f"/image/{image_id}", json=image_data)
+    client.put("/image", json=image_data)
     
     # Then get
-    response = client.get(f"/image/{image_id}")
+    response = client.get(f"/image/by_id/{image_id}")
     assert response.status_code == 200
     
     data = response.json()
@@ -57,12 +60,12 @@ def test_get_image(client: TestClient):
 def test_get_nonexistent_image(client: TestClient):
     """Test retrieving a non-existent image"""
     image_id = uuid4()
-    response = client.get(f"/image/{image_id}")
+    response = client.get(f"/image/by_id/{image_id}")
     assert response.status_code == 404
 
 
-def test_update_image(client: TestClient):
-    """Test updating an image"""
+def test_update_image(client: TestClient, seed_test_plant_and_facility):
+    """Test updating an image with optimistic concurrency control"""
     image_id = uuid4()
     equipment_id = uuid4()
     
@@ -73,20 +76,24 @@ def test_update_image(client: TestClient):
         "original_file_name": "original.jpg",
         "image_type": "VISUAL",
         "metadata": None,
+        "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z"
     }
-    client.put(f"/image/{image_id}", json=image_data)
+    create_response = client.put("/image", json=image_data)
+    assert create_response.status_code == 200
+    server_modified_at = create_response.json()["server_modified_at"]
     
-    # Update
+    # Update with correct timestamp
     updated_data = {
         "id": str(image_id),
         "equipment_id": str(equipment_id),
         "original_file_name": "updated.jpg",
         "image_type": "THERMAL",
         "metadata": {"updated": True},
-        "server_modified_at": "2024-01-02T00:00:00Z"
+        "is_deleted": False,
+        "server_modified_at": server_modified_at
     }
-    response = client.put(f"/image/{image_id}", json=updated_data)
+    response = client.put("/image", json=updated_data)
     assert response.status_code == 200
     
     data = response.json()
@@ -95,8 +102,8 @@ def test_update_image(client: TestClient):
     assert data["metadata"]["updated"] is True
 
 
-def test_delete_image(client: TestClient):
-    """Test actual deletion of image"""
+def test_logical_deletion(client: TestClient, seed_test_plant_and_facility):
+    """Test logical deletion of image via is_deleted flag"""
     image_id = uuid4()
     equipment_id = uuid4()
     
@@ -107,39 +114,26 @@ def test_delete_image(client: TestClient):
         "original_file_name": "test.jpg",
         "image_type": "VISUAL",
         "metadata": None,
+        "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z"
     }
-    client.put(f"/image/{image_id}", json=image_data)
+    create_response = client.put("/image", json=image_data)
+    assert create_response.status_code == 200
+    server_modified_at = create_response.json()["server_modified_at"]
     
-    # Delete
-    response = client.delete(f"/image/{image_id}")
-    assert response.status_code == 204
+    # Mark as deleted
+    image_data["server_modified_at"] = server_modified_at
+    image_data["is_deleted"] = True
+    response = client.put("/image", json=image_data)
+    assert response.status_code == 200
     
-    # Verify it's actually deleted (should return 404)
-    get_response = client.get(f"/image/{image_id}")
-    assert get_response.status_code == 404
+    # Verify it's still retrievable but marked as deleted
+    get_response = client.get(f"/image/by_id/{image_id}")
+    assert get_response.status_code == 200
+    assert get_response.json()["is_deleted"] is True
 
 
-def test_id_mismatch(client: TestClient):
-    """Test ID mismatch in URL and body"""
-    image_id_1 = uuid4()
-    image_id_2 = uuid4()
-    equipment_id = uuid4()
-    
-    image_data = {
-        "id": str(image_id_2),
-        "equipment_id": str(equipment_id),
-        "original_file_name": "test.jpg",
-        "image_type": "VISUAL",
-        "metadata": None,
-        "server_modified_at": "2024-01-01T00:00:00Z"
-    }
-    
-    response = client.put(f"/image/{image_id_1}", json=image_data)
-    assert response.status_code == 400
-
-
-def test_image_types(client: TestClient):
+def test_image_types(client: TestClient, seed_test_plant_and_facility):
     """Test both image types"""
     for image_type in ["VISUAL", "THERMAL"]:
         image_id = uuid4()
@@ -151,9 +145,171 @@ def test_image_types(client: TestClient):
             "original_file_name": f"test_{image_type.lower()}.jpg",
             "image_type": image_type,
             "metadata": None,
+            "is_deleted": False,
             "server_modified_at": "2024-01-01T00:00:00Z"
         }
         
-        response = client.put(f"/image/{image_id}", json=image_data)
+        response = client.put("/image", json=image_data)
         assert response.status_code == 200
         assert response.json()["image_type"] == image_type
+
+
+def test_concurrent_modification_error(client: TestClient, seed_test_plant_and_facility):
+    """Test that concurrent modification is detected"""
+    image_id = uuid4()
+    equipment_id = uuid4()
+    
+    # Create image
+    image_data = {
+        "id": str(image_id),
+        "equipment_id": str(equipment_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z"
+    }
+    create_response = client.put("/image", json=image_data)
+    assert create_response.status_code == 200
+    server_modified_at = create_response.json()["server_modified_at"]
+    
+    # Simulate another client updating the image
+    image_data["server_modified_at"] = server_modified_at
+    image_data["original_file_name"] = "updated_by_client_b.jpg"
+    client_b_response = client.put("/image", json=image_data)
+    assert client_b_response.status_code == 200
+    
+    # Try to update with old timestamp (should fail)
+    image_data["server_modified_at"] = server_modified_at
+    image_data["original_file_name"] = "updated_by_client_a.jpg"
+    response = client.put("/image?force=false", json=image_data)
+    assert response.status_code == 409
+    
+    error_data = response.json()["detail"]
+    assert error_data["type"] == "conflict"
+    assert "modified by another client" in error_data["message"].lower()
+
+
+def test_force_mode_ignores_timestamp(client: TestClient, seed_test_plant_and_facility):
+    """Test that force=true ignores server_modified_at validation"""
+    image_id = uuid4()
+    equipment_id = uuid4()
+    
+    # Create image
+    image_data = {
+        "id": str(image_id),
+        "equipment_id": str(equipment_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z"
+    }
+    create_response = client.put("/image", json=image_data)
+    assert create_response.status_code == 200
+    
+    # Update with wrong timestamp but force=true (should succeed)
+    image_data["server_modified_at"] = "2024-01-01T00:00:00Z"  # Old timestamp
+    image_data["original_file_name"] = "forced_update.jpg"
+    response = client.put("/image?force=true", json=image_data)
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["original_file_name"] == "forced_update.jpg"
+
+
+def test_missing_server_modified_at_on_update(client: TestClient, seed_test_plant_and_facility):
+    """Test that updating existing image without server_modified_at fails"""
+    image_id = uuid4()
+    equipment_id = uuid4()
+    
+    # Create image
+    image_data = {
+        "id": str(image_id),
+        "equipment_id": str(equipment_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z"
+    }
+    client.put("/image", json=image_data)
+    
+    # Try to update without server_modified_at (Pydantic will reject this as 422)
+    # Note: server_modified_at is required in the model, so this becomes a validation error
+    updated_data = {
+        "id": str(image_id),
+        "equipment_id": str(equipment_id),
+        "original_file_name": "updated.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False
+        # Missing server_modified_at
+    }
+    response = client.put("/image", json=updated_data)
+    assert response.status_code == 422  # Pydantic validation error
+
+
+@pytest.fixture
+def plant_id():
+    return uuid4()
+
+
+@pytest.fixture
+def facility_id():
+    return uuid4()
+
+
+def test_get_images_by_plant_id(client: TestClient, plant_id, facility_id, seed_test_plant_and_facility):
+    """Test retrieving all images for a plant (joins through equipment and facility)"""
+    
+    # Create equipment for the plant
+    equipment_id = uuid4()
+    equipment_data = {
+        "id": str(equipment_id),
+        "facility_id": str(facility_id),
+        "parent_id": str(facility_id),
+        "name": "Test Equipment",
+        "qr_code": None,
+        "is_container": False,
+        "equipment_type_id": None,
+        "estimated_point_count": 10,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "control_points": [],
+        "defects": []
+    }
+    client.put("/equipment", json=equipment_data)
+    
+    # Create images for this equipment
+    image_id_1 = uuid4()
+    image_id_2 = uuid4()
+    
+    for image_id, image_type in [(image_id_1, "VISUAL"), (image_id_2, "THERMAL")]:
+        image_data = {
+            "id": str(image_id),
+            "equipment_id": str(equipment_id),
+            "original_file_name": f"test_{image_type.lower()}.jpg",
+            "image_type": image_type,
+            "metadata": None,
+            "is_deleted": False,
+            "server_modified_at": "2024-01-01T00:00:00Z"
+        }
+        client.put("/image", json=image_data)
+    
+    # Get images by plant_id
+    response = client.get(f"/image/by_plant_id/{plant_id}")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 2
+    
+    # Verify our images are in the list
+    image_ids = [img["id"] for img in data]
+    assert str(image_id_1) in image_ids
+    assert str(image_id_2) in image_ids
+    
+    # Verify all images belong to equipment in this plant
+    for image in data:
+        assert image["equipment_id"] == str(equipment_id)

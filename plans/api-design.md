@@ -49,7 +49,8 @@
 ### Method Signatures
 ```python
 async def get_by_id(self, conn, entity_id: UUID) -> Optional[Entity]
-async def get_all(self, conn) -> EntityListResponse
+async def get_by_plant_id(self, conn, plant_id: UUID) -> EntityListResponse
+async def get_all(self, conn) -> EntityTerseListResponse  # reduced number of fields
 async def save(self, conn, entity: Entity, force: bool = False) -> Entity
 ```
 
@@ -91,4 +92,3 @@ except ValueError as e:
 
 - Inspector: read-only (GET only)
 - Log: append-only (POST only)
-- Image: no `is_deleted` flag (physical DELETE)

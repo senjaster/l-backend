@@ -19,4 +19,5 @@ class Image(BaseModel):
     original_file_name: str
     image_type: ImageType
     metadata: Optional[dict] = None
+    is_deleted: bool = False
     server_modified_at: datetime
