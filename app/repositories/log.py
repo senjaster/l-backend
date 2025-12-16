@@ -4,7 +4,7 @@ import aiosql
 from app.models.log import LogEntry
 
 # Load queries
-queries = aiosql.from_path("app/queries/log", "asyncpg")
+queries = aiosql.from_path("app/queries/log.sql", "asyncpg")
 
 
 class LogRepository:
