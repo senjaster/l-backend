@@ -1,14 +1,38 @@
 """EquipmentType repository"""
-from typing import Optional
+from typing import Optional, List
 import aiosql
+from itertools import groupby
 from app.models.equipment_type import EquipmentType, ControlPointTemplate
 
 # Load queries
-queries = aiosql.from_path("app/queries/equipment_type", "asyncpg")
+queries = aiosql.from_path("app/queries/equipment_type.sql", "asyncpg")
 
 
 class EquipmentTypeRepository:
     """Repository for EquipmentType aggregate with child synchronization"""
+    
+    async def get_all(self, conn) -> List[EquipmentType]:
+        """Get all equipment types with control point templates"""
+        # Get all equipment types
+        equipment_types = [row async for row in queries.get_all_equipment_types(conn)]
+        if not equipment_types:
+            return []
+        
+        # Get all control point templates
+        templates_raw: list[dict] = [row async for row in queries.get_all_control_point_templates(conn)]
+        templates_by_type = {
+            key: [ControlPointTemplate(**row) for row in value]
+            for key, value
+            in groupby(templates_raw, lambda r: r["equipment_type_id"])
+        }
+        
+        return [
+            EquipmentType(
+                **row,
+                control_point_templates=templates_by_type.get(row["id"], [])
+            )
+            for row in equipment_types
+        ]
     
     async def get_by_id(self, conn, equipment_type_id: int) -> Optional[EquipmentType]:
         """Get equipment type by ID with control point templates"""

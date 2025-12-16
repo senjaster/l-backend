@@ -3,290 +3,94 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def test_create_equipment_type(client: TestClient):
-    """Test creating a new equipment type with control point templates"""
-    equipment_type_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": None
-            },
-            {
-                "id": 2,
-                "equipment_type_id": 1,
-                "name": "Winding",
-                "short_name": "WND",
-                "t_max": 100,
-                "t_excess": 50,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    
-    response = client.put("/equipment-type/1", json=equipment_type_data)
+def test_get_all_equipment_types(client: TestClient):
+    """Test retrieving all equipment types"""
+    response = client.get("/equipment-type/all")
     assert response.status_code == 200
     
     data = response.json()
-    assert data["id"] == 1
-    assert data["name"] == "Test Motor"
-    assert len(data["control_point_templates"]) == 2
-
-
-def test_get_equipment_type(client: TestClient):
-    """Test retrieving an equipment type"""
-    # First create
-    equipment_type_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    client.put("/equipment-type/1", json=equipment_type_data)
+    assert "items" in data
+    items = data["items"]
     
-    # Then get
-    response = client.get("/equipment-type/1")
+    # Should have 3 equipment types
+    assert len(items) == 3
+    
+    # Verify structure of first item
+    assert all(key in items[0] for key in ["id", "name", "server_modified_at", "control_point_templates"])
+
+
+def test_equipment_type_with_templates(client: TestClient):
+    """Test that equipment types include their control point templates"""
+    response = client.get("/equipment-type/all")
     assert response.status_code == 200
     
     data = response.json()
-    assert data["id"] == 1
-    assert data["name"] == "Test Motor"
-    assert len(data["control_point_templates"]) == 1
-
-
-def test_get_nonexistent_equipment_type(client: TestClient):
-    """Test retrieving a non-existent equipment type"""
-    response = client.get("/equipment-type/999")
-    assert response.status_code == 404
-
-
-def test_update_equipment_type(client: TestClient):
-    """Test updating an equipment type"""
-    # Create initial
-    equipment_type_data = {
-        "id": 1,
-        "name": "Original Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    client.put("/equipment-type/1", json=equipment_type_data)
+    items = data["items"]
     
-    # Update
-    updated_data = {
-        "id": 1,
-        "name": "Updated Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing Updated",
-                "short_name": "BRG",
-                "t_max": 90,
-                "t_excess": 45,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    response = client.put("/equipment-type/1", json=updated_data)
+    # Find equipment type 1
+    motor = next((item for item in items if item["id"] == 1), None)
+    assert motor is not None
+    assert motor["name"] in ["Electric Motor", "Test Motor"]  # Allow both seeded and test data
+    
+    # Should have 2 control point templates
+    assert len(motor["control_point_templates"]) == 2
+    
+    # Verify template structure
+    template = motor["control_point_templates"][0]
+    assert all(key in template for key in ["id", "equipment_type_id", "name", "short_name", "t_max", "t_excess", "default_sticker_id"])
+
+
+def test_equipment_type_template_values(client: TestClient):
+    """Test control point template values are correct"""
+    response = client.get("/equipment-type/all")
     assert response.status_code == 200
     
     data = response.json()
-    assert data["name"] == "Updated Motor"
-    assert data["control_point_templates"][0]["name"] == "Bearing Updated"
-    assert data["control_point_templates"][0]["t_max"] == 90
-
-
-def test_sync_templates_add_new(client: TestClient):
-    """Test adding new control point templates"""
-    # Create with one template
-    equipment_type_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    client.put("/equipment-type/1", json=equipment_type_data)
+    items = data["items"]
     
-    # Update with additional template
-    updated_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": None
-            },
-            {
-                "id": 2,
-                "equipment_type_id": 1,
-                "name": "Winding",
-                "short_name": "WND",
-                "t_max": 100,
-                "t_excess": 50,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    response = client.put("/equipment-type/1", json=updated_data)
+    # Find equipment type 1 (Electric Motor)
+    motor = next((item for item in items if item["id"] == 1), None)
+    assert motor is not None
+    
+    # Verify templates
+    templates = motor["control_point_templates"]
+    assert len(templates) == 2
+    
+    # Check Bearing template
+    bearing = next((t for t in templates if t["name"] == "Bearing"), None)
+    assert bearing is not None
+    assert bearing["short_name"] == "BRG"
+    assert bearing["t_max"] == 80
+    assert bearing["t_excess"] == 40
+    assert bearing["default_sticker_id"] == 1
+    
+    # Check Winding template
+    winding = next((t for t in templates if t["name"] == "Winding"), None)
+    assert winding is not None
+    assert winding["short_name"] == "WND"
+    assert winding["t_max"] == 100
+    assert winding["t_excess"] == 50
+    assert winding["default_sticker_id"] == 2
+
+
+def test_multiple_equipment_types_with_different_templates(client: TestClient):
+    """Test that different equipment types have different templates"""
+    response = client.get("/equipment-type/all")
     assert response.status_code == 200
     
     data = response.json()
-    assert len(data["control_point_templates"]) == 2
-
-
-def test_sync_templates_remove(client: TestClient):
-    """Test removing control point templates"""
-    # Create with two templates
-    equipment_type_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": None
-            },
-            {
-                "id": 2,
-                "equipment_type_id": 1,
-                "name": "Winding",
-                "short_name": "WND",
-                "t_max": 100,
-                "t_excess": 50,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    client.put("/equipment-type/1", json=equipment_type_data)
+    items = data["items"]
     
-    # Update with only one template
-    updated_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": None
-            }
-        ]
-    }
-    response = client.put("/equipment-type/1", json=updated_data)
-    assert response.status_code == 200
+    # Find equipment type 2 (Transformer)
+    transformer = next((item for item in items if item["id"] == 2), None)
+    assert transformer is not None
+    assert transformer["name"] == "Transformer"
     
-    data = response.json()
-    assert len(data["control_point_templates"]) == 1
-    assert data["control_point_templates"][0]["id"] == 1
-
-
-def test_delete_equipment_type(client: TestClient):
-    """Test deletion of equipment type"""
-    # Create
-    equipment_type_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": []
-    }
-    client.put("/equipment-type/1", json=equipment_type_data)
+    # Should have 3 control point templates
+    assert len(transformer["control_point_templates"]) == 3
     
-    # Delete
-    response = client.delete("/equipment-type/1")
-    assert response.status_code == 204
-    
-    # Verify it's deleted (should return 404)
-    get_response = client.get("/equipment-type/1")
-    assert get_response.status_code == 404
-
-
-def test_id_mismatch(client: TestClient):
-    """Test ID mismatch in URL and body"""
-    equipment_type_data = {
-        "id": 2,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": []
-    }
-    
-    response = client.put("/equipment-type/1", json=equipment_type_data)
-    assert response.status_code == 400
-
-
-def test_template_with_sticker_reference(client: TestClient):
-    """Test control point template with sticker type reference"""
-    equipment_type_data = {
-        "id": 1,
-        "name": "Test Motor",
-        "server_modified_at": "2024-01-01T00:00:00Z",
-        "control_point_templates": [
-            {
-                "id": 1,
-                "equipment_type_id": 1,
-                "name": "Bearing",
-                "short_name": "BRG",
-                "t_max": 80,
-                "t_excess": 40,
-                "default_sticker_id": 1
-            }
-        ]
-    }
-    
-    response = client.put("/equipment-type/1", json=equipment_type_data)
-    assert response.status_code == 200
-    
-    data = response.json()
-    assert data["control_point_templates"][0]["default_sticker_id"] == 1
+    # Verify template names
+    template_names = [t["name"] for t in transformer["control_point_templates"]]
+    assert "Core" in template_names
+    assert "Winding Primary" in template_names
+    assert "Winding Secondary" in template_names

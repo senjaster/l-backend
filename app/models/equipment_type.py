@@ -21,3 +21,8 @@ class EquipmentType(BaseModel):
     name: str
     server_modified_at: datetime
     control_point_templates: list[ControlPointTemplate] = Field(default_factory=list)
+
+
+class EquipmentTypeListResponse(BaseModel):
+    """List of EquipmentType items"""
+    items: list[EquipmentType]

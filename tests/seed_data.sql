@@ -32,6 +32,37 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Insert temperature range for deleted sticker type 3
 INSERT INTO lesiv.sticker_temp_range (id, sticker_id, name, t_min, t_max)
-VALUES 
+VALUES
     (6, 3, 'Obsolete Range', 0, 100)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed equipment types for testing
+
+-- Insert equipment types
+INSERT INTO lesiv.equipment_type (id, name, server_modified_at)
+VALUES
+    (1, 'Electric Motor', '2024-01-01T00:00:00Z'),
+    (2, 'Transformer', '2024-01-01T00:00:00Z'),
+    (3, 'Circuit Breaker', '2024-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert control point templates for equipment type 1 (Electric Motor)
+INSERT INTO lesiv.equipment_control_point_template (id, equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id)
+VALUES
+    (1, 1, 'Bearing', 'BRG', 80, 40, 1),
+    (2, 1, 'Winding', 'WND', 100, 50, 2)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert control point templates for equipment type 2 (Transformer)
+INSERT INTO lesiv.equipment_control_point_template (id, equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id)
+VALUES
+    (3, 2, 'Core', 'CORE', 90, 45, 1),
+    (4, 2, 'Winding Primary', 'WND1', 110, 55, 2),
+    (5, 2, 'Winding Secondary', 'WND2', 110, 55, 2)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert control point template for equipment type 3 (Circuit Breaker)
+INSERT INTO lesiv.equipment_control_point_template (id, equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id)
+VALUES
+    (6, 3, 'Contact', 'CNT', 70, 35, 1)
 ON CONFLICT (id) DO NOTHING;
