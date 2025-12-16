@@ -11,17 +11,15 @@ settings.require_auth = False
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def seed_test_inspector():
-    """Seed test inspector once per test session using direct database connection."""
+async def seed_test_data():
+    """Seed test data once per test session using direct database connection."""
     # Create a direct connection to seed data (independent of app pool)
     conn = await asyncpg.connect(settings.database_url)
     try:
-        # Insert test inspector if not exists
-        await conn.execute("""
-            INSERT INTO lesiv.inspector (id, full_name, username, password_hash, server_modified_at)
-            VALUES (1, 'Test Inspector', 'test', 'hash', CURRENT_TIMESTAMP)
-            ON CONFLICT (id) DO NOTHING
-        """)
+        # Load and execute sticker types seed file
+        with open('tests/seed_data.sql', 'r') as f:
+            seed_sql = f.read()
+        await conn.execute(seed_sql)
     finally:
         await conn.close()
     
