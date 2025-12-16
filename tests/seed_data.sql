@@ -1,8 +1,11 @@
 -- This file is loaded in conftest.py to pre-populate the database with test data
 
--- Seed inspector
+-- Seed inspectors
 INSERT INTO lesiv.inspector (id, full_name, username, password_hash, server_modified_at)
-VALUES (1, 'Test Inspector', 'test', 'hash', CURRENT_TIMESTAMP)
+VALUES
+    (1, 'Test Inspector', 'test', 'hash', CURRENT_TIMESTAMP),
+    (2, 'John Smith', 'jsmith', 'hash2', CURRENT_TIMESTAMP),
+    (3, 'Jane Doe', 'jdoe', 'hash3', CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed sticker types for testing
