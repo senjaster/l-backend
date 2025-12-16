@@ -6,16 +6,10 @@ import json
 import aiosql
 from app.models.image import Image
 from app.models import ConflictError, ConflictDetail
+from app.exceptions import ConcurrentModificationError
 
 # Load queries from single file
 queries = aiosql.from_path("app/queries/image.sql", "asyncpg")
-
-
-class ConcurrentModificationError(Exception):
-    """Raised when concurrent modification is detected"""
-    def __init__(self, conflict_error: ConflictError):
-        self.conflict_error = conflict_error
-        super().__init__(conflict_error.message)
 
 
 class ImageRepository:

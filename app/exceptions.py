@@ -5,6 +5,13 @@ import asyncpg
 from app.models import BaseError
 
 
+class ConcurrentModificationError(Exception):
+    """Raised when concurrent modification is detected"""
+    def __init__(self, conflict_error):
+        self.conflict_error = conflict_error
+        super().__init__(conflict_error.message)
+
+
 async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError):
     """Handle asyncpg database errors"""
     
