@@ -65,8 +65,9 @@ class AuthService:
             aud=settings.jwt_audience
         )
         
-        # Convert UUID to string for JSON serialization
+        # Convert to dict and ensure proper types for JWT
         payload_dict = payload.model_dump()
+        payload_dict['sub'] = str(payload_dict['sub'])  # JWT spec requires sub to be a string
         payload_dict['dev'] = str(payload_dict['dev'])
         
         return jwt.encode(
@@ -85,10 +86,14 @@ class AuthService:
                 self._public_key,
                 algorithms=["RS256"],
                 issuer=settings.jwt_issuer,
-                audience=settings.jwt_audience
+                audience=settings.jwt_audience,
             )
+            # Convert sub back to int and dev back to UUID
+            payload['sub'] = int(payload['sub'])
+            payload['dev'] = UUID(payload['dev'])
             return TokenPayload(**payload)
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as e:
+            print(e)
             return None
     
     async def login(

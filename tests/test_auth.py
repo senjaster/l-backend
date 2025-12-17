@@ -8,6 +8,15 @@ from app.config import settings
 
 
 @pytest.fixture
+def enable_auth():
+    """Temporarily enable authentication for specific tests"""
+    original_value = settings.require_auth
+    settings.require_auth = True
+    yield
+    settings.require_auth = original_value
+
+
+@pytest.fixture
 def test_inspector_data():
     """Test inspector data"""
     return {
@@ -234,19 +243,17 @@ def test_protected_route_with_valid_token(client, test_inspector):
     )
     
     # Should succeed (assuming inspector endpoint exists and is protected)
-    assert response.status_code in [200, 404]  # 404 if endpoint doesn't require auth yet
+    assert response.status_code != 401
 
 
-def test_protected_route_without_token(client, test_inspector):
+def test_protected_route_without_token(enable_auth, client, test_inspector):
     """Test accessing a protected route without token"""
     # This test assumes inspector endpoint is protected
     # If not protected yet, this test documents the expected behavior
-    response = client.get(
-        f"/inspectors/{test_inspector['id']}"
-    )
+    response = client.get("/inspector/all")
     
-    # Should either succeed (if not protected) or fail with 401/403
-    assert response.status_code in [200, 401, 403, 404]
+    # Should fail with 401 when auth is enabled
+    assert response.status_code == 401
 
 
 def test_protected_route_with_invalid_token(client, test_inspector):
@@ -306,3 +313,127 @@ def test_multiple_devices_same_user(client, test_inspector):
         json={"refresh_token": token2}
     )
     assert refresh2.status_code == 200
+
+
+def test_jwt_token_structure(client, test_inspector):
+    """Test that JWT tokens have correct structure and can be decoded"""
+    import jwt
+    from app.config import settings
+    
+    device_id = str(uuid4())
+    
+    # Login to get access token
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device_id
+        }
+    )
+    
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access_token"]
+    
+    # Load public key
+    with open(settings.public_key_path, 'r') as f:
+        public_key = f.read()
+    
+    # Decode and verify token structure
+    payload = jwt.decode(
+        access_token,
+        public_key,
+        algorithms=["RS256"],
+        issuer=settings.jwt_issuer,
+        audience=settings.jwt_audience,
+    )
+    
+    # Verify all required claims are present
+    assert "sub" in payload
+    assert "dev" in payload
+    assert "exp" in payload
+    assert "iat" in payload
+    assert "iss" in payload
+    assert "aud" in payload
+    
+    # Verify sub is a string (JWT spec requirement)
+    assert isinstance(payload["sub"], str)
+    # Verify it can be converted to int
+    assert int(payload["sub"]) == test_inspector["id"]
+    
+    # Verify dev is a string UUID
+    assert isinstance(payload["dev"], str)
+    from uuid import UUID
+    UUID(payload["dev"])  # Should not raise
+    
+    # Verify issuer and audience
+    assert payload["iss"] == settings.jwt_issuer
+    assert payload["aud"] == settings.jwt_audience
+
+
+def test_middleware_authentication_flow(enable_auth, client, test_inspector):
+    """Test that middleware properly validates tokens from Swagger UI"""
+    device_id = str(uuid4())
+    
+    # Login to get access token
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device_id
+        }
+    )
+    
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access_token"]
+    
+    # Test that middleware accepts the token in Authorization header
+    response = client.get(
+        "/inspector/all",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    
+    # Should not return 401 (authentication should succeed)
+    assert response.status_code != 401, f"Middleware rejected valid token: {response.json()}"
+    
+    # Test with malformed token
+    response = client.get(
+        "/inspector/all",
+        headers={"Authorization": "Bearer malformed_token"}
+    )
+    assert response.status_code == 401, f"Expected 401 but got {response.status_code}: {response.json()}"
+    
+    # Test without Bearer prefix
+    response = client.get(
+        "/inspector/all",
+        headers={"Authorization": access_token}
+    )
+    assert response.status_code == 401
+    
+    # Test without Authorization header
+    response = client.get("/inspector/all")
+    assert response.status_code == 401
+
+
+def test_token_validation_with_auth_service(test_inspector):
+    """Test that AuthService properly validates tokens it creates"""
+    from app.services.auth import AuthService
+    from uuid import UUID
+    
+    auth_service = AuthService()
+    device_id = uuid4()
+    
+    # Create a token
+    access_token = auth_service.create_access_token(test_inspector["id"], device_id)
+    
+    # Verify the token
+    payload = auth_service.verify_access_token(access_token)
+    
+    assert payload is not None, "AuthService failed to verify its own token"
+    assert payload.sub == test_inspector["id"]
+    assert payload.dev == device_id
+    
+    # Verify invalid token returns None
+    invalid_payload = auth_service.verify_access_token("invalid_token")
+    assert invalid_payload is None

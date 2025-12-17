@@ -21,8 +21,56 @@ app = FastAPI(
     title="L-Inspector Backend API",
     version="1.0.0",
     description="REST API for L-Inspector mobile application",
-    lifespan=lifespan
+    lifespan=lifespan,
+    swagger_ui_parameters={
+        "persistAuthorization": True
+    },
 )
+
+# Configure OpenAPI security scheme for Swagger UI
+app.openapi_schema = None  # Reset to regenerate with security scheme
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    from fastapi.openapi.utils import get_openapi
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # Add security scheme
+    openapi_schema["components"]["securitySchemes"] = {
+        "HTTPBearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Enter your JWT token"
+        }
+    }
+    
+    # Apply security globally to all operations except public paths
+    public_paths = {"/", "/auth/login", "/auth/refresh"}
+    for path, path_item in openapi_schema.get("paths", {}).items():
+        # Skip public paths
+        if path in public_paths:
+            continue
+        
+        # Apply security to all methods in this path
+        for method in path_item.values():
+            if isinstance(method, dict) and "security" not in method:
+                method["security"] = [{"HTTPBearer": []}]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # Register exception handlers
 app.add_exception_handler(asyncpg.PostgresError, asyncpg_exception_handler)
