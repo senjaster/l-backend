@@ -437,3 +437,273 @@ def test_token_validation_with_auth_service(test_inspector):
     # Verify invalid token returns None
     invalid_payload = auth_service.verify_access_token("invalid_token")
     assert invalid_payload is None
+
+
+def test_change_password_success(client, test_inspector):
+    """Test successful password change"""
+    device_id = str(uuid4())
+    new_device_id = str(uuid4())
+    
+    # Login to get access token
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device_id
+        }
+    )
+    
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access_token"]
+    old_refresh_token = login_response.json()["refresh_token"]
+    
+    # Change password
+    new_password = "new_secure_password_456"
+    change_response = client.post(
+        "/auth/change-password",
+        json={
+            "old_password": test_inspector["password"],
+            "new_password": new_password,
+            "device_id": new_device_id
+        },
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    
+    assert change_response.status_code == 200
+    change_data = change_response.json()
+    assert "access_token" in change_data
+    assert "refresh_token" in change_data
+    assert change_data["token_type"] == "bearer"
+    
+    # Verify new tokens are different from old ones
+    assert change_data["access_token"] != access_token
+    assert change_data["refresh_token"] != old_refresh_token
+    
+    # Verify old refresh token is revoked
+    old_refresh_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": old_refresh_token}
+    )
+    assert old_refresh_response.status_code == 401
+    
+    # Verify new refresh token works
+    new_refresh_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": change_data["refresh_token"]}
+    )
+    assert new_refresh_response.status_code == 200
+    
+    # Verify can't login with old password
+    old_login_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device_id
+        }
+    )
+    assert old_login_response.status_code == 401
+    
+    # Verify can login with new password
+    new_login_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": new_password,
+            "device_id": device_id
+        }
+    )
+    assert new_login_response.status_code == 200
+
+
+def test_change_password_invalid_old_password(client, test_inspector):
+    """Test password change with incorrect old password"""
+    device_id = str(uuid4())
+    
+    # Login to get access token
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device_id
+        }
+    )
+    
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access_token"]
+    
+    # Try to change password with wrong old password
+    change_response = client.post(
+        "/auth/change-password",
+        json={
+            "old_password": "wrong_old_password",
+            "new_password": "new_password_123",
+            "device_id": device_id
+        },
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    
+    assert change_response.status_code == 400
+    assert "Invalid old password" in change_response.json()["detail"]
+
+
+def test_change_password_without_authentication(client, test_inspector):
+    """Test password change without authentication token"""
+    device_id = str(uuid4())
+    
+    # Try to change password without token
+    change_response = client.post(
+        "/auth/change-password",
+        json={
+            "old_password": test_inspector["password"],
+            "new_password": "new_password_123",
+            "device_id": device_id
+        }
+    )
+    
+    assert change_response.status_code == 401
+
+
+def test_change_password_with_invalid_token(client, test_inspector):
+    """Test password change with invalid authentication token"""
+    device_id = str(uuid4())
+    
+    # Try to change password with invalid token
+    change_response = client.post(
+        "/auth/change-password",
+        json={
+            "old_password": test_inspector["password"],
+            "new_password": "new_password_123",
+            "device_id": device_id
+        },
+        headers={"Authorization": "Bearer invalid_token_here"}
+    )
+    
+    assert change_response.status_code == 401
+
+
+def test_change_password_revokes_all_tokens(client, test_inspector):
+    """Test that password change revokes all existing tokens across all devices"""
+    device1_id = str(uuid4())
+    device2_id = str(uuid4())
+    new_device_id = str(uuid4())
+    
+    # Login from device 1
+    login1_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device1_id
+        }
+    )
+    assert login1_response.status_code == 200
+    token1 = login1_response.json()["refresh_token"]
+    access_token1 = login1_response.json()["access_token"]
+    
+    # Login from device 2
+    login2_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device2_id
+        }
+    )
+    assert login2_response.status_code == 200
+    token2 = login2_response.json()["refresh_token"]
+    
+    # Change password using device 1 token
+    new_password = "new_secure_password_789"
+    change_response = client.post(
+        "/auth/change-password",
+        json={
+            "old_password": test_inspector["password"],
+            "new_password": new_password,
+            "device_id": new_device_id
+        },
+        headers={"Authorization": f"Bearer {access_token1}"}
+    )
+    assert change_response.status_code == 200
+    
+    # Verify both old refresh tokens are revoked
+    refresh1_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": token1}
+    )
+    assert refresh1_response.status_code == 401
+    
+    refresh2_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": token2}
+    )
+    assert refresh2_response.status_code == 401
+    
+    # Verify new token works
+    new_refresh_token = change_response.json()["refresh_token"]
+    new_refresh_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": new_refresh_token}
+    )
+    assert new_refresh_response.status_code == 200
+
+
+def test_change_password_updates_database(client, test_inspector):
+    """Test that password change actually updates the password hash in database"""
+    import asyncpg
+    from app.config import settings
+    from app.services.auth import AuthService
+    
+    device_id = str(uuid4())
+    auth_service = AuthService()
+    
+    # Get original password hash
+    async def get_password_hash():
+        conn = await asyncpg.connect(settings.database_url)
+        try:
+            password_hash = await conn.fetchval(
+                "SELECT password_hash FROM lesiv.inspector WHERE username = $1",
+                test_inspector["username"]
+            )
+            return password_hash
+        finally:
+            await conn.close()
+    
+    import asyncio
+    original_hash = asyncio.run(get_password_hash())
+    
+    # Login and change password
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "username": test_inspector["username"],
+            "password": test_inspector["password"],
+            "device_id": device_id
+        }
+    )
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access_token"]
+    
+    new_password = "completely_new_password_999"
+    change_response = client.post(
+        "/auth/change-password",
+        json={
+            "old_password": test_inspector["password"],
+            "new_password": new_password,
+            "device_id": device_id
+        },
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert change_response.status_code == 200
+    
+    # Get new password hash
+    new_hash = asyncio.run(get_password_hash())
+    
+    # Verify hash changed
+    assert new_hash != original_hash
+    
+    # Verify new hash validates new password
+    assert auth_service.verify_password(new_password, new_hash)
+    assert not auth_service.verify_password(test_inspector["password"], new_hash)

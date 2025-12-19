@@ -1,16 +1,19 @@
 """Authentication router"""
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 import asyncpg
-from app.models.auth import LoginRequest, LoginResponse, RefreshRequest, RefreshResponse
+from app.models.auth import LoginRequest, TokenResponse, RefreshRequest, PasswordChangeRequest
+from app.models.inspector import Inspector
 from app.services.auth import AuthService
 from app.database import get_db_connection
+from app.dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 auth_service = AuthService()
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=TokenResponse)
 async def login(
     request: LoginRequest,
     conn: Annotated[asyncpg.Connection, Depends(get_db_connection)]
@@ -45,7 +48,7 @@ async def login(
     return result
 
 
-@router.post("/refresh", response_model=RefreshResponse)
+@router.post("/refresh", response_model=TokenResponse)
 async def refresh(
     request: RefreshRequest,
     conn: Annotated[asyncpg.Connection, Depends(get_db_connection)]
@@ -81,3 +84,45 @@ async def refresh(
         )
     
     return result
+
+@router.post("/change-password", response_model=TokenResponse)
+async def change_password(
+    request: PasswordChangeRequest,
+    current_user: Annotated[Inspector, Depends(get_current_user)],
+    conn: Annotated[asyncpg.Connection, Depends(get_db_connection)]
+):
+    """
+    Change password endpoint - requires authentication.
+    
+    Verifies old password, updates to new password, revokes all existing tokens,
+    and returns a new token pair for the specified device.
+    
+    Args:
+        request: Password change request (old_password, new_password, device_id)
+        current_user: Current authenticated user (from JWT token)
+        conn: Database connection
+    
+    Returns:
+        TokenResponse with new access_token and refresh_token
+    
+    Raises:
+        HTTPException: 400 if old password is invalid
+        HTTPException: 401 if not authenticated
+    """
+    result = await auth_service.change_password(
+        conn,
+        inspector_id=current_user.id,
+        old_password=request.old_password,
+        new_password=request.new_password,
+        device_id=request.device_id
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid old password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return result
+    

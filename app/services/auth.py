@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from typing import Optional
 import bcrypt
 import jwt
-from app.models.auth import Token, TokenPayload, LoginResponse, RefreshResponse, InspectorWithPassword
+from app.models.auth import Token, TokenPayload, TokenResponse, InspectorWithPassword
 from app.repositories.auth import AuthRepository
 from app.config import settings
 
@@ -102,7 +102,7 @@ class AuthService:
         username: str,
         password: str,
         device_id: UUID
-    ) -> Optional[LoginResponse]:
+    ) -> Optional[TokenResponse]:
         """
         Authenticate user and create tokens.
         Returns None if authentication fails.
@@ -134,7 +134,7 @@ class AuthService:
             expires_at=expires_at
         )
         
-        return LoginResponse(
+        return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token_string
         )
@@ -143,7 +143,7 @@ class AuthService:
         self,
         conn,
         refresh_token_string: str
-    ) -> Optional[RefreshResponse]:
+    ) -> Optional[TokenResponse]:
         """
         Refresh tokens using a refresh token.
         Returns None if refresh fails.
@@ -172,7 +172,7 @@ class AuthService:
             if datetime.now(timezone.utc) - token.used_at < reuse_window:
                 # Within reuse window - allow it but don't rotate
                 access_token = self.create_access_token(token.inspector_id, token.device_id)
-                return RefreshResponse(
+                return TokenResponse(
                     access_token=access_token,
                     refresh_token=refresh_token_string
                 )
@@ -201,7 +201,7 @@ class AuthService:
         # Revoke old token and link to new one
         await self.repository.revoke_and_replace(conn, token.id, new_token_id)
         
-        return RefreshResponse(
+        return TokenResponse(
             access_token=new_access_token,
             refresh_token=new_refresh_token_string
         )
@@ -213,3 +213,75 @@ class AuthService:
             return None
         
         return await self.repository.get_inspector_by_id(conn, payload.sub)
+    
+    async def change_password(
+        self,
+        conn,
+        inspector_id: int,
+        old_password: str,
+        new_password: str,
+        device_id: UUID
+    ) -> Optional[TokenResponse]:
+        """
+        Change password for an inspector.
+        Verifies old password, updates to new password, revokes all tokens, and issues new token pair.
+        
+        Args:
+            conn: Database connection
+            inspector_id: ID of the inspector changing password
+            old_password: Current password for verification
+            new_password: New password to set
+            device_id: Device ID for new token generation
+        
+        Returns:
+            LoginResponse with new tokens if successful, None if old password is invalid
+        """
+        # Get inspector by ID
+        inspector = await self.repository.get_inspector_by_id(conn, inspector_id)
+        if not inspector:
+            return None
+        
+        # Verify old password
+        if not self.verify_password(old_password, inspector.password_hash):
+            return None
+        
+        # Hash new password
+        new_password_hash = self.hash_password(new_password)
+        
+        # Update password in database atomically (checks old password hash in DB)
+        updated = await self.repository.update_password(
+            conn,
+            inspector_id,
+            inspector.password_hash,
+            new_password_hash
+        )
+        
+        # If update failed, old password didn't match (race condition)
+        if not updated:
+            return None
+        
+        # Revoke all existing tokens for this inspector
+        await self.repository.revoke_all_tokens_for_inspector(conn, inspector_id)
+        
+        # Generate new token pair
+        access_token = self.create_access_token(inspector_id, device_id)
+        refresh_token_string = self.generate_refresh_token()
+        
+        # Store new refresh token in database
+        token_id = uuid4()
+        token_hash = self.hash_token(refresh_token_string)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_lifetime_days)
+        
+        await self.repository.create_refresh_token(
+            conn,
+            token_id=token_id,
+            inspector_id=inspector_id,
+            device_id=device_id,
+            token_hash=token_hash,
+            expires_at=expires_at
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token_string
+        )

@@ -71,3 +71,20 @@ class AuthRepository:
         if row:
             return InspectorWithPassword(**row)
         return None
+    
+    async def update_password(self, conn, inspector_id: int, old_password_hash: str, new_password_hash: str) -> bool:
+        """
+        Update inspector's password hash atomically.
+        Returns True if password was updated, False if old password didn't match.
+        """
+        result = await queries.update_password(
+            conn,
+            id=inspector_id,
+            old_password_hash=old_password_hash,
+            new_password_hash=new_password_hash
+        )
+        return result is not None
+    
+    async def revoke_all_tokens_for_inspector(self, conn, inspector_id: int) -> None:
+        """Revoke all tokens for an inspector (e.g., after password change)"""
+        await queries.revoke_all_tokens_for_inspector(conn, inspector_id=inspector_id)

@@ -70,3 +70,14 @@ WHERE username = :username;
 SELECT id, full_name, username, password_hash, server_modified_at
 FROM lesiv.inspector
 WHERE id = :id;
+
+-- name: update_password^
+UPDATE lesiv.inspector
+SET password_hash = :new_password_hash, server_modified_at = CURRENT_TIMESTAMP
+WHERE id = :id AND password_hash = :old_password_hash
+RETURNING id;
+
+-- name: revoke_all_tokens_for_inspector!
+UPDATE lesiv.tokens
+SET revoked = TRUE
+WHERE inspector_id = :inspector_id;

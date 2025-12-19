@@ -24,7 +24,7 @@ class LoginRequest(BaseModel):
     device_id: UUID
 
 
-class LoginResponse(BaseModel):
+class TokenResponse(BaseModel):
     """Login response with tokens"""
     access_token: str
     refresh_token: str
@@ -34,13 +34,6 @@ class LoginResponse(BaseModel):
 class RefreshRequest(BaseModel):
     """Refresh token request payload"""
     refresh_token: str = Field(..., min_length=1)
-
-
-class RefreshResponse(BaseModel):
-    """Refresh token response"""
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
 
 
 class TokenPayload(BaseModel):
@@ -60,3 +53,10 @@ class InspectorWithPassword(BaseModel):
     username: str
     password_hash: str
     server_modified_at: datetime
+
+
+class PasswordChangeRequest(BaseModel):
+    """Request for a password change"""
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=1)
+    device_id: UUID
