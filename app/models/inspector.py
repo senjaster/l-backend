@@ -9,6 +9,7 @@ class Inspector(BaseModel):
     id: int
     full_name: str
     username: str
+    is_deleted: bool = False
     server_modified_at: datetime
 
 

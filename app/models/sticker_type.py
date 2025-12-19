@@ -10,6 +10,7 @@ class StickerTempRange(BaseModel):
     name: str
     t_min: int
     t_max: int
+    is_deleted: bool = False
 
 
 class StickerType(BaseModel):

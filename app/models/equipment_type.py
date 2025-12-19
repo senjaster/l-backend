@@ -13,12 +13,14 @@ class ControlPointTemplate(BaseModel):
     t_max: int
     t_excess: int
     default_sticker_id: Optional[int] = None
+    is_deleted: bool = False
 
 
 class EquipmentType(BaseModel):
     """EquipmentType aggregate with control point templates"""
     id: int
     name: str
+    is_deleted: bool = False
     server_modified_at: datetime
     control_point_templates: list[ControlPointTemplate] = Field(default_factory=list)
 
