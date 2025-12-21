@@ -125,4 +125,26 @@ async def change_password(
         )
     
     return result
+
+
+@router.get("/check", status_code=status.HTTP_204_NO_CONTENT)
+async def check_auth(
+    _current_user: Annotated[Inspector, Depends(get_current_user)]
+):
+    """
+    Check authentication endpoint - verifies if the user is authenticated.
     
+    This endpoint is protected by authentication and returns an empty response
+    if the user is authenticated. If the user is not authenticated, the
+    get_current_user dependency will raise a 401 Unauthorized error.
+    
+    Args:
+        current_user: Current authenticated user (from JWT token)
+    
+    Returns:
+        Empty response with 204 No Content status
+    
+    Raises:
+        HTTPException: 401 if not authenticated
+    """
+    return None    
