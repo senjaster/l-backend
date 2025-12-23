@@ -32,10 +32,11 @@ class PlantListItem(BaseModel):
     """Lightweight plant item for list view"""
     id: UUID
     name: str
-    is_deleted: bool
     locked_by_device_id: Optional[UUID] = None
     locked_by_user_id: Optional[int] = None
     locked_at: Optional[datetime] = None
+    is_deleted: bool = False
+    server_modified_at: datetime
 
 
 class PlantListResponse(BaseModel):

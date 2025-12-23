@@ -32,7 +32,7 @@ WHERE id = :facility_id;
 -- name: get_all_plants
 -- Get all plants (lightweight list)
 -- :modified_since defaults to 1790-01-01 - only return plants modified after that timestamp
-SELECT id, name, is_deleted, locked_by_device_id, locked_by_user_id, locked_at
+SELECT id, name, is_deleted, locked_by_device_id, locked_by_user_id, locked_at, server_modified_at
 FROM lesiv.plant
 WHERE server_modified_at > :modified_since
 ORDER BY name;
