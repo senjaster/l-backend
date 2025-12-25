@@ -1,12 +1,14 @@
 """Equipment router - implements new API design principles"""
 from uuid import UUID
 from datetime import datetime
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.equipment import Equipment, EquipmentListResponse
 from app.repositories.equipment import EquipmentRepository, ConcurrentModificationError
 from app.database import get_db_connection
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/equipment", tags=["equipment"])
 equipment_repo = EquipmentRepository()
 
@@ -63,9 +65,23 @@ async def upsert_equipment(
             result = await equipment_repo.save(conn, equipment, force=force)
         return result
     except ConcurrentModificationError as e:
+        logger.warning(
+            "Concurrent modification detected for equipment",
+            extra={
+                "equipment_id": str(equipment.id),
+                "conflict": e.conflict_error.model_dump(mode='json')
+            }
+        )
         raise HTTPException(
             status_code=409,
             detail=e.conflict_error.model_dump(mode='json')
         )
     except ValueError as e:
+        logger.warning(
+            "Invalid equipment data",
+            extra={
+                "equipment_id": str(equipment.id),
+                "error": str(e)
+            }
+        )
         raise HTTPException(status_code=400, detail=str(e))

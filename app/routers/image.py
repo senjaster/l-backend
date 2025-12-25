@@ -1,12 +1,14 @@
 """Image router - implements API design principles"""
 from uuid import UUID
 from datetime import datetime
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image
 from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/image", tags=["image"])
 image_repo = ImageRepository()
 
@@ -52,9 +54,23 @@ async def upsert_image(
             result = await image_repo.save(conn, image, force=force)
         return result
     except ConcurrentModificationError as e:
+        logger.warning(
+            "Concurrent modification detected for image",
+            extra={
+                "image_id": str(image.id),
+                "conflict": e.conflict_error.model_dump(mode='json')
+            }
+        )
         raise HTTPException(
             status_code=409,
             detail=e.conflict_error.model_dump(mode='json')
         )
     except ValueError as e:
+        logger.warning(
+            "Invalid image data",
+            extra={
+                "image_id": str(image.id),
+                "error": str(e)
+            }
+        )
         raise HTTPException(status_code=400, detail=str(e))

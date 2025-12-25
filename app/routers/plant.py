@@ -1,6 +1,7 @@
 """Plant router - implements new API design principles"""
 from uuid import UUID
 from datetime import datetime
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from app.constants import DEFAULT_MODIFIED_SINCE
@@ -8,6 +9,7 @@ from app.models.plant import Plant, PlantListResponse
 from app.repositories.plant import PlantRepository, ConcurrentModificationError
 from app.database import get_db_connection
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plant", tags=["plant"])
 plant_repo = PlantRepository()
 
@@ -60,11 +62,25 @@ async def upsert_plant(
             result = await plant_repo.save(conn, plant, force=force)
         return result
     except ConcurrentModificationError as e:
+        logger.warning(
+            "Concurrent modification detected for plant",
+            extra={
+                "plant_id": str(plant.id),
+                "conflict": e.conflict_error.model_dump(mode='json')
+            }
+        )
         raise HTTPException(
             status_code=409,
             detail=e.conflict_error.model_dump(mode='json')
         )
     except ValueError as e:
+        logger.warning(
+            "Invalid plant data",
+            extra={
+                "plant_id": str(plant.id),
+                "error": str(e)
+            }
+        )
         raise HTTPException(status_code=400, detail=str(e))
 
 

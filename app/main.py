@@ -5,16 +5,27 @@ import asyncpg
 from app.database import init_db_pool, close_db_pool
 from app.exceptions import asyncpg_exception_handler
 from app.middleware.auth import AuthMiddleware
+from app.logging_config import setup_logging
+from app.config import settings
+import logging
+
+# Initialize logging
+setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
+    logger.info("Starting application")
     await init_db_pool()
+    logger.info("Database pool initialized")
     yield
     # Shutdown
+    logger.info("Shutting down application")
     await close_db_pool()
+    logger.info("Database pool closed")
 
 
 app = FastAPI(

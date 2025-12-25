@@ -1,6 +1,7 @@
 """Authentication service with business logic"""
 import secrets
 import hashlib
+import logging
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 from typing import Optional
@@ -9,6 +10,8 @@ import jwt
 from app.models.auth import Token, TokenPayload, TokenResponse, InspectorWithPassword
 from app.repositories.auth import AuthRepository
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -104,7 +107,13 @@ class AuthService:
             payload['dev'] = UUID(payload['dev'])
             return TokenPayload(**payload)
         except jwt.InvalidTokenError as e:
-            print(e)
+            logger.warning(
+                "Invalid JWT token",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error": str(e)
+                }
+            )
             return None
     
     async def login(

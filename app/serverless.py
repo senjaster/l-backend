@@ -1,5 +1,9 @@
 from mangum import Mangum  # ASGI adapter for serverless
 from app.main import app
+import logging
+
+# Logging is already initialized in app.main
+logger = logging.getLogger(__name__)
 
 # Mangum adapts FastAPI to event format
 # Configure Mangum with explicit lifespan handling for serverless
@@ -11,4 +15,12 @@ lambda_handler = Mangum(
 )
 
 def handler(event, context):
-    return lambda_handler(event, context)
+    try:
+        return lambda_handler(event, context)
+    except Exception as e:
+        logger.error(
+            "Lambda invocation failed",
+            extra={"request_id": context.request_id, "error": str(e)},
+            exc_info=True
+        )
+        raise

@@ -2,7 +2,10 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 import asyncpg
+import logging
 from app.models import BaseError
+
+logger = logging.getLogger(__name__)
 
 
 class ConcurrentModificationError(Exception):
@@ -17,9 +20,19 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
     
     # Foreign key violation
     if isinstance(exc, asyncpg.ForeignKeyViolationError):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Foreign key violation",
+            extra={
+                "error_type": "foreign_key_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
         error = BaseError(
             type="foreign_key_violation",
-            message=str(exc).split('\n')[0]  # First line has the constraint name
+            message=error_msg
         )
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -28,9 +41,19 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
     
     # Unique constraint violation
     if isinstance(exc, asyncpg.UniqueViolationError):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Unique constraint violation",
+            extra={
+                "error_type": "unique_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
         error = BaseError(
             type="unique_violation",
-            message=str(exc).split('\n')[0]
+            message=error_msg
         )
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -39,9 +62,19 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
     
     # Not null violation
     if isinstance(exc, asyncpg.NotNullViolationError):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Not null constraint violation",
+            extra={
+                "error_type": "not_null_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
         error = BaseError(
             type="not_null_violation",
-            message=str(exc).split('\n')[0]
+            message=error_msg
         )
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -50,9 +83,19 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
     
     # Check constraint violation
     if isinstance(exc, asyncpg.CheckViolationError):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Check constraint violation",
+            extra={
+                "error_type": "check_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
         error = BaseError(
             type="check_violation",
-            message=str(exc).split('\n')[0]
+            message=error_msg
         )
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -60,6 +103,16 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
         )
     
     # Generic database error
+    logger.error(
+        "Unexpected database error",
+        extra={
+            "error_type": "database_error",
+            "path": request.url.path,
+            "method": request.method,
+            "exception_type": type(exc).__name__
+        },
+        exc_info=True
+    )
     error = BaseError(
         type="database_error",
         message="An unexpected database error occurred"

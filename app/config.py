@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     private_key_path: str = "private.pem"  # Fallback to file path
     public_key_path: str = "public.pem"    # Fallback to file path
     
+    # Logging settings
+    log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    log_json: bool = True  # Enable structured JSON logging
+    
     class Config:
         env_file = ".env"
     
