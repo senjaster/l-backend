@@ -8,4 +8,4 @@ python-dotenv
 httpx
 bcrypt
 pyjwt[crypto]
-magnum
+mangnum
