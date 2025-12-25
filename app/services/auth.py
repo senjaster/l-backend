@@ -20,13 +20,24 @@ class AuthService:
         self._public_key: Optional[str] = None
     
     def _load_keys(self):
-        """Load RSA keys from files (lazy loading)"""
+        """Load RSA keys from environment variables or files (lazy loading)"""
         if self._private_key is None:
-            with open(settings.private_key_path, 'r') as f:
-                self._private_key = f.read()
+            # Try to load from environment variable first
+            if settings.private_key:
+                self._private_key = settings.private_key
+            else:
+                # Fallback to reading from file
+                with open(settings.private_key_path, 'r') as f:
+                    self._private_key = f.read()
+        
         if self._public_key is None:
-            with open(settings.public_key_path, 'r') as f:
-                self._public_key = f.read()
+            # Try to load from environment variable first
+            if settings.public_key:
+                self._public_key = settings.public_key
+            else:
+                # Fallback to reading from file
+                with open(settings.public_key_path, 'r') as f:
+                    self._public_key = f.read()
     
     @staticmethod
     def hash_password(password: str) -> str:
