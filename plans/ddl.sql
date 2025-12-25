@@ -13,6 +13,7 @@ CREATE TABLE lesiv.inspector (
     full_name TEXT NOT NULL,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -57,6 +58,7 @@ CREATE TABLE lesiv.sticker_temp_range (
     name TEXT NOT NULL,
     t_min INTEGER NOT NULL,
     t_max INTEGER NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_sticker_temp_range_sticker 
         FOREIGN KEY (sticker_id) REFERENCES lesiv.sticker_type(id)
 );
@@ -70,6 +72,7 @@ CREATE INDEX idx_sticker_temp_range_sticker ON lesiv.sticker_temp_range(sticker_
 CREATE TABLE lesiv.equipment_type (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -81,6 +84,7 @@ CREATE TABLE lesiv.equipment_control_point_template (
     t_max INTEGER NOT NULL,
     t_excess INTEGER NOT NULL,
     default_sticker_id INTEGER,  -- Reference to sticker_type (no FK between aggregates)
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_control_point_template_equipment_type 
         FOREIGN KEY (equipment_type_id) REFERENCES lesiv.equipment_type(id)
 );
