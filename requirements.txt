@@ -5,8 +5,7 @@ pydantic-settings
 asyncpg
 aiosql
 python-dotenv
-pytest
-pytest-asyncio
 httpx
 bcrypt
 pyjwt[crypto]
+magnum
