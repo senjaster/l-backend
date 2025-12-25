@@ -14,7 +14,7 @@ settings.require_auth = False
 async def seed_test_data():
     """Seed test data once per test session using direct database connection."""
     # Create a direct connection to seed data (independent of app pool)
-    conn = await asyncpg.connect(settings.database_url)
+    conn = await asyncpg.connect(settings.get_database_url())
     try:
         # Load and execute sticker types seed file
         with open('tests/seed_data.sql', 'r') as f:
@@ -37,7 +37,7 @@ async def seed_test_plant_and_facility(request):
     plant_id = request.getfixturevalue('plant_id')
     facility_id = request.getfixturevalue('facility_id')
     
-    conn = await asyncpg.connect(settings.database_url)
+    conn = await asyncpg.connect(settings.get_database_url())
     try:
         # Insert test plant if not exists
         await conn.execute("""

@@ -1,10 +1,12 @@
 """Application configuration"""
 from typing import Optional
 from pydantic_settings import BaseSettings
+from urllib.parse import urlparse, urlunparse
 
 
 class Settings(BaseSettings):
     database_url: str
+    database_password: Optional[str] = None  # Optional override for database password
     
     # Authentication settings
     require_auth: bool = True  # Set to False to disable authentication
@@ -22,6 +24,32 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+    
+    def get_database_url(self) -> str:
+        """Get database URL with password override if provided"""
+        if self.database_password is None:
+            return self.database_url
+        
+        # Parse the URL and replace the password
+        parsed = urlparse(self.database_url)
+        
+        # Reconstruct netloc with new password
+        if parsed.username:
+            netloc = f"{parsed.username}:{self.database_password}@{parsed.hostname}"
+            if parsed.port:
+                netloc += f":{parsed.port}"
+        else:
+            netloc = parsed.netloc
+        
+        # Reconstruct the full URL
+        return urlunparse((
+            parsed.scheme,
+            netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment
+        ))
 
 
 settings = Settings()

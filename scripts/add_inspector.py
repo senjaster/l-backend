@@ -21,7 +21,7 @@ async def add_inspector(full_name: str, username: str, password: str):
     password_hash = auth_service.hash_password(password)
     
     # Connect to database
-    conn = await asyncpg.connect(settings.database_url)
+    conn = await asyncpg.connect(settings.get_database_url())
     try:
         # Check if username already exists
         existing = await conn.fetchval(
@@ -57,7 +57,7 @@ async def add_inspector(full_name: str, username: str, password: str):
 
 async def list_inspectors():
     """List all inspectors in the database"""
-    conn = await asyncpg.connect(settings.database_url)
+    conn = await asyncpg.connect(settings.get_database_url())
     try:
         rows = await conn.fetch(
             """

@@ -9,7 +9,7 @@ async def init_db_pool():
     """Initialize database connection pool"""
     global db_pool
     db_pool = await asyncpg.create_pool(
-        dsn=settings.database_url,
+        dsn=settings.get_database_url(),
         min_size=5,
         max_size=20,
         command_timeout=60

@@ -33,7 +33,7 @@ async def test_inspector(test_inspector_data):
     password_hash = auth_service.hash_password(test_inspector_data["password"])
     
     # Insert test inspector directly into database
-    conn = await asyncpg.connect(settings.database_url)
+    conn = await asyncpg.connect(settings.get_database_url())
     try:
         # Delete existing tokens and inspector to avoid conflicts
         existing_id = await conn.fetchval(
@@ -661,7 +661,7 @@ def test_change_password_updates_database(client, test_inspector):
     
     # Get original password hash
     async def get_password_hash():
-        conn = await asyncpg.connect(settings.database_url)
+        conn = await asyncpg.connect(settings.get_database_url())
         try:
             password_hash = await conn.fetchval(
                 "SELECT password_hash FROM lesiv.inspector WHERE username = $1",
