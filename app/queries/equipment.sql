@@ -1,4 +1,4 @@
--- name: get_all_equipment
+-- name: get_all_equipment(modified_since)
 -- Get all equipment (lightweight list)
 -- :modified_since defaults to 1790-01-01 - only return equipment modified after that timestamp
 SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
@@ -6,7 +6,7 @@ FROM lesiv.equipment
 WHERE server_modified_at > :modified_since
 ORDER BY name;
 
--- name: get_by_plant_id
+-- name: get_by_plant_id(plant_id, modified_since)
 -- Get all equipment for a plant (full data for aggregates) - joins through facility
 -- :modified_since defaults to 1790-01-01 - only return equipment modified after that timestamp
 SELECT e.id, e.facility_id, e.parent_id, e.name, e.qr_code, e.is_container, e.equipment_type_id,
@@ -17,7 +17,7 @@ WHERE f.plant_id = :plant_id
   AND e.server_modified_at > :modified_since
 ORDER BY e.name;
 
--- name: get_control_points_by_plant
+-- name: get_control_points_by_plant(plant_id)
 -- Get all control points for equipment in a plant
 SELECT cp.id, cp.equipment_id, cp.control_point_type, cp.point_count, cp.sticker_count,
        cp.sticker_type_id, cp.t_max, cp.t_excess, cp.is_deleted
@@ -27,7 +27,7 @@ JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
 ORDER BY cp.equipment_id, cp.control_point_type;
 
--- name: get_defects_by_plant
+-- name: get_defects_by_plant(plant_id)
 -- Get all defects for equipment in a plant
 SELECT d.id, d.equipment_id, d.unit_name, d.t_max, d.t_excess, d.detected_at,
        d.resolved_at, d.status, d.is_deleted
@@ -37,7 +37,7 @@ JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
 ORDER BY d.equipment_id, d.detected_at DESC;
 
--- name: get_inspections_by_plant
+-- name: get_inspections_by_plant(plant_id)
 -- Get all inspection IDs for equipment in a plant
 SELECT i.id, i.equipment_id
 FROM lesiv.inspection i
@@ -46,61 +46,61 @@ JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id AND i.is_deleted = false
 ORDER BY i.equipment_id, i.started_at DESC;
 
--- name: get_by_id^
+-- name: get_by_id(id)^
 -- Get equipment by ID
 SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id,
        estimated_point_count, is_deleted, server_modified_at
 FROM lesiv.equipment
 WHERE id = :id;
 
--- name: get_control_points
+-- name: get_control_points(equipment_id)
 -- Get control points for equipment
-SELECT id, equipment_id, control_point_type, point_count, sticker_count, 
+SELECT id, equipment_id, control_point_type, point_count, sticker_count,
        sticker_type_id, t_max, t_excess, is_deleted
 FROM lesiv.equipment_control_point
 WHERE equipment_id = :equipment_id
 ORDER BY control_point_type;
 
--- name: get_control_point_ids
+-- name: get_control_point_ids(equipment_id)
 -- Get control point IDs for equipment (for sync)
 SELECT id
 FROM lesiv.equipment_control_point
 WHERE equipment_id = :equipment_id;
 
--- name: get_control_point_equipment_id^
+-- name: get_control_point_equipment_id(control_point_id)^
 -- Get the equipment_id for a control point (to check ownership)
 SELECT equipment_id
 FROM lesiv.equipment_control_point
 WHERE id = :control_point_id;
 
--- name: get_defects
+-- name: get_defects(equipment_id)
 -- Get defects for equipment
-SELECT id, equipment_id, unit_name, t_max, t_excess, detected_at, 
+SELECT id, equipment_id, unit_name, t_max, t_excess, detected_at,
        resolved_at, status, is_deleted
 FROM lesiv.equipment_defect
 WHERE equipment_id = :equipment_id
 ORDER BY detected_at DESC;
 
--- name: get_defect_ids
+-- name: get_defect_ids(equipment_id)
 -- Get defect IDs for equipment (for sync)
 SELECT id
 FROM lesiv.equipment_defect
 WHERE equipment_id = :equipment_id;
 
--- name: get_defect_equipment_id^
+-- name: get_defect_equipment_id(defect_id)^
 -- Get the equipment_id for a defect (to check ownership)
 SELECT equipment_id
 FROM lesiv.equipment_defect
 WHERE id = :defect_id;
 
--- name: get_inspection_ids
+-- name: get_inspection_ids(equipment_id)
 -- Get inspection IDs for equipment
 SELECT id
 FROM lesiv.inspection
 WHERE equipment_id = :equipment_id AND is_deleted = false
 ORDER BY started_at DESC;
 
--- name: upsert_equipment!
+-- name: upsert_equipment(id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, estimated_point_count, is_deleted, server_modified_at)!
 -- Insert or update equipment
 INSERT INTO lesiv.equipment (id, facility_id, parent_id, name, qr_code, is_container,
                              equipment_type_id, estimated_point_count,
@@ -119,7 +119,7 @@ ON CONFLICT (id) DO UPDATE SET
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
--- name: upsert_control_point!
+-- name: upsert_control_point(id, equipment_id, control_point_type, point_count, sticker_count, sticker_type_id, t_max, t_excess, is_deleted)!
 -- Insert or update control point (match by ID, not by equipment_id + control_point_type)
 INSERT INTO lesiv.equipment_control_point (id, equipment_id, control_point_type,
                                            point_count, sticker_count, sticker_type_id,
@@ -137,7 +137,7 @@ ON CONFLICT (id) DO UPDATE SET
     t_excess = EXCLUDED.t_excess,
     is_deleted = EXCLUDED.is_deleted;
 
--- name: upsert_defect!
+-- name: upsert_defect(id, equipment_id, unit_name, t_max, t_excess, detected_at, resolved_at, status, is_deleted)!
 -- Insert or update defect
 INSERT INTO lesiv.equipment_defect (id, equipment_id, unit_name, t_max, t_excess,
                                     detected_at, resolved_at, status, is_deleted)
@@ -152,19 +152,19 @@ ON CONFLICT (id) DO UPDATE SET
     status = EXCLUDED.status,
     is_deleted = EXCLUDED.is_deleted;
 
--- name: delete_equipment!
+-- name: delete_equipment(id)!
 -- Logically delete equipment
 UPDATE lesiv.equipment
 SET is_deleted = true
 WHERE id = :id;
 
--- name: mark_control_point_deleted!
+-- name: mark_control_point_deleted(id)!
 -- Mark control point as deleted (logical deletion)
 UPDATE lesiv.equipment_control_point
 SET is_deleted = true
 WHERE id = :id;
 
--- name: mark_defect_deleted!
+-- name: mark_defect_deleted(id)!
 -- Mark defect as deleted (logical deletion)
 UPDATE lesiv.equipment_defect
 SET is_deleted = true

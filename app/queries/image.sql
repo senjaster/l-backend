@@ -1,7 +1,7 @@
 -- Image aggregate queries
 -- Following API design principles with optimistic concurrency control
 
--- name: get_by_id^
+-- name: get_by_id(id)^
 SELECT
     id,
     equipment_id,
@@ -13,7 +13,7 @@ SELECT
 FROM lesiv.image
 WHERE id = :id;
 
--- name: get_by_plant_id
+-- name: get_by_plant_id(plant_id, modified_since)
 -- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
 SELECT
     i.id,
@@ -30,7 +30,7 @@ WHERE f.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
 ORDER BY i.server_modified_at DESC;
 
--- name: upsert!
+-- name: upsert(id, equipment_id, original_file_name, image_type, metadata, is_deleted, server_modified_at)!
 INSERT INTO lesiv.image (
     id,
     equipment_id,
@@ -56,6 +56,6 @@ ON CONFLICT (id) DO UPDATE SET
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
--- name: delete!
+-- name: delete(id)!
 DELETE FROM lesiv.image
 WHERE id = :id;
