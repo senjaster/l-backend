@@ -1,5 +1,6 @@
 """Wrapper to make sync objects work with async syntax"""
 from typing import Any
+from contextlib import asynccontextmanager
 
 
 class AsyncIteratorWrapper:
@@ -60,3 +61,36 @@ class AsyncWrapper:
             return async_wrapper
         
         return attr
+
+
+class AsyncConnectionWrapper:
+    """
+    Wraps a sync database connection to provide async-compatible transaction() method.
+    
+    This is specifically for psycopg2 connections to work with code that expects
+    asyncpg-style async context manager transactions.
+    """
+    
+    def __init__(self, sync_conn):
+        self._conn = sync_conn
+    
+    def __getattr__(self, name: str):
+        """Forward all other attributes to the wrapped connection"""
+        return getattr(self._conn, name)
+    
+    @asynccontextmanager
+    async def transaction(self):
+        """
+        Provide async context manager for transactions on sync connection.
+        
+        Usage:
+            async with conn.transaction():
+                # do database operations
+        """
+        # For psycopg2, transactions are implicit - just need to commit/rollback
+        try:
+            yield
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise

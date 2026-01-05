@@ -1,9 +1,15 @@
 """Database connection pool management"""
 import asyncpg
 import psycopg2
+import psycopg2.extras
 from psycopg2 import pool
 from typing import Optional, Union
+from uuid import UUID
 from app.config import settings
+from app.utils.async_wrapper import AsyncConnectionWrapper
+
+# Register UUID adapter for psycopg2
+psycopg2.extras.register_uuid()
 
 # Pools for both async and sync drivers
 async_db_pool: Optional[asyncpg.Pool] = None
@@ -97,7 +103,8 @@ async def get_db_connection():
         if sync_db_pool is not None:
             conn = sync_db_pool.getconn()  # No await
             try:
-                yield conn
+                # Wrap connection to provide async-compatible transaction() method
+                yield AsyncConnectionWrapper(conn)
             finally:
                 sync_db_pool.putconn(conn)  # No await
 
