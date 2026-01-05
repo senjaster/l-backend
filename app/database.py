@@ -1,16 +1,22 @@
 """Database connection pool management"""
 import asyncpg
-from typing import Optional
+import psycopg2
+from psycopg2 import pool
+from typing import Optional, Union
 from app.config import settings
 
-db_pool: Optional[asyncpg.Pool] = None
+# Pools for both async and sync drivers
+async_db_pool: Optional[asyncpg.Pool] = None
+sync_db_pool: Optional[pool.ThreadedConnectionPool] = None
 
 
-async def init_db_pool():
-    """Initialize database connection pool"""
-    global db_pool
-    if db_pool is None:
-        db_pool = await asyncpg.create_pool(
+# === ASYNC IMPLEMENTATION (for regular FastAPI with asyncpg) ===
+
+async def init_async_db_pool():
+    """Initialize async database connection pool"""
+    global async_db_pool
+    if async_db_pool is None:
+        async_db_pool = await asyncpg.create_pool(
             dsn=settings.get_database_url(),
             min_size=5,
             max_size=20,
@@ -18,28 +24,83 @@ async def init_db_pool():
         )
 
 
+async def close_async_db_pool():
+    """Close async database connection pool"""
+    global async_db_pool
+    if async_db_pool:
+        await async_db_pool.close()
+        async_db_pool = None
+
+
+# === SYNC IMPLEMENTATION (for serverless/mangum with psycopg2) ===
+
+def init_sync_db_pool():
+    """Initialize sync database connection pool (persists across warm invocations)"""
+    global sync_db_pool
+    if sync_db_pool is None:
+        sync_db_pool = pool.ThreadedConnectionPool(
+            minconn=1,  # Lower for serverless
+            maxconn=10,
+            dsn=settings.get_database_url()
+        )
+
+
+def close_sync_db_pool():
+    """Close sync database connection pool"""
+    global sync_db_pool
+    if sync_db_pool:
+        sync_db_pool.closeall()
+        sync_db_pool = None
+
+
+# === UNIFIED INTERFACE ===
+
+async def init_db_pool():
+    """Initialize database pool based on driver setting"""
+    if settings.db_driver == "asyncpg":
+        await init_async_db_pool()
+    else:
+        init_sync_db_pool()  # No await - sync call
+
+
 async def close_db_pool():
-    """Close database connection pool"""
-    global db_pool
-    if db_pool:
-        await db_pool.close()
-        db_pool = None
+    """Close database pool based on driver setting"""
+    if settings.db_driver == "asyncpg":
+        await close_async_db_pool()
+    else:
+        close_sync_db_pool()  # No await - sync call
 
 
 async def get_db_connection():
     """
-    Dependency for getting database connection.
+    Unified dependency for getting database connection.
+    Returns async or sync connection based on driver setting.
     
     In serverless environments where lifespan is disabled,
     this will initialize the pool on first request if needed.
     """
-    global db_pool
-    
-    # Initialize pool if not already initialized (for serverless environments)
-    if db_pool is None:
-        await init_db_pool()
-    
-    # At this point db_pool should be initialized
-    if db_pool is not None:
-        async with db_pool.acquire() as connection:
-            yield connection
+    if settings.db_driver == "asyncpg":
+        # Async path
+        global async_db_pool
+        if async_db_pool is None:
+            await init_async_db_pool()
+        
+        if async_db_pool is not None:
+            async with async_db_pool.acquire() as connection:
+                yield connection
+    else:
+        # Sync path - but wrapped in async function for FastAPI compatibility
+        global sync_db_pool
+        if sync_db_pool is None:
+            init_sync_db_pool()  # No await
+        
+        if sync_db_pool is not None:
+            conn = sync_db_pool.getconn()  # No await
+            try:
+                yield conn
+            finally:
+                sync_db_pool.putconn(conn)  # No await
+
+
+# Backwards compatibility - keep the old name
+db_pool = async_db_pool

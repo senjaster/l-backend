@@ -3,6 +3,7 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 asyncpg
+psycopg2-binary
 aiosql
 python-dotenv
 httpx

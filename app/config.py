@@ -7,6 +7,7 @@ from urllib.parse import urlparse, urlunparse
 class Settings(BaseSettings):
     database_url: str
     database_password: Optional[str] = None  # Optional override for database password
+    db_driver: str = "asyncpg"  # Options: "asyncpg" or "psycopg2"
     
     # Authentication settings
     require_auth: bool = True  # Set to False to disable authentication
