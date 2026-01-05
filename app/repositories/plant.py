@@ -3,6 +3,8 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime, timezone
 import aiosql
+from app.config import settings
+from app.utils.async_wrapper import AsyncWrapper
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant import (
     Plant, Facility,
@@ -12,7 +14,8 @@ from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 
 # Load queries from single file
-queries = aiosql.from_path("app/queries/plant.sql", "asyncpg")
+_queries = aiosql.from_path("app/queries/plant.sql",  settings.db_driver)
+queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
 
 
 class PlantRepository:
@@ -150,6 +153,9 @@ class PlantRepository:
     async def delete(self, conn, plant_id: UUID) -> bool:
         """Logically delete plant (must be called within transaction)"""
         result = await queries.delete_plant(conn, id=plant_id)
+        # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
+        if isinstance(result, int):
+            return result > 0
         return result is not None and "0" not in result
     
     async def lock(self, conn, plant_id: UUID, device_id: UUID, user_id: int) -> bool:
@@ -161,11 +167,17 @@ class PlantRepository:
             user_id=user_id,
             locked_at=datetime.now(timezone.utc)
         )
+        # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
+        if isinstance(result, int):
+            return result > 0
         return result is not None and "0" not in result
     
     async def unlock(self, conn, plant_id: UUID) -> bool:
         """Unlock plant (must be called within transaction)"""
         result = await queries.unlock_plant(conn, id=plant_id)
+        # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
+        if isinstance(result, int):
+            return result > 0
         return result is not None and "0" not in result
     
     async def _sync_facilities(self, conn, plant_id: UUID, facilities: list[Facility], force: bool):

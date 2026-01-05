@@ -2,11 +2,14 @@
 from typing import Optional, List
 from datetime import datetime, timezone
 import aiosql
+from app.config import settings
+from app.utils.async_wrapper import AsyncWrapper
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.inspector import Inspector
 
 # Load queries
-queries = aiosql.from_path("app/queries/inspector.sql", "asyncpg")
+_queries = aiosql.from_path("app/queries/inspector.sql",  settings.db_driver)
+queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
 
 
 class InspectorRepository:

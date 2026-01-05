@@ -10,9 +10,12 @@ from app.models.equipment import (
 )
 from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
+from app.config import settings
+from app.utils.async_wrapper import AsyncWrapper
 
-# Load queries from single file
-queries = aiosql.from_path("app/queries/equipment.sql", "asyncpg")
+# Load queries with configurable driver
+_queries = aiosql.from_path("app/queries/equipment.sql", settings.db_driver)
+queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
 
 
 class EquipmentRepository:

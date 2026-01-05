@@ -47,7 +47,8 @@ def init_sync_db_pool():
         sync_db_pool = pool.ThreadedConnectionPool(
             minconn=1,  # Lower for serverless
             maxconn=10,
-            dsn=settings.get_database_url()
+            dsn=settings.get_database_url(),
+            cursor_factory=psycopg2.extras.RealDictCursor
         )
 
 
@@ -104,7 +105,14 @@ async def get_db_connection():
             conn = sync_db_pool.getconn()  # No await
             try:
                 # Wrap connection to provide async-compatible transaction() method
-                yield AsyncConnectionWrapper(conn)
+                wrapped_conn = AsyncConnectionWrapper(conn)
+                yield wrapped_conn
+                # Auto-commit if no explicit transaction was used
+                if not wrapped_conn._in_transaction:
+                    conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
             finally:
                 sync_db_pool.putconn(conn)  # No await
 

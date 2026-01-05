@@ -1,6 +1,7 @@
 """Wrapper to make sync objects work with async syntax"""
 from typing import Any
 from contextlib import asynccontextmanager
+import inspect
 
 
 class AsyncIteratorWrapper:
@@ -48,19 +49,58 @@ class AsyncWrapper:
         attr = getattr(self._wrapped, name)
         
         if callable(attr):
-            async def async_wrapper(*args, **kwargs):
-                # Call the sync method directly
-                result = attr(*args, **kwargs)
-                
-                # If result is an iterator/generator, wrap it for async iteration
-                if hasattr(result, '__iter__') and not isinstance(result, (str, bytes, dict, list, tuple)):
-                    return AsyncIteratorWrapper(result)
-                
-                return result
-            
-            return async_wrapper
+            # Return a special callable that can work with both await and async for
+            return _AsyncCallableWrapper(attr)
         
         return attr
+
+
+class _AsyncCallableWrapper:
+    """
+    Wrapper for a sync callable that makes it work with both await and async for.
+    
+    This class implements both __call__ (to be callable) and __await__ (to be awaitable).
+    When called, it returns itself, and when awaited, it executes the sync function.
+    """
+    
+    def __init__(self, sync_callable):
+        self._sync_callable = sync_callable
+        self._args = None
+        self._kwargs = None
+    
+    def __call__(self, *args, **kwargs):
+        """Store arguments and return self to be awaitable"""
+        # Create a new instance with the arguments
+        wrapper = _AsyncCallableWrapper(self._sync_callable)
+        wrapper._args = args
+        wrapper._kwargs = kwargs
+        return wrapper
+    
+    def __await__(self):
+        """Make this awaitable"""
+        async def _execute():
+            # Call the sync function
+            result = self._sync_callable(*self._args, **self._kwargs)
+            
+            # If result is an iterator/generator, wrap it for async iteration
+            if hasattr(result, '__iter__') and not isinstance(result, (str, bytes, dict, list, tuple)):
+                return AsyncIteratorWrapper(result)
+            
+            return result
+        
+        return _execute().__await__()
+    
+    def __aiter__(self):
+        """Make this directly iterable with async for"""
+        # Call the sync function immediately
+        result = self._sync_callable(*self._args, **self._kwargs)
+        
+        # Wrap the result as an async iterator
+        if hasattr(result, '__iter__') and not isinstance(result, (str, bytes, dict, list, tuple)):
+            return AsyncIteratorWrapper(result)
+        
+        # If it's not iterable, raise an error
+        raise TypeError(f"'{type(result).__name__}' object is not iterable")
 
 
 class AsyncConnectionWrapper:
@@ -73,6 +113,7 @@ class AsyncConnectionWrapper:
     
     def __init__(self, sync_conn):
         self._conn = sync_conn
+        self._in_transaction = False
     
     def __getattr__(self, name: str):
         """Forward all other attributes to the wrapped connection"""
@@ -87,6 +128,8 @@ class AsyncConnectionWrapper:
             async with conn.transaction():
                 # do database operations
         """
+        # Mark that we're in an explicit transaction
+        self._in_transaction = True
         # For psycopg2, transactions are implicit - just need to commit/rollback
         try:
             yield
@@ -94,3 +137,5 @@ class AsyncConnectionWrapper:
         except Exception:
             self._conn.rollback()
             raise
+        finally:
+            self._in_transaction = False
