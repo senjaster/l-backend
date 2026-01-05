@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.services.auth import AuthService
 from app.config import settings
-import app.database
+from app.database import init_db_pool, db_pool
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -59,13 +59,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
         token = parts[1]
         
         # Verify token and get inspector
-        if app.database.db_pool is None:
+        # Initialize pool if not already initialized (for serverless environments)
+        global db_pool
+        if db_pool is None:
+            await init_db_pool()
+        
+        if db_pool is None:
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={"detail": "Database connection not available"},
             )
         
-        async with app.database.db_pool.acquire() as conn:
+        async with db_pool.acquire() as conn:
             inspector = await self.auth_service.get_current_inspector(conn, token)
         
         if not inspector:
