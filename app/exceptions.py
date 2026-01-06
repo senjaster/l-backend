@@ -1,6 +1,7 @@
 """Custom exception handlers"""
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 import asyncpg
 import psycopg2
 import psycopg2.errors
@@ -231,3 +232,29 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=error.model_dump()
     )
+
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+
+    logger.error(
+        "Request Validation Error",
+        extra={
+            "error_type": "request_validation_error",
+            "path": request.url.path,
+            "method": request.method,
+            "exception_type": type(exc).__name__,
+            "request_body": request.body()
+        },
+        exc_info=True
+    )
+
+    message = "\n".join((f"Field: {error['loc']}, Error: {error['msg']}" for error in exc.errors()))
+    
+    error = BaseError(
+        type="request_validation_error",
+        message=message
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=error.model_dump()
+        )
