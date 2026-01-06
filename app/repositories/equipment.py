@@ -12,6 +12,7 @@ from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
+from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/equipment.sql", settings.db_driver)
@@ -173,7 +174,7 @@ class EquipmentRepository:
                     )
                 )
             
-            if equipment.server_modified_at != current.server_modified_at:
+            if truncate_to_milliseconds(equipment.server_modified_at) != truncate_to_milliseconds(current.server_modified_at):
                 raise ConcurrentModificationError(
                     ConflictError(
                         message="Equipment was modified by another client",

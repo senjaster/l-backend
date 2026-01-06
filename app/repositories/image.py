@@ -10,6 +10,7 @@ from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image
 from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
+from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/image.sql", settings.db_driver)
@@ -78,7 +79,7 @@ class ImageRepository:
                     )
                 )
             
-            if image.server_modified_at != current.server_modified_at:
+            if truncate_to_milliseconds(image.server_modified_at) != truncate_to_milliseconds(current.server_modified_at):
                 raise ConcurrentModificationError(
                     ConflictError(
                         message="Image was modified by another client",
