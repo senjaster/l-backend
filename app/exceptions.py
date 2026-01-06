@@ -2,6 +2,8 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 import asyncpg
+import psycopg2
+import psycopg2.errors
 import logging
 from app.models import BaseError
 
@@ -13,6 +15,114 @@ class ConcurrentModificationError(Exception):
     def __init__(self, conflict_error):
         self.conflict_error = conflict_error
         super().__init__(conflict_error.message)
+
+
+async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
+    """Handle psycopg2 database errors"""
+    
+    # Foreign key violation
+    if isinstance(exc, psycopg2.errors.ForeignKeyViolation):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Foreign key violation",
+            extra={
+                "error_type": "foreign_key_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
+        error = BaseError(
+            type="foreign_key_violation",
+            message=error_msg
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=error.model_dump()
+        )
+    
+    # Unique constraint violation
+    if isinstance(exc, psycopg2.errors.UniqueViolation):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Unique constraint violation",
+            extra={
+                "error_type": "unique_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
+        error = BaseError(
+            type="unique_violation",
+            message=error_msg
+        )
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=error.model_dump()
+        )
+    
+    # Not null violation
+    if isinstance(exc, psycopg2.errors.NotNullViolation):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Not null constraint violation",
+            extra={
+                "error_type": "not_null_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
+        error = BaseError(
+            type="not_null_violation",
+            message=error_msg
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=error.model_dump()
+        )
+    
+    # Check constraint violation
+    if isinstance(exc, psycopg2.errors.CheckViolation):
+        error_msg = str(exc).split('\n')[0]
+        logger.warning(
+            "Check constraint violation",
+            extra={
+                "error_type": "check_violation",
+                "path": request.url.path,
+                "method": request.method,
+                "detail": error_msg
+            }
+        )
+        error = BaseError(
+            type="check_violation",
+            message=error_msg
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=error.model_dump()
+        )
+    
+    # Generic database error
+    logger.error(
+        "Unexpected database error",
+        extra={
+            "error_type": "database_error",
+            "path": request.url.path,
+            "method": request.method,
+            "exception_type": type(exc).__name__
+        },
+        exc_info=True
+    )
+    error = BaseError(
+        type="database_error",
+        message="An unexpected database error occurred"
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content=error.model_dump()
+    )
 
 
 async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError):

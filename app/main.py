@@ -2,8 +2,9 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import asyncpg
+import psycopg2
 from app.database import init_db_pool, close_db_pool
-from app.exceptions import asyncpg_exception_handler
+from app.exceptions import asyncpg_exception_handler, psycopg2_exception_handler
 from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
 from app.config import settings
@@ -83,8 +84,9 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-# Register exception handlers
+# Register exception handlers for both database drivers
 app.add_exception_handler(asyncpg.PostgresError, asyncpg_exception_handler)
+app.add_exception_handler(psycopg2.Error, psycopg2_exception_handler)
 
 # Register authentication middleware (applies to all routes except /auth)
 app.add_middleware(AuthMiddleware)
