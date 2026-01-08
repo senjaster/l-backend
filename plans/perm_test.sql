@@ -32,9 +32,16 @@ GRANT INSERT ON lesiv.equipment_type TO l_app_user;
 -- Allow INSERT on equipment_control_point_template for test data seeding (seed_data.sql)
 GRANT INSERT ON lesiv.equipment_control_point_template TO l_app_user;
 
--- Allow DELETE on tokens for auth fixture 
+-- Allow DELETE on tokens for auth fixture
 GRANT DELETE ON lesiv.tokens TO l_app_user;
 
+-- ============================================================================
+-- Inspection Aggregate - Test Seeding
+-- ============================================================================
+
+-- Allow INSERT and UPDATE on inspection_image_link for test data
+-- UPDATE is needed because upsert uses INSERT ... ON CONFLICT DO UPDATE
+GRANT INSERT ON lesiv.inspection_image_link TO l_app_user;
 
 -- ============================================================================
 -- Note on Test vs Production

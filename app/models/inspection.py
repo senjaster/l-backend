@@ -1,0 +1,83 @@
+"""Inspection aggregate models"""
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+from enum import Enum
+from pydantic import BaseModel, Field
+from decimal import Decimal
+
+
+class InspectionStatus(str, Enum):
+    """Inspection status enum"""
+    PLANNED = "PLANNED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
+class InspectionStepType(str, Enum):
+    """Inspection step type enum"""
+    GENERAL_INSPECTION = "GENERAL_INSPECTION"
+    DEFECT_REPORT = "DEFECT_REPORT"
+    DEFECT_FOLLOW_UP = "DEFECT_FOLLOW_UP"
+
+
+class DefectSeverity(str, Enum):
+    """Defect severity enum"""
+    CRITICAL = "CRITICAL"
+    EMERGENCY = "EMERGENCY"
+    DEVELOPING = "DEVELOPING"
+
+
+class ImageLink(BaseModel):
+    """Image link within inspection step (child entity)"""
+    image_id: UUID
+    is_deleted: bool = False
+
+
+class InspectionStep(BaseModel):
+    """Inspection step within inspection (child entity)"""
+    id: UUID
+    started_at: datetime
+    step_number: int
+    step_type: InspectionStepType
+    defect_id: Optional[UUID] = None
+    description: Optional[str] = None
+    is_resolved: Optional[bool] = None
+    sticker_type_id: Optional[int] = None
+    sticker_temp_range_id: Optional[int] = None
+    t_observed: Optional[Decimal] = None
+    measured_current: Optional[int] = None
+    nominal_current: Optional[int] = None
+    severity: Optional[DefectSeverity] = None
+    is_test_ready: Optional[bool] = None
+    is_deleted: bool = False
+    image_links: list[ImageLink] = Field(default_factory=list)
+
+
+class Inspection(BaseModel):
+    """Inspection aggregate root"""
+    id: UUID
+    equipment_id: UUID
+    inspector_id: int
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    status: InspectionStatus = InspectionStatus.PLANNED
+    is_deleted: bool = False
+    server_modified_at: datetime
+    steps: list[InspectionStep] = Field(default_factory=list)
+
+
+class InspectionListItem(BaseModel):
+    """Lightweight inspection item for list view"""
+    id: UUID
+    equipment_id: UUID
+    inspector_id: int
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    status: InspectionStatus
+    is_deleted: bool
+
+
+class InspectionListResponse(BaseModel):
+    """Wrapped response for inspection list with items key"""
+    items: list[InspectionListItem]

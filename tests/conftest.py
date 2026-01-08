@@ -58,6 +58,48 @@ async def seed_test_plant_and_facility(request):
     yield
 
 
+@pytest_asyncio.fixture(scope="function")
+async def seed_test_equipment(request):
+    """Seed test equipment for each test function that needs it."""
+    # Only run if equipment_id fixture is available
+    if 'equipment_id' not in request.fixturenames:
+        yield
+        return
+    
+    # First ensure plant and facility exist
+    if 'plant_id' in request.fixturenames and 'facility_id' in request.fixturenames:
+        plant_id = request.getfixturevalue('plant_id')
+        facility_id = request.getfixturevalue('facility_id')
+        equipment_id = request.getfixturevalue('equipment_id')
+        
+        conn = await asyncpg.connect(settings.get_database_url())
+        try:
+            # Insert test plant if not exists
+            await conn.execute("""
+                INSERT INTO lesiv.plant (id, name, server_modified_at)
+                VALUES ($1, 'Test Plant', CURRENT_TIMESTAMP)
+                ON CONFLICT (id) DO NOTHING
+            """, plant_id)
+            
+            # Insert test facility if not exists
+            await conn.execute("""
+                INSERT INTO lesiv.facility (id, plant_id, name)
+                VALUES ($1, $2, 'Test Facility')
+                ON CONFLICT (id) DO NOTHING
+            """, facility_id, plant_id)
+            
+            # Insert test equipment if not exists
+            await conn.execute("""
+                INSERT INTO lesiv.equipment (id, facility_id, parent_id, name, is_container, server_modified_at)
+                VALUES ($1, $2, $2, 'Test Equipment', false, CURRENT_TIMESTAMP)
+                ON CONFLICT (id) DO NOTHING
+            """, equipment_id, facility_id)
+        finally:
+            await conn.close()
+    
+    yield
+
+
 @pytest.fixture(scope="function")
 def client():
     """Create test client - FastAPI TestClient handles lifespan events."""

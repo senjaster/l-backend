@@ -58,37 +58,37 @@ GRANT USAGE ON SEQUENCE lesiv.log_id_seq TO l_app_user;
 -- Plant Aggregate
 -- ============================================================================
 
--- plant: SELECT, INSERT, UPDATE (full CRUD via upsert, logical delete)
+-- plant: SELECT, INSERT, UPDATE 
 GRANT SELECT, INSERT, UPDATE ON lesiv.plant TO l_app_user;
 
--- facility: SELECT, INSERT, UPDATE (full CRUD via upsert, logical delete)
+-- facility: SELECT, INSERT, UPDATE 
 GRANT SELECT, INSERT, UPDATE ON lesiv.facility TO l_app_user;
 
 -- ============================================================================
 -- Equipment Aggregate
 -- ============================================================================
 
--- equipment: SELECT, INSERT, UPDATE (full CRUD via upsert, logical delete)
+-- equipment: SELECT, INSERT, UPDATE 
 GRANT SELECT, INSERT, UPDATE ON lesiv.equipment TO l_app_user;
 
--- equipment_control_point: SELECT, INSERT, UPDATE (full CRUD via upsert, logical delete)
+-- equipment_control_point: SELECT, INSERT, UPDATE 
 GRANT SELECT, INSERT, UPDATE ON lesiv.equipment_control_point TO l_app_user;
 
--- equipment_defect: SELECT, INSERT, UPDATE (full CRUD via upsert, logical delete)
+-- equipment_defect: SELECT, INSERT, UPDATE 
 GRANT SELECT, INSERT, UPDATE ON lesiv.equipment_defect TO l_app_user;
 
 -- ============================================================================
 -- Inspection Aggregate
 -- ============================================================================
 
--- inspection: SELECT only (referenced in equipment queries)
-GRANT SELECT ON lesiv.inspection TO l_app_user;
+-- inspection: SELECT, INSERT, UPDATE 
+GRANT SELECT, INSERT, UPDATE ON lesiv.inspection TO l_app_user;
 
--- inspection_step: SELECT only (may be needed for future queries)
-GRANT SELECT ON lesiv.inspection_step TO l_app_user;
+-- inspection_step: SELECT, INSERT, UPDATE 
+GRANT SELECT, INSERT, UPDATE ON lesiv.inspection_step TO l_app_user;
 
--- inspection_image_link: SELECT only (may be needed for future queries)
-GRANT SELECT ON lesiv.inspection_image_link TO l_app_user;
+-- inspection_image_link: SELECT, INSERT, DELETE 
+GRANT SELECT, INSERT, UPDATE ON lesiv.inspection_image_link TO l_app_user;
 
 -- ============================================================================
 -- Image Aggregate

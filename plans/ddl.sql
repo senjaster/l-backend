@@ -237,7 +237,7 @@ CREATE INDEX idx_inspection_started_at ON lesiv.inspection(started_at);
 
 CREATE TABLE lesiv.inspection_step (
     id UUID PRIMARY KEY,
-    TIMESTAMPTZ TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     inspection_id UUID NOT NULL,
     step_number INTEGER NOT NULL,  -- for sorting
     step_type lesiv.inspection_step_type NOT NULL,
@@ -251,7 +251,7 @@ CREATE TABLE lesiv.inspection_step (
     measured_current INTEGER,
     nominal_current INTEGER,
     severity lesiv.defect_severity,
-    is_under_load BOOLEAN,
+    is_test_ready BOOLEAN,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_inspection_step_inspection
         FOREIGN KEY (inspection_id) REFERENCES lesiv.inspection(id),
@@ -270,8 +270,9 @@ CREATE INDEX idx_inspection_step_sticker_temp_range ON lesiv.inspection_step(sti
 CREATE TABLE lesiv.inspection_image_link (
     image_id UUID NOT NULL,  -- Reference to image (no FK between aggregates)
     inspection_step_id UUID NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (image_id, inspection_step_id),
-    CONSTRAINT fk_inspection_image_link_step 
+    CONSTRAINT fk_inspection_image_link_step
         FOREIGN KEY (inspection_step_id) REFERENCES lesiv.inspection_step(id)
 );
 
