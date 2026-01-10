@@ -286,7 +286,7 @@ CREATE TYPE lesiv.image_type AS ENUM ('VISUAL', 'THERMAL');
 
 CREATE TABLE lesiv.image (
     id UUID PRIMARY KEY,
-    equipment_id UUID NOT NULL,  -- Reference to equipment (no FK between aggregates), Always known
+    plant_id UUID NOT NULL,  -- Reference to plant (no FK between aggregates), Always known
     original_file_name TEXT NOT NULL,
     image_type lesiv.image_type NOT NULL,
     metadata JSONB,
@@ -294,7 +294,7 @@ CREATE TABLE lesiv.image (
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_image_equipment ON lesiv.image(equipment_id);
+CREATE INDEX idx_image_plant ON lesiv.image(plant_id);
 CREATE INDEX idx_image_type ON lesiv.image(image_type);
 
 

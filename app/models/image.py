@@ -15,7 +15,7 @@ class ImageType(str, Enum):
 class Image(BaseModel):
     """Image aggregate"""
     id: UUID
-    equipment_id: UUID
+    plant_id: UUID
     original_file_name: str
     image_type: ImageType
     metadata: Optional[dict] = None

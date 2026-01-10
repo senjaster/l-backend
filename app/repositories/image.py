@@ -54,8 +54,15 @@ class ImageRepository:
         
         Raises:
             ConcurrentModificationError: If concurrent modification detected (force=False)
+            ValueError: If plant_id does not exist
         """
         image_id = image.id
+        
+        # Validate that plant_id exists
+        result = await queries.plant_exists(conn, plant_id=image.plant_id)
+        plant_exists = result['exists'] if result else False
+        if not plant_exists:
+            raise ValueError(f"Plant {image.plant_id} does not exist")
         
         # Get current state if exists
         current = await self.get_by_id(conn, image_id)
@@ -100,7 +107,7 @@ class ImageRepository:
         await queries.upsert(
             conn,
             id=image_id,
-            equipment_id=image.equipment_id,
+            plant_id=image.plant_id,
             original_file_name=image.original_file_name,
             image_type=image.image_type.value,
             metadata=json.dumps(image.metadata) if image.metadata else None,
