@@ -95,7 +95,7 @@ WHERE id = :defect_id;
 
 -- name: get_inspection_ids(equipment_id)
 -- Get inspection IDs for equipment
-SELECT id
+SELECT id, equipment_id
 FROM lesiv.inspection
 WHERE equipment_id = :equipment_id AND is_deleted = false
 ORDER BY started_at DESC;
