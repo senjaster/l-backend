@@ -28,6 +28,13 @@ class DefectSeverity(str, Enum):
     DEVELOPING = "DEVELOPING"
 
 
+class StepStatus(str, Enum):
+    """Step status enum"""
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FORCE_COMPLETED = "FORCE_COMPLETED"
+
+
 class ImageLink(BaseModel):
     """Image link within inspection step (child entity)"""
     image_id: UUID
@@ -44,12 +51,19 @@ class InspectionStep(BaseModel):
     description: Optional[str] = None
     is_resolved: Optional[bool] = None
     sticker_type_id: Optional[int] = None
-    sticker_temp_range_id: Optional[int] = None
+    t_sticker: Optional[str] = None
+    t_environment: Optional[Decimal] = None
+    t_similar_unit: Optional[Decimal] = None
+    epsilon: Decimal = Decimal('0.95')
+    t_max: Optional[int] = None
+    t_excess: Optional[int] = None
     t_observed: Optional[Decimal] = None
     measured_current: Optional[int] = None
     nominal_current: Optional[int] = None
     severity: Optional[DefectSeverity] = None
     is_test_ready: Optional[bool] = None
+    is_attention_required: bool = False
+    step_status: Optional[StepStatus] = None
     is_deleted: bool = False
     image_links: list[ImageLink] = Field(default_factory=list)
     
@@ -60,6 +74,32 @@ class InspectionStep(BaseModel):
         if v is not None:
             if v < Decimal('-273.15') or v > Decimal('9999.9'):
                 raise ValueError('t_observed must be between -273.15 and 9999.9')
+        return v
+    
+    @field_validator('t_environment')
+    @classmethod
+    def validate_t_environment(cls, v: Optional[Decimal]) -> Optional[Decimal]:
+        """Validate t_environment is within DECIMAL(5,1) range: -273.15 to 9999.9"""
+        if v is not None:
+            if v < Decimal('-273.15') or v > Decimal('9999.9'):
+                raise ValueError('t_environment must be between -273.15 and 9999.9')
+        return v
+    
+    @field_validator('t_similar_unit')
+    @classmethod
+    def validate_t_similar_unit(cls, v: Optional[Decimal]) -> Optional[Decimal]:
+        """Validate t_similar_unit is within DECIMAL(5,1) range: -273.15 to 9999.9"""
+        if v is not None:
+            if v < Decimal('-273.15') or v > Decimal('9999.9'):
+                raise ValueError('t_similar_unit must be between -273.15 and 9999.9')
+        return v
+    
+    @field_validator('epsilon')
+    @classmethod
+    def validate_epsilon(cls, v: Decimal) -> Decimal:
+        """Validate epsilon is within DECIMAL(3,2) range: 0 to 1 inclusive"""
+        if v < Decimal('0') or v > Decimal('1'):
+            raise ValueError('epsilon must be between 0 and 1 inclusive')
         return v
 
 

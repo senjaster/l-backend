@@ -20,9 +20,10 @@ ORDER BY i.started_at DESC;
 -- name: get_steps_by_plant(plant_id)
 -- Get all inspection steps for inspections of a plant
 SELECT s.id, s.started_at, s.inspection_id, s.step_number, s.step_type, s.defect_id,
-       s.description, s.is_resolved, s.sticker_type_id, s.sticker_temp_range_id,
+       s.description, s.is_resolved, s.sticker_type_id, s.t_sticker,
+       s.t_environment, s.t_similar_unit, s.epsilon, s.t_max, s.t_excess,
        s.t_observed, s.measured_current, s.nominal_current, s.severity,
-       s.is_test_ready, s.is_deleted
+       s.is_test_ready, s.is_attention_required, s.step_status, s.is_deleted
 FROM lesiv.inspection_step s
 JOIN lesiv.inspection i ON s.inspection_id = i.id
 JOIN lesiv.equipment e ON i.equipment_id = e.id
@@ -50,9 +51,10 @@ WHERE id = :id;
 -- name: get_steps(inspection_id)
 -- Get steps for inspection
 SELECT id, started_at, inspection_id, step_number, step_type, defect_id,
-       description, is_resolved, sticker_type_id, sticker_temp_range_id,
+       description, is_resolved, sticker_type_id, t_sticker,
+       t_environment, t_similar_unit, epsilon, t_max, t_excess,
        t_observed, measured_current, nominal_current, severity,
-       is_test_ready, is_deleted
+       is_test_ready, is_attention_required, step_status, is_deleted
 FROM lesiv.inspection_step
 WHERE inspection_id = :inspection_id
 ORDER BY step_number;
@@ -97,16 +99,18 @@ ON CONFLICT (id) DO UPDATE SET
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
--- name: upsert_step(id, started_at, inspection_id, step_number, step_type, defect_id, description, is_resolved, sticker_type_id, sticker_temp_range_id, t_observed, measured_current, nominal_current, severity, is_test_ready, is_deleted)!
+-- name: upsert_step(id, started_at, inspection_id, step_number, step_type, defect_id, description, is_resolved, sticker_type_id, t_sticker, t_environment, t_similar_unit, epsilon, t_max, t_excess, t_observed, measured_current, nominal_current, severity, is_test_ready, is_attention_required, step_status, is_deleted)!
 -- Insert or update inspection step
 INSERT INTO lesiv.inspection_step (id, started_at, inspection_id, step_number, step_type,
                                     defect_id, description, is_resolved, sticker_type_id,
-                                    sticker_temp_range_id, t_observed, measured_current,
-                                    nominal_current, severity, is_test_ready, is_deleted)
+                                    t_sticker, t_environment, t_similar_unit, epsilon, t_max, t_excess,
+                                    t_observed, measured_current, nominal_current, severity,
+                                    is_test_ready, is_attention_required, step_status, is_deleted)
 VALUES (:id, :started_at, :inspection_id, :step_number, :step_type,
         :defect_id, :description, :is_resolved, :sticker_type_id,
-        :sticker_temp_range_id, :t_observed, :measured_current,
-        :nominal_current, :severity, :is_test_ready, :is_deleted)
+        :t_sticker, :t_environment, :t_similar_unit, :epsilon, :t_max, :t_excess,
+        :t_observed, :measured_current, :nominal_current, :severity,
+        :is_test_ready, :is_attention_required, :step_status, :is_deleted)
 ON CONFLICT (id) DO UPDATE SET
     started_at = EXCLUDED.started_at,
     inspection_id = EXCLUDED.inspection_id,
@@ -116,12 +120,19 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     is_resolved = EXCLUDED.is_resolved,
     sticker_type_id = EXCLUDED.sticker_type_id,
-    sticker_temp_range_id = EXCLUDED.sticker_temp_range_id,
+    t_sticker = EXCLUDED.t_sticker,
+    t_environment = EXCLUDED.t_environment,
+    t_similar_unit = EXCLUDED.t_similar_unit,
+    epsilon = EXCLUDED.epsilon,
+    t_max = EXCLUDED.t_max,
+    t_excess = EXCLUDED.t_excess,
     t_observed = EXCLUDED.t_observed,
     measured_current = EXCLUDED.measured_current,
     nominal_current = EXCLUDED.nominal_current,
     severity = EXCLUDED.severity,
     is_test_ready = EXCLUDED.is_test_ready,
+    is_attention_required = EXCLUDED.is_attention_required,
+    step_status = EXCLUDED.step_status,
     is_deleted = EXCLUDED.is_deleted;
 
 -- name: upsert_image_link(image_id, inspection_step_id, is_deleted)!

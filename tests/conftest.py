@@ -16,10 +16,10 @@ async def seed_test_data():
     # Create a direct connection to seed data (independent of app pool)
     conn = await asyncpg.connect(settings.get_database_url())
     try:
-        # Load and execute sticker types seed file
-        with open('tests/seed_data.sql', 'r') as f:
-            seed_sql = f.read()
-        await conn.execute(seed_sql)
+        # Run init_db.sql to set up the complete data structure
+        with open('scripts/init_db.sql', 'r') as f:
+            init_sql = f.read()
+        await conn.execute(init_sql)
     finally:
         await conn.close()
     
@@ -29,31 +29,36 @@ async def seed_test_data():
 @pytest_asyncio.fixture(scope="function")
 async def seed_test_plant_and_facility(request):
     """Seed test plant and facility for each test function that needs them."""
-    # Only run if plant_id and facility_id fixtures are available
-    if 'plant_id' not in request.fixturenames or 'facility_id' not in request.fixturenames:
-        yield
-        return
+    # Get plant_id if available
+    plant_id = None
+    facility_id = None
     
-    plant_id = request.getfixturevalue('plant_id')
-    facility_id = request.getfixturevalue('facility_id')
+    if 'plant_id' in request.fixturenames:
+        plant_id = request.getfixturevalue('plant_id')
     
-    conn = await asyncpg.connect(settings.get_database_url())
-    try:
-        # Insert test plant if not exists
-        await conn.execute("""
-            INSERT INTO lesiv.plant (id, name, server_modified_at)
-            VALUES ($1, 'Test Plant', CURRENT_TIMESTAMP)
-            ON CONFLICT (id) DO NOTHING
-        """, plant_id)
-        
-        # Insert test facility if not exists
-        await conn.execute("""
-            INSERT INTO lesiv.facility (id, plant_id, name)
-            VALUES ($1, $2, 'Test Facility')
-            ON CONFLICT (id) DO NOTHING
-        """, facility_id, plant_id)
-    finally:
-        await conn.close()
+    if 'facility_id' in request.fixturenames:
+        facility_id = request.getfixturevalue('facility_id')
+    
+    # If we have a plant_id, seed the plant and facility
+    if plant_id:
+        conn = await asyncpg.connect(settings.get_database_url())
+        try:
+            # Insert test plant if not exists
+            await conn.execute("""
+                INSERT INTO lesiv.plant (id, name, server_modified_at)
+                VALUES ($1, 'Test Plant', CURRENT_TIMESTAMP)
+                ON CONFLICT (id) DO NOTHING
+            """, plant_id)
+            
+            # Insert test facility if not exists (only if facility_id is provided)
+            if facility_id:
+                await conn.execute("""
+                    INSERT INTO lesiv.facility (id, plant_id, name)
+                    VALUES ($1, $2, 'Test Facility')
+                    ON CONFLICT (id) DO NOTHING
+                """, facility_id, plant_id)
+        finally:
+            await conn.close()
     
     yield
 

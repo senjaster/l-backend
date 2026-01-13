@@ -216,6 +216,7 @@ CREATE INDEX idx_equipment_defect_status ON lesiv.equipment_defect(status);
 CREATE TYPE lesiv.inspection_status AS ENUM ('PLANNED', 'IN_PROGRESS', 'COMPLETED');
 CREATE TYPE lesiv.inspection_step_type AS ENUM ('GENERAL_INSPECTION', 'DEFECT_REPORT', 'DEFECT_FOLLOW_UP');
 CREATE TYPE lesiv.defect_severity AS ENUM ('CRITICAL', 'EMERGENCY', 'DEVELOPING');
+CREATE TYPE lesiv.step_status AS ENUM ('IN_PROGRESS', 'COMPLETED', 'FORCE_COMPLETED');
 
 CREATE TABLE lesiv.inspection (
     id UUID PRIMARY KEY,
@@ -246,26 +247,33 @@ CREATE TABLE lesiv.inspection_step (
     -- Manual thermal/electrical measurements:
     is_resolved BOOLEAN,  -- for DEFECT_FOLLOW_UP
     sticker_type_id INTEGER,
-    sticker_temp_range_id INTEGER,
+    t_sticker TEXT,
+    t_environment DECIMAL(5,1),
+    t_similar_unit DECIMAL(5,1),
+    epsilon DECIMAL(3,2) NOT NULL DEFAULT 0.95,
+    t_max INTEGER,
+    t_excess INTEGER,
     t_observed DECIMAL(5,1),
     measured_current INTEGER,
     nominal_current INTEGER,
     severity lesiv.defect_severity,
     is_test_ready BOOLEAN,
+    is_attention_required BOOLEAN NOT NULL DEFAULT FALSE,
+    step_status lesiv.step_status,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_inspection_step_inspection
         FOREIGN KEY (inspection_id) REFERENCES lesiv.inspection(id),
     CONSTRAINT fk_inspection_step_sticker_type
         FOREIGN KEY (sticker_type_id) REFERENCES lesiv.sticker_type(id),
-    CONSTRAINT fk_inspection_step_sticker_temp_range
-        FOREIGN KEY (sticker_temp_range_id) REFERENCES lesiv.sticker_temp_range(id)
+    CONSTRAINT chk_t_environment_range CHECK (t_environment IS NULL OR (t_environment >= -273.15 AND t_environment <= 9999.9)),
+    CONSTRAINT chk_t_similar_unit_range CHECK (t_similar_unit IS NULL OR (t_similar_unit >= -273.15 AND t_similar_unit <= 9999.9)),
+    CONSTRAINT chk_epsilon_range CHECK (epsilon >= 0 AND epsilon <= 1)
 );
 
 CREATE INDEX idx_inspection_step_inspection ON lesiv.inspection_step(inspection_id);
 CREATE INDEX idx_inspection_step_number ON lesiv.inspection_step(inspection_id, step_number);
 CREATE INDEX idx_inspection_step_defect ON lesiv.inspection_step(defect_id);
 CREATE INDEX idx_inspection_step_sticker_type ON lesiv.inspection_step(sticker_type_id);
-CREATE INDEX idx_inspection_step_sticker_temp_range ON lesiv.inspection_step(sticker_temp_range_id);
 
 CREATE TABLE lesiv.inspection_image_link (
     image_id UUID NOT NULL,  -- Reference to image (no FK between aggregates)

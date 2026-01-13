@@ -277,12 +277,19 @@ class InspectionRepository:
                 description=step.description,
                 is_resolved=step.is_resolved,
                 sticker_type_id=step.sticker_type_id,
-                sticker_temp_range_id=step.sticker_temp_range_id,
+                t_sticker=step.t_sticker,
+                t_environment=step.t_environment,
+                t_similar_unit=step.t_similar_unit,
+                epsilon=step.epsilon,
+                t_max=step.t_max,
+                t_excess=step.t_excess,
                 t_observed=step.t_observed,
                 measured_current=step.measured_current,
                 nominal_current=step.nominal_current,
                 severity=step.severity.value if step.severity else None,
                 is_test_ready=step.is_test_ready,
+                is_attention_required=step.is_attention_required,
+                step_status=step.step_status.value if step.step_status else None,
                 is_deleted=step.is_deleted
             )
             
