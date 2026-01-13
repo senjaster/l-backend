@@ -14,8 +14,8 @@ router = APIRouter(prefix="/plant", tags=["plant"])
 plant_repo = PlantRepository()
 
 
-class LockRequest(BaseModel):
-    """Request to lock a plant"""
+class GrabRequest(BaseModel):
+    """Request to grab a plant"""
     device_id: UUID
     user_id: int
 
@@ -84,28 +84,28 @@ async def upsert_plant(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/by_id/{plant_id}/lock", status_code=204)
-async def lock_plant(
+@router.post("/by_id/{plant_id}/grab", status_code=204)
+async def grab_plant(
     plant_id: UUID,
-    lock_request: LockRequest,
+    grab_request: GrabRequest,
     conn=Depends(get_db_connection)
 ):
-    """Lock plant for editing"""
+    """Grab plant for editing"""
     async with conn.transaction():
-        success = await plant_repo.lock(
+        success = await plant_repo.grab(
             conn,
             plant_id,
-            lock_request.device_id,
-            lock_request.user_id
+            grab_request.device_id,
+            grab_request.user_id
         )
     if not success:
         raise HTTPException(status_code=404, detail="Plant not found")
 
 
-@router.post("/by_id/{plant_id}/unlock", status_code=204)
-async def unlock_plant(plant_id: UUID, conn=Depends(get_db_connection)):
-    """Unlock plant"""
+@router.post("/by_id/{plant_id}/release", status_code=204)
+async def release_plant(plant_id: UUID, conn=Depends(get_db_connection)):
+    """Release plant"""
     async with conn.transaction():
-        success = await plant_repo.unlock(conn, plant_id)
+        success = await plant_repo.release(conn, plant_id)
     if not success:
         raise HTTPException(status_code=404, detail="Plant not found")

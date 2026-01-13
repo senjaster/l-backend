@@ -1,6 +1,6 @@
 -- name: get_by_id(id)^
 -- Get plant by ID
-SELECT id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, server_modified_at
+SELECT id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at
 FROM lesiv.plant
 WHERE id = :id;
 
@@ -32,20 +32,20 @@ WHERE id = :facility_id;
 -- name: get_all_plants(modified_since)
 -- Get all plants (lightweight list)
 -- :modified_since defaults to 1790-01-01 - only return plants modified after that timestamp
-SELECT id, name, is_deleted, locked_by_device_id, locked_by_user_id, locked_at, server_modified_at
+SELECT id, name, is_deleted, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, server_modified_at
 FROM lesiv.plant
 WHERE server_modified_at > :modified_since
 ORDER BY name;
 
--- name: upsert_plant(id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, server_modified_at)!
+-- name: upsert_plant(id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at)!
 -- Insert or update plant
-INSERT INTO lesiv.plant (id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, server_modified_at)
-VALUES (:id, :name, :locked_by_device_id, :locked_by_user_id, :locked_at, :is_deleted, :server_modified_at)
+INSERT INTO lesiv.plant (id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at)
+VALUES (:id, :name, :grabbed_by_device_id, :grabbed_by_user_id, :grabbed_at, :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
-    locked_by_device_id = EXCLUDED.locked_by_device_id,
-    locked_by_user_id = EXCLUDED.locked_by_user_id,
-    locked_at = EXCLUDED.locked_at,
+    grabbed_by_device_id = EXCLUDED.grabbed_by_device_id,
+    grabbed_by_user_id = EXCLUDED.grabbed_by_user_id,
+    grabbed_at = EXCLUDED.grabbed_at,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
@@ -69,18 +69,18 @@ UPDATE lesiv.facility
 SET is_deleted = true
 WHERE id = :id;
 
--- name: lock_plant(id, device_id, user_id, locked_at)!
--- Lock plant for editing
+-- name: grab_plant(id, device_id, user_id, grabbed_at)!
+-- Grab plant for editing
 UPDATE lesiv.plant
-SET locked_by_device_id = :device_id,
-    locked_by_user_id = :user_id,
-    locked_at = :locked_at
+SET grabbed_by_device_id = :device_id,
+    grabbed_by_user_id = :user_id,
+    grabbed_at = :grabbed_at
 WHERE id = :id;
 
--- name: unlock_plant(id)!
--- Unlock plant
+-- name: release_plant(id)!
+-- Release plant
 UPDATE lesiv.plant
-SET locked_by_device_id = NULL,
-    locked_by_user_id = NULL,
-    locked_at = NULL
+SET grabbed_by_device_id = NULL,
+    grabbed_by_user_id = NULL,
+    grabbed_at = NULL
 WHERE id = :id;

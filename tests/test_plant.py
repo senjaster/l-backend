@@ -6,9 +6,9 @@ from copy import deepcopy
 
 PUT_BODY_TEMPLATE = {
     "name": "Test Power Plant",
-    "locked_by_device_id": None,
-    "locked_by_user_id": None,
-    "locked_at": None,
+    "grabbed_by_device_id": None,
+    "grabbed_by_user_id": None,
+    "grabbed_at": None,
     "server_modified_at": "2024-01-01T00:00:00Z",
     "is_deleted": False,
     "facilities": [
@@ -221,50 +221,50 @@ def test_missing_timestamp_for_update(client: TestClient, plant_data):
     assert "modified by another client" in error_data["message"].lower()
 
 
-def test_lock_plant(client: TestClient, plant_data, plant_id):
-    """Test locking a plant using new by_id path"""
+def test_grab_plant(client: TestClient, plant_data, plant_id):
+    """Test grabbing a plant using new by_id path"""
     plant_data["facilities"] = []
     client.put("/plant", json=plant_data)
     
-    # Lock plant
+    # Grab plant
     device_id = uuid4()
-    lock_request = {
+    grab_request = {
         "device_id": str(device_id),
         "user_id": 1
     }
-    response = client.post(f"/plant/by_id/{plant_id}/lock", json=lock_request)
+    response = client.post(f"/plant/by_id/{plant_id}/grab", json=grab_request)
     assert response.status_code == 204
     
-    # Verify it's locked
+    # Verify it's grabbed
     get_response = client.get(f"/plant/by_id/{plant_id}")
     assert get_response.status_code == 200
     data = get_response.json()
-    assert data["locked_by_device_id"] == str(device_id)
-    assert data["locked_by_user_id"] == 1
-    assert data["locked_at"] is not None
+    assert data["grabbed_by_device_id"] == str(device_id)
+    assert data["grabbed_by_user_id"] == 1
+    assert data["grabbed_at"] is not None
 
 
-def test_unlock_plant(client: TestClient, plant_data, plant_id):
-    """Test unlocking a plant using new by_id path"""
+def test_release_plant(client: TestClient, plant_data, plant_id):
+    """Test releasing a plant using new by_id path"""
     device_id = uuid4()
     plant_data["facilities"] = []
-    plant_data["locked_by_device_id"] = str(device_id)
-    plant_data["locked_by_user_id"] = 1
-    plant_data["locked_at"] = "2024-01-01T00:00:00Z"
+    plant_data["grabbed_by_device_id"] = str(device_id)
+    plant_data["grabbed_by_user_id"] = 1
+    plant_data["grabbed_at"] = "2024-01-01T00:00:00Z"
     
     client.put("/plant", json=plant_data)
     
-    # Unlock plant
-    response = client.post(f"/plant/by_id/{plant_id}/unlock")
+    # Release plant
+    response = client.post(f"/plant/by_id/{plant_id}/release")
     assert response.status_code == 204
     
-    # Verify it's unlocked
+    # Verify it's released
     get_response = client.get(f"/plant/by_id/{plant_id}")
     assert get_response.status_code == 200
     data = get_response.json()
-    assert data["locked_by_device_id"] is None
-    assert data["locked_by_user_id"] is None
-    assert data["locked_at"] is None
+    assert data["grabbed_by_device_id"] is None
+    assert data["grabbed_by_user_id"] is None
+    assert data["grabbed_at"] is None
 
 
 def test_facility_transfer_not_allowed(client: TestClient, plant_data, facility_id_1):

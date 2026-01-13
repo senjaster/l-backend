@@ -135,9 +135,9 @@ class PlantRepository:
             conn,
             id=plant_id,
             name=plant.name,
-            locked_by_device_id=plant.locked_by_device_id,
-            locked_by_user_id=plant.locked_by_user_id,
-            locked_at=plant.locked_at,
+            grabbed_by_device_id=plant.grabbed_by_device_id,
+            grabbed_by_user_id=plant.grabbed_by_user_id,
+            grabbed_at=plant.grabbed_at,
             is_deleted=plant.is_deleted,
             server_modified_at=new_server_modified_at
         )
@@ -159,23 +159,23 @@ class PlantRepository:
             return result > 0
         return result is not None and "0" not in result
     
-    async def lock(self, conn, plant_id: UUID, device_id: UUID, user_id: int) -> bool:
-        """Lock plant for editing (must be called within transaction)"""
-        result = await queries.lock_plant(
+    async def grab(self, conn, plant_id: UUID, device_id: UUID, user_id: int) -> bool:
+        """Grab plant for editing (must be called within transaction)"""
+        result = await queries.grab_plant(
             conn,
             id=plant_id,
             device_id=device_id,
             user_id=user_id,
-            locked_at=datetime.now(timezone.utc)
+            grabbed_at=datetime.now(timezone.utc)
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):
             return result > 0
         return result is not None and "0" not in result
     
-    async def unlock(self, conn, plant_id: UUID) -> bool:
-        """Unlock plant (must be called within transaction)"""
-        result = await queries.unlock_plant(conn, id=plant_id)
+    async def release(self, conn, plant_id: UUID) -> bool:
+        """Release plant (must be called within transaction)"""
+        result = await queries.release_plant(conn, id=plant_id)
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):
             return result > 0

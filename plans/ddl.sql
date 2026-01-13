@@ -124,17 +124,17 @@ CREATE INDEX idx_log_employee ON lesiv.log(inspector_id);
 CREATE TABLE lesiv.plant (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL,
-    locked_by_device_id UUID,
-    locked_by_user_id INTEGER,
-    locked_at TIMESTAMPTZ,
+    grabbed_by_device_id UUID,
+    grabbed_by_user_id INTEGER,
+    grabbed_at TIMESTAMPTZ,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_plant_locked_by_user
-        FOREIGN KEY (locked_by_user_id) REFERENCES lesiv.inspector(id)
+    CONSTRAINT fk_plant_grabbed_by_user
+        FOREIGN KEY (grabbed_by_user_id) REFERENCES lesiv.inspector(id)
 );
 
 CREATE INDEX idx_plant_name ON lesiv.plant(name);
-CREATE INDEX idx_plant_locked_by_user ON lesiv.plant(locked_by_user_id);
+CREATE INDEX idx_plant_grabbed_by_user ON lesiv.plant(grabbed_by_user_id);
 
 CREATE TABLE lesiv.facility (
     id UUID PRIMARY KEY,

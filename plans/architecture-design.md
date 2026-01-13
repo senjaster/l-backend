@@ -43,7 +43,7 @@ Based on [`ddl.sql`](../ddl.sql:1), the following aggregates are identified:
 - **Root**: [`lesiv.plant`](../ddl.sql:98)
 - **Children**: [`lesiv.facility`](../ddl.sql:113)
 - **Operations**: GET, PUT, DELETE
-- **Custom Operations**: POST /plant/{id}/lock, POST /plant/{id}/unlock
+- **Custom Operations**: POST /plant/{id}/grab, POST /plant/{id}/release
 
 ### 5. Equipment Aggregate
 - **Root**: [`lesiv.equipment`](../ddl.sql:130)
@@ -181,8 +181,8 @@ GET    /plants                  # List all plants (id, name only)
 GET    /plant/{id}              # Get plant with facilities and equipment IDs
 PUT    /plant/{id}              # Create or update plant
 DELETE /plant/{id}              # Logical delete
-POST   /plant/{id}/lock         # Custom: acquire lock
-POST   /plant/{id}/unlock       # Custom: release lock
+POST   /plant/{id}/grab         # Custom: grab plant for editing
+POST   /plant/{id}/release       # Custom: release plant
 ```
 
 #### Equipment
@@ -253,9 +253,9 @@ class Facility(BaseModel):
 class Plant(BaseModel):
     id: UUID
     name: str
-    locked_by_device_id: Optional[UUID] = None
-    locked_by_user_id: Optional[int] = None
-    locked_at: Optional[datetime] = None
+    grabbed_by_device_id: Optional[UUID] = None
+    grabbed_by_user_id: Optional[int] = None
+    grabbed_at: Optional[datetime] = None
     is_deleted: bool = False
     server_modified_at: datetime
     facilities: list[Facility] = Field(default_factory=list)
@@ -538,9 +538,9 @@ ORDER BY name;
 UPDATE lesiv.plant
 SET 
     name = :name,
-    locked_by_device_id = :locked_by_device_id,
-    locked_by_user_id = :locked_by_user_id,
-    locked_at = :locked_at,
+    grabbed_by_device_id = :grabbed_by_device_id,
+    grabbed_by_user_id = :grabbed_by_user_id,
+    grabbed_at = :grabbed_at,
     is_deleted = :is_deleted,
     server_modified_at = CURRENT_TIMESTAMP
 WHERE id = :id;
@@ -615,32 +615,32 @@ async def delete_plant(plant_id: UUID, conn=Depends(get_db_connection)):
         raise HTTPException(status_code=404, detail="Plant not found")
 ```
 
-### Custom Lock/Unlock Endpoints
+### Custom Grab/Release Endpoints
 
 ```python
 from pydantic import BaseModel
 
 
-class LockRequest(BaseModel):
+class GrabRequest(BaseModel):
     device_id: UUID
     user_id: int
 
 
-class UnlockRequest(BaseModel):
+class ReleaseRequest(BaseModel):
     device_id: UUID
 
 
-@router.post("/{plant_id}/lock", response_model=Plant)
-async def lock_plant(
-    plant_id: UUID, 
-    request: LockRequest, 
+@router.post("/{plant_id}/grab", response_model=Plant)
+async def grab_plant(
+    plant_id: UUID,
+    request: GrabRequest,
     conn=Depends(get_db_connection)
 ):
     async with conn.transaction():
-        plant = await plant_repo.acquire_lock(
-            conn, 
-            plant_id, 
-            request.device_id, 
+        plant = await plant_repo.grab(
+            conn,
+            plant_id,
+            request.device_id,
             request.user_id
         )
     if not plant:
@@ -648,16 +648,16 @@ async def lock_plant(
     return plant
 
 
-@router.post("/{plant_id}/unlock", response_model=Plant)
-async def unlock_plant(
-    plant_id: UUID, 
-    request: UnlockRequest, 
+@router.post("/{plant_id}/release", response_model=Plant)
+async def release_plant(
+    plant_id: UUID,
+    request: ReleaseRequest,
     conn=Depends(get_db_connection)
 ):
     async with conn.transaction():
-        plant = await plant_repo.release_lock(
-            conn, 
-            plant_id, 
+        plant = await plant_repo.release(
+            conn,
+            plant_id,
             request.device_id
         )
     if not plant:
@@ -903,5 +903,5 @@ The design follows the requirements exactly:
 - Same models for all layers
 - Flat API structure
 - Standard CRUD operations
-- Custom lock/unlock for Plant
+- Custom grab/release for Plant
 - Batch log insertion

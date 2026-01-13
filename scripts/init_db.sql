@@ -164,7 +164,7 @@ SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipmen
 -- 4. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
 -- ============================================================================
 
-INSERT INTO lesiv.plant (id, name, locked_by_device_id, locked_by_user_id, locked_at, is_deleted, server_modified_at)
+INSERT INTO lesiv.plant (id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at)
 VALUES 
     (gen_random_uuid(), 'ТЭЦ-1', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'ТЭЦ-2', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
@@ -185,9 +185,9 @@ VALUES
 -- Passwords are documented in plans/passwords.md
 INSERT INTO lesiv.inspector (id, full_name, username, password_hash, server_modified_at)
 VALUES
-    (100, 'Test Inspector', 'test_user', '$2b$12$.Ka2kYiM7M9s0riJw6Afb.lCxPg.4.3XVl3pJ9MiTmf6Ragk3PhfC', CURRENT_TIMESTAMP),
-    (101, 'Вася Пупкин', 'vpupkin', '$2b$12$HwXpgvzRi9C4vHYcnSZE3.YNFoqqj7qcb0i8F/uGT7s57anKxb8Zy', CURRENT_TIMESTAMP),
-    (102, 'Евлампия Иннокеньтевна', 'evinok', '$2b$12$ZhZN0Yce0R4fAcSpbVT1zOIH3ML26IfPFcHTxqQova84S2MerskBe', CURRENT_TIMESTAMP);
+    (1, 'Test Inspector', 'test_user', '$2b$12$.Ka2kYiM7M9s0riJw6Afb.lCxPg.4.3XVl3pJ9MiTmf6Ragk3PhfC', CURRENT_TIMESTAMP),
+    (2, 'Вася Пупкин', 'vpupkin', '$2b$12$HwXpgvzRi9C4vHYcnSZE3.YNFoqqj7qcb0i8F/uGT7s57anKxb8Zy', CURRENT_TIMESTAMP),
+    (3, 'Евлампия Иннокеньтевна', 'evinok', '$2b$12$ZhZN0Yce0R4fAcSpbVT1zOIH3ML26IfPFcHTxqQova84S2MerskBe', CURRENT_TIMESTAMP);
 
 -- Reset sequence for inspector
 SELECT setval('lesiv.inspector_id_seq', (SELECT MAX(id) FROM lesiv.inspector));

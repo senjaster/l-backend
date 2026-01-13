@@ -19,7 +19,7 @@ Use same pydantic models both for fastapi and for repos. I know that it's a viol
  - PUT /aggregate/{id} - replace or create entire aggregate. May logically delete child entities. It should not internally delete and insert all aggregate rows, it should do updates.
  - DELETE /aggregate/{id} - logically delete entire aggregate
  3) There should be some custom methods:
- - POST /plant/{id}/locked
- - POST /plant/{id}/unlocked
+ - POST /plant/{id}/grab
+ - POST /plant/{id}/release
 
  You may read ddd-aggregates.md for general domain knowlege, but you should not try to implement business rules. ddl.sql contains actual database structure, and  ddd-aggreagates.md maight be outdated a bit. 

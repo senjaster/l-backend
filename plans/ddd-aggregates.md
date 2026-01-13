@@ -19,7 +19,7 @@
 - PlantName (с валидацией длины и формата)
 - DeviceId (идентификатор устройства)
 - UserId (идентификатор пользователя)
-- LockInfo (составная концепция блокировки)
+- GrabInfo (составная концепция блокировки)
 
 ### Граница агрегата
 Станция и все её энергообъекты. Оборудование НЕ входит в этот агрегат.
@@ -33,7 +33,7 @@
 ### Бизнес-правила
 - Станция создается только при наличии интернета (на центральном сервере)
 - Энергообъекты можно создавать оффлайн, но только если станция заблокирована текущим устройством
-- При попытке редактирования проверяется наличие lock'а
+- При попытке редактирования проверяется наличие grab'а
 
 ### Операции агрегата
 ```kotlin
@@ -41,11 +41,11 @@ class Plant(
     val id: PlantId,
     var name: PlantName,
     private val energyFacilities: MutableList<EnergyFacility>,
-    var lockInfo: LockInfo?,
+    var grabInfo: GrabInfo?,
     var isDeleted: Boolean
 ) {
-    fun acquireLock(deviceId: DeviceId, userId: UserId): Result<Unit>
-    fun releaseLock(deviceId: DeviceId): Result<Unit>
+    fun acquireGrab(deviceId: DeviceId, userId: UserId): Result<Unit>
+    fun releaseGrab(deviceId: DeviceId): Result<Unit>
     fun addEnergyFacility(name: String, deviceId: DeviceId): Result<EnergyFacility>
     fun removeEnergyFacility(facilityId: EnergyFacilityId, deviceId: DeviceId): Result<Unit>
     fun markAsDeleted()
@@ -86,7 +86,7 @@ value class UserId(val value: String) {
     }
 }
 
-data class LockInfo(
+data class GrabInfo(
     val deviceId: DeviceId,
     val timestamp: Instant,
     val userId: UserId
@@ -110,7 +110,7 @@ interface PlantRepository {
     suspend fun findById(id: PlantId): Plant?
     suspend fun findAll(): List<Plant>
     suspend fun save(plant: Plant)
-    suspend fun findByLockDevice(deviceId: DeviceId): Plant?
+    suspend fun findByGrabDevice(deviceId: DeviceId): Plant?
 }
 ```
 
@@ -790,14 +790,14 @@ sealed class InspectionDomainEvent {
 
 // События для синхронизации
 sealed class SyncDomainEvent {
-    data class PlantLockAcquiredEvent(
+    data class PlantGrabAcquiredEvent(
         val plantId: PlantId,
         val deviceId: DeviceId,
         val userId: UserId,
         val timestamp: Instant
     ) : SyncDomainEvent()
     
-    data class PlantLockReleasedEvent(
+    data class PlantGrabReleasedEvent(
         val plantId: PlantId,
         val deviceId: DeviceId,
         val timestamp: Instant
@@ -813,13 +813,13 @@ sealed class SyncDomainEvent {
 
 1. **Plant Aggregate**:
    - Создается только онлайн
-   - Lock управляется на сервере
-   - При оффлайн-работе проверяется локальный lock
+   - Grab управляется на сервере
+   - При оффлайн-работе проверяется локальный grab
 
 2. **Equipment Aggregate**:
-   - Создается оффлайн (если есть lock на Plant)
+   - Создается оффлайн (если есть grab на Plant)
    - Синхронизируется при появлении интернета
-   - Конфликты: last-write-wins (но их не должно быть из-за lock'а)
+   - Конфликты: last-write-wins (но их не должно быть из-за grab'а)
 
 3. **Inspection Aggregate**:
    - Создается полностью оффлайн
@@ -869,7 +869,7 @@ Value Object создается, если выполняется **хотя бы
    - Примеры: `PlantName`, `QRCode`, `InventoryNumber`, `ControlPointCount`
 
 3. **Составная бизнес-концепция** - группировка связанных данных
-   - Примеры: `LockInfo`, `TemperatureData`
+   - Примеры: `GrabInfo`, `TemperatureData`
 
 4. **Есть бизнес-операции** - методы для работы с данными
    - Пример: `QRCode.toDisplayFormat()`

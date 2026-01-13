@@ -19,9 +19,9 @@ class Plant(BaseModel):
     """Plant aggregate with facilities - read model"""
     id: UUID
     name: str
-    locked_by_device_id: Optional[UUID] = None
-    locked_by_user_id: Optional[int] = None
-    locked_at: Optional[datetime] = None
+    grabbed_by_device_id: Optional[UUID] = None
+    grabbed_by_user_id: Optional[int] = None
+    grabbed_at: Optional[datetime] = None
     is_deleted: bool = False
     server_modified_at: datetime
     facilities: list[Facility] = Field(default_factory=list)
@@ -32,9 +32,9 @@ class PlantListItem(BaseModel):
     """Lightweight plant item for list view"""
     id: UUID
     name: str
-    locked_by_device_id: Optional[UUID] = None
-    locked_by_user_id: Optional[int] = None
-    locked_at: Optional[datetime] = None
+    grabbed_by_device_id: Optional[UUID] = None
+    grabbed_by_user_id: Optional[int] = None
+    grabbed_at: Optional[datetime] = None
     is_deleted: bool = False
     server_modified_at: datetime
 
