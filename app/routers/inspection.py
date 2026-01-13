@@ -8,6 +8,8 @@ from app.models.inspection import Inspection, InspectionListResponse
 from app.repositories.inspection import InspectionRepository
 from app.exceptions import ConcurrentModificationError
 from app.database import get_db_connection
+from app.dependencies.ownership import get_ownership_validator
+from app.services.ownership_validator import OwnershipValidator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/inspection", tags=["inspection"])
@@ -46,7 +48,8 @@ async def get_inspections_by_plant_id(
 async def upsert_inspection(
     inspection: Inspection,
     force: bool = Query(default=False, description="If true, ignore server_modified_at and mark extra children as deleted"),
-    conn=Depends(get_db_connection)
+    conn=Depends(get_db_connection),
+    ownership_validator: OwnershipValidator = Depends(get_ownership_validator)
 ):
     """
     Create or replace inspection with steps and image links.
@@ -60,9 +63,12 @@ async def upsert_inspection(
       - Ignores server_modified_at validation
       - Marks extra child entities as deleted
     - Never allows "stealing" child entities from other inspections
+    - Pessimistic lock: Only the user who created the inspection can modify it
     """
     try:
         async with conn.transaction():
+            # Validate ownership before saving
+            await ownership_validator.validate_inspection_ownership(inspection)
             result = await inspection_repo.save(conn, inspection, force=force)
         return result
     except ConcurrentModificationError as e:

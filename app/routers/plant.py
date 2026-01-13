@@ -8,6 +8,8 @@ from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant import Plant, PlantListResponse
 from app.repositories.plant import PlantRepository, ConcurrentModificationError
 from app.database import get_db_connection
+from app.dependencies.ownership import get_ownership_validator
+from app.services.ownership_validator import OwnershipValidator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plant", tags=["plant"])
@@ -42,7 +44,8 @@ async def get_plant_by_id(plant_id: UUID, conn=Depends(get_db_connection)):
 async def upsert_plant(
     plant: Plant,
     force: bool = Query(default=False, description="If true, ignore server_modified_at and mark extra children as deleted"),
-    conn=Depends(get_db_connection)
+    conn=Depends(get_db_connection),
+    ownership_validator: OwnershipValidator = Depends(get_ownership_validator)
 ):
     """
     Create or replace plant with facilities.
@@ -56,9 +59,12 @@ async def upsert_plant(
       - Ignores server_modified_at validation
       - Marks extra child facilities as deleted
     - Never allows "stealing" facilities from other plants
+    - Pessimistic lock: Only the user who grabbed the plant can modify it
     """
     try:
         async with conn.transaction():
+            # Validate ownership before saving
+            await ownership_validator.validate_plant_ownership(plant)
             result = await plant_repo.save(conn, plant, force=force)
         return result
     except ConcurrentModificationError as e:

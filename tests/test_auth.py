@@ -549,7 +549,7 @@ def test_change_password_invalid_old_password(client, test_inspector):
     assert "Invalid old password" in change_response.json()["detail"]
 
 
-def test_change_password_without_authentication(client, test_inspector):
+def test_change_password_without_authentication(enable_auth, client, test_inspector):
     """Test password change without authentication token"""
     device_id = str(uuid4())
     
@@ -566,7 +566,7 @@ def test_change_password_without_authentication(client, test_inspector):
     assert change_response.status_code == 401
 
 
-def test_change_password_with_invalid_token(client, test_inspector):
+def test_change_password_with_invalid_token(enable_auth, client, test_inspector):
     """Test password change with invalid authentication token"""
     device_id = str(uuid4())
     

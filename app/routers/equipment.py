@@ -7,6 +7,8 @@ from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.equipment import Equipment, EquipmentListResponse
 from app.repositories.equipment import EquipmentRepository, ConcurrentModificationError
 from app.database import get_db_connection
+from app.dependencies.ownership import get_ownership_validator
+from app.services.ownership_validator import OwnershipValidator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/equipment", tags=["equipment"])
@@ -45,7 +47,8 @@ async def get_equipment_by_plant_id(
 async def upsert_equipment(
     equipment: Equipment,
     force: bool = Query(default=False, description="If true, ignore server_modified_at and mark extra children as deleted"),
-    conn=Depends(get_db_connection)
+    conn=Depends(get_db_connection),
+    ownership_validator: OwnershipValidator = Depends(get_ownership_validator)
 ):
     """
     Create or replace equipment with control points and defects.
@@ -59,9 +62,12 @@ async def upsert_equipment(
       - Ignores server_modified_at validation
       - Marks extra child entities as deleted
     - Never allows "stealing" child entities from other equipment
+    - Pessimistic lock: Only the user who grabbed the parent plant can modify equipment
     """
     try:
         async with conn.transaction():
+            # Validate ownership before saving
+            await ownership_validator.validate_equipment_ownership(equipment)
             result = await equipment_repo.save(conn, equipment, force=force)
         return result
     except ConcurrentModificationError as e:

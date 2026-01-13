@@ -48,6 +48,14 @@ SELECT id, equipment_id, inspector_id, started_at, completed_at, status, is_dele
 FROM lesiv.inspection
 WHERE id = :id;
 
+-- name: get_by_id_with_username(id)^
+-- Get inspection by ID with username of inspector who created it
+SELECT i.id, i.equipment_id, i.inspector_id, i.started_at, i.completed_at, i.status, i.is_deleted, i.server_modified_at,
+       insp.username as inspector_username
+FROM lesiv.inspection i
+LEFT JOIN lesiv.inspector insp ON i.inspector_id = insp.id
+WHERE i.id = :id;
+
 -- name: get_steps(inspection_id)
 -- Get steps for inspection
 SELECT id, started_at, inspection_id, step_number, step_type, defect_id,
