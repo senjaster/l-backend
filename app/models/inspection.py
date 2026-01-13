@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from decimal import Decimal
 
 
@@ -52,6 +52,15 @@ class InspectionStep(BaseModel):
     is_test_ready: Optional[bool] = None
     is_deleted: bool = False
     image_links: list[ImageLink] = Field(default_factory=list)
+    
+    @field_validator('t_observed')
+    @classmethod
+    def validate_t_observed(cls, v: Optional[Decimal]) -> Optional[Decimal]:
+        """Validate t_observed is within DECIMAL(5,1) range: -273.15 to 9999.9"""
+        if v is not None:
+            if v < Decimal('-273.15') or v > Decimal('9999.9'):
+                raise ValueError('t_observed must be between -273.15 and 9999.9')
+        return v
 
 
 class Inspection(BaseModel):
