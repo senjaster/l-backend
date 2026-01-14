@@ -3,23 +3,18 @@ from uuid import UUID
 from datetime import datetime
 import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant import Plant, PlantListResponse
+from app.models.auth import TokenPayload
 from app.repositories.plant import PlantRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.ownership import get_ownership_validator
+from app.dependencies.auth import get_token_payload
 from app.services.ownership_validator import OwnershipValidator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plant", tags=["plant"])
 plant_repo = PlantRepository()
-
-
-class GrabRequest(BaseModel):
-    """Request to grab a plant"""
-    device_id: UUID
-    user_id: int
 
 
 @router.get("/all", response_model=PlantListResponse)
@@ -93,16 +88,16 @@ async def upsert_plant(
 @router.post("/by_id/{plant_id}/grab", status_code=204)
 async def grab_plant(
     plant_id: UUID,
-    grab_request: GrabRequest,
+    token_payload: TokenPayload = Depends(get_token_payload),
     conn=Depends(get_db_connection)
 ):
-    """Grab plant for editing"""
+    """Grab plant for editing (user_id and device_id extracted from auth token)"""
     async with conn.transaction():
         success = await plant_repo.grab(
             conn,
             plant_id,
-            grab_request.device_id,
-            grab_request.user_id
+            token_payload.dev,  # device_id from token
+            token_payload.sub   # user_id (inspector_id) from token
         )
     if not success:
         raise HTTPException(status_code=404, detail="Plant not found")

@@ -222,17 +222,23 @@ def test_missing_timestamp_for_update(client: TestClient, plant_data):
 
 
 def test_grab_plant(client: TestClient, plant_data, plant_id):
-    """Test grabbing a plant using new by_id path"""
+    """Test grabbing a plant using new by_id path (user_id and device_id from token)"""
+    from app.services.auth import AuthService
+    
     plant_data["facilities"] = []
     client.put("/plant", json=plant_data)
     
-    # Grab plant
+    # Create a token with user_id and device_id
+    auth_service = AuthService()
     device_id = uuid4()
-    grab_request = {
-        "device_id": str(device_id),
-        "user_id": 1
-    }
-    response = client.post(f"/plant/by_id/{plant_id}/grab", json=grab_request)
+    user_id = 1
+    access_token = auth_service.create_access_token(user_id, device_id)
+    
+    # Grab plant (no body needed, user_id and device_id extracted from token)
+    response = client.post(
+        f"/plant/by_id/{plant_id}/grab",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
     assert response.status_code == 204
     
     # Verify it's grabbed
@@ -240,7 +246,7 @@ def test_grab_plant(client: TestClient, plant_data, plant_id):
     assert get_response.status_code == 200
     data = get_response.json()
     assert data["grabbed_by_device_id"] == str(device_id)
-    assert data["grabbed_by_user_id"] == 1
+    assert data["grabbed_by_user_id"] == user_id
     assert data["grabbed_at"] is not None
 
 

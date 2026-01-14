@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import asyncpg
 from app.models.inspector import Inspector
+from app.models.auth import TokenPayload
 from app.services.auth import AuthService
 from app.database import get_db_connection
 from app.config import settings
@@ -76,3 +77,33 @@ async def get_current_user(
         is_deleted=False,
         server_modified_at=datetime.now(timezone.utc)
     )
+
+
+async def get_token_payload(
+    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)]
+) -> TokenPayload:
+    """
+    Dependency to extract and validate token payload from JWT token.
+    This provides access to both user_id (sub) and device_id (dev).
+    
+    Raises:
+        HTTPException: 401 if token is missing or invalid
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = credentials.credentials
+    payload = auth_service.verify_access_token(token)
+    
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return payload
