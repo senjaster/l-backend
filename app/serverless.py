@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 # This prevents connection pool initialization issues in Lambda
 lambda_handler = Mangum(
     app,
-    lifespan="off"  # Disable lifespan for serverless (connection pooling handled per invocation)
+    lifespan="off",  # Disable lifespan for serverless (connection pooling handled per invocation)
 )
+
 
 def handler(event, context):
     try:
@@ -21,6 +22,6 @@ def handler(event, context):
         logger.error(
             "Lambda invocation failed",
             extra={"request_id": context.request_id, "error": str(e)},
-            exc_info=True
+            exc_info=True,
         )
         raise

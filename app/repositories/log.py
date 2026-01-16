@@ -1,4 +1,5 @@
 """Log repository"""
+
 import json
 import aiosql
 from app.models.log import LogEntry
@@ -12,7 +13,7 @@ queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queri
 
 class LogRepository:
     """Repository for Log (append-only)"""
-    
+
     async def insert_batch(self, conn, logs: list[LogEntry]) -> int:
         """Insert multiple log entries"""
         count = 0
@@ -26,7 +27,7 @@ class LogRepository:
                 entity_type=log.entity_type.value,
                 op=log.op.value,
                 data=json.dumps(log.data) if log.data else None,
-                message=log.message
+                message=log.message,
             )
             count += 1
         return count

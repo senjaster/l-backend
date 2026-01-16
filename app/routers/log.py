@@ -1,4 +1,5 @@
 """Log router"""
+
 from fastapi import APIRouter, Depends
 from app.models.log import LogEntry
 from app.repositories.log import LogRepository

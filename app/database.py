@@ -1,4 +1,5 @@
 """Database connection pool management"""
+
 import asyncpg
 import psycopg2
 import psycopg2.extras
@@ -18,15 +19,13 @@ sync_db_pool: Optional[pool.ThreadedConnectionPool] = None
 
 # === ASYNC IMPLEMENTATION (for regular FastAPI with asyncpg) ===
 
+
 async def init_async_db_pool():
     """Initialize async database connection pool"""
     global async_db_pool
     if async_db_pool is None:
         async_db_pool = await asyncpg.create_pool(
-            dsn=settings.get_database_url(),
-            min_size=5,
-            max_size=20,
-            command_timeout=60
+            dsn=settings.get_database_url(), min_size=5, max_size=20, command_timeout=60
         )
 
 
@@ -40,6 +39,7 @@ async def close_async_db_pool():
 
 # === SYNC IMPLEMENTATION (for serverless/mangum with psycopg2) ===
 
+
 def init_sync_db_pool():
     """Initialize sync database connection pool (persists across warm invocations)"""
     global sync_db_pool
@@ -48,7 +48,7 @@ def init_sync_db_pool():
             minconn=1,  # Lower for serverless
             maxconn=10,
             dsn=settings.get_database_url(),
-            cursor_factory=psycopg2.extras.RealDictCursor
+            cursor_factory=psycopg2.extras.RealDictCursor,
         )
 
 
@@ -61,6 +61,7 @@ def close_sync_db_pool():
 
 
 # === UNIFIED INTERFACE ===
+
 
 async def init_db_pool():
     """Initialize database pool based on driver setting"""
@@ -82,7 +83,7 @@ async def get_db_connection():
     """
     Unified dependency for getting database connection.
     Returns async or sync connection based on driver setting.
-    
+
     In serverless environments where lifespan is disabled,
     this will initialize the pool on first request if needed.
     """
@@ -91,7 +92,7 @@ async def get_db_connection():
         global async_db_pool
         if async_db_pool is None:
             await init_async_db_pool()
-        
+
         if async_db_pool is not None:
             async with async_db_pool.acquire() as connection:
                 yield connection
@@ -100,7 +101,7 @@ async def get_db_connection():
         global sync_db_pool
         if sync_db_pool is None:
             init_sync_db_pool()  # No await
-        
+
         if sync_db_pool is not None:
             conn = sync_db_pool.getconn()  # No await
             try:

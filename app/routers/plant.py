@@ -1,4 +1,5 @@
 """Plant router - implements new API design principles"""
+
 from uuid import UUID
 from datetime import datetime
 import logging
@@ -19,8 +20,11 @@ plant_repo = PlantRepository()
 
 @router.get("/all", response_model=PlantListResponse)
 async def get_all_plants(
-    modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Only return plants modified after this timestamp"),
-    conn=Depends(get_db_connection)
+    modified_since: datetime = Query(
+        DEFAULT_MODIFIED_SINCE,
+        description="Only return plants modified after this timestamp",
+    ),
+    conn=Depends(get_db_connection),
 ):
     """Get all plant IDs (lightweight list), optionally filtered by modification date"""
     return await plant_repo.get_all(conn, modified_since=modified_since)
@@ -38,13 +42,16 @@ async def get_plant_by_id(plant_id: UUID, conn=Depends(get_db_connection)):
 @router.put("", response_model=Plant)
 async def upsert_plant(
     plant: Plant,
-    force: bool = Query(default=False, description="If true, ignore server_modified_at and mark extra children as deleted"),
+    force: bool = Query(
+        default=False,
+        description="If true, ignore server_modified_at and mark extra children as deleted",
+    ),
     conn=Depends(get_db_connection),
-    ownership_validator: OwnershipValidator = Depends(get_ownership_validator)
+    ownership_validator: OwnershipValidator = Depends(get_ownership_validator),
 ):
     """
     Create or replace plant with facilities.
-    
+
     Rules:
     - force=false (default):
       - Validates server_modified_at for existing plants
@@ -67,20 +74,15 @@ async def upsert_plant(
             "Concurrent modification detected for plant",
             extra={
                 "plant_id": str(plant.id),
-                "conflict": e.conflict_error.model_dump(mode='json')
-            }
+                "conflict": e.conflict_error.model_dump(mode="json"),
+            },
         )
         raise HTTPException(
-            status_code=409,
-            detail=e.conflict_error.model_dump(mode='json')
+            status_code=409, detail=e.conflict_error.model_dump(mode="json")
         )
     except ValueError as e:
         logger.warning(
-            "Invalid plant data",
-            extra={
-                "plant_id": str(plant.id),
-                "error": str(e)
-            }
+            "Invalid plant data", extra={"plant_id": str(plant.id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -89,7 +91,7 @@ async def upsert_plant(
 async def claim_plant(
     plant_id: UUID,
     token_payload: TokenPayload = Depends(get_token_payload),
-    conn=Depends(get_db_connection)
+    conn=Depends(get_db_connection),
 ):
     """Claim plant for editing (user_id and device_id extracted from auth token)"""
     async with conn.transaction():
@@ -97,7 +99,7 @@ async def claim_plant(
             conn,
             plant_id,
             token_payload.dev,  # device_id from token
-            token_payload.sub   # user_id (inspector_id) from token
+            token_payload.sub,  # user_id (inspector_id) from token
         )
     if not success:
         raise HTTPException(status_code=404, detail="Plant not found")

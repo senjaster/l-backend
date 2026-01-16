@@ -1,4 +1,5 @@
 """Inspection aggregate models"""
+
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -9,6 +10,7 @@ from decimal import Decimal
 
 class InspectionStatus(str, Enum):
     """Inspection status enum"""
+
     PLANNED = "PLANNED"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
@@ -16,6 +18,7 @@ class InspectionStatus(str, Enum):
 
 class InspectionStepType(str, Enum):
     """Inspection step type enum"""
+
     GENERAL_INSPECTION = "GENERAL_INSPECTION"
     DEFECT_REPORT = "DEFECT_REPORT"
     DEFECT_FOLLOW_UP = "DEFECT_FOLLOW_UP"
@@ -23,6 +26,7 @@ class InspectionStepType(str, Enum):
 
 class DefectSeverity(str, Enum):
     """Defect severity enum"""
+
     CRITICAL = "CRITICAL"
     EMERGENCY = "EMERGENCY"
     DEVELOPING = "DEVELOPING"
@@ -30,6 +34,7 @@ class DefectSeverity(str, Enum):
 
 class StepStatus(str, Enum):
     """Step status enum"""
+
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     FORCE_COMPLETED = "FORCE_COMPLETED"
@@ -37,12 +42,14 @@ class StepStatus(str, Enum):
 
 class ImageLink(BaseModel):
     """Image link within inspection step (child entity)"""
+
     image_id: UUID
     is_deleted: bool = False
 
 
 class InspectionStep(BaseModel):
     """Inspection step within inspection (child entity)"""
+
     id: UUID
     started_at: datetime
     step_number: int
@@ -54,7 +61,7 @@ class InspectionStep(BaseModel):
     t_sticker: Optional[str] = None
     t_environment: Optional[Decimal] = None
     t_similar_unit: Optional[Decimal] = None
-    epsilon: Decimal = Decimal('0.95')
+    epsilon: Decimal = Decimal("0.95")
     t_max: Optional[int] = None
     t_excess: Optional[int] = None
     t_observed: Optional[Decimal] = None
@@ -66,45 +73,46 @@ class InspectionStep(BaseModel):
     step_status: Optional[StepStatus] = None
     is_deleted: bool = False
     image_links: list[ImageLink] = Field(default_factory=list)
-    
-    @field_validator('t_observed')
+
+    @field_validator("t_observed")
     @classmethod
     def validate_t_observed(cls, v: Optional[Decimal]) -> Optional[Decimal]:
         """Validate t_observed is within DECIMAL(5,1) range: -273.15 to 9999.9"""
         if v is not None:
-            if v < Decimal('-273.15') or v > Decimal('9999.9'):
-                raise ValueError('t_observed must be between -273.15 and 9999.9')
+            if v < Decimal("-273.15") or v > Decimal("9999.9"):
+                raise ValueError("t_observed must be between -273.15 and 9999.9")
         return v
-    
-    @field_validator('t_environment')
+
+    @field_validator("t_environment")
     @classmethod
     def validate_t_environment(cls, v: Optional[Decimal]) -> Optional[Decimal]:
         """Validate t_environment is within DECIMAL(5,1) range: -273.15 to 9999.9"""
         if v is not None:
-            if v < Decimal('-273.15') or v > Decimal('9999.9'):
-                raise ValueError('t_environment must be between -273.15 and 9999.9')
+            if v < Decimal("-273.15") or v > Decimal("9999.9"):
+                raise ValueError("t_environment must be between -273.15 and 9999.9")
         return v
-    
-    @field_validator('t_similar_unit')
+
+    @field_validator("t_similar_unit")
     @classmethod
     def validate_t_similar_unit(cls, v: Optional[Decimal]) -> Optional[Decimal]:
         """Validate t_similar_unit is within DECIMAL(5,1) range: -273.15 to 9999.9"""
         if v is not None:
-            if v < Decimal('-273.15') or v > Decimal('9999.9'):
-                raise ValueError('t_similar_unit must be between -273.15 and 9999.9')
+            if v < Decimal("-273.15") or v > Decimal("9999.9"):
+                raise ValueError("t_similar_unit must be between -273.15 and 9999.9")
         return v
-    
-    @field_validator('epsilon')
+
+    @field_validator("epsilon")
     @classmethod
     def validate_epsilon(cls, v: Decimal) -> Decimal:
         """Validate epsilon is within DECIMAL(3,2) range: 0 to 1 inclusive"""
-        if v < Decimal('0') or v > Decimal('1'):
-            raise ValueError('epsilon must be between 0 and 1 inclusive')
+        if v < Decimal("0") or v > Decimal("1"):
+            raise ValueError("epsilon must be between 0 and 1 inclusive")
         return v
 
 
 class Inspection(BaseModel):
     """Inspection aggregate root"""
+
     id: UUID
     equipment_id: UUID
     inspector_id: int
@@ -118,6 +126,7 @@ class Inspection(BaseModel):
 
 class InspectionListItem(BaseModel):
     """Lightweight inspection item for list view"""
+
     id: UUID
     equipment_id: UUID
     inspector_id: int
@@ -129,4 +138,5 @@ class InspectionListItem(BaseModel):
 
 class InspectionListResponse(BaseModel):
     """Wrapped response for inspection list with items key"""
+
     items: list[InspectionListItem]

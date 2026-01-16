@@ -1,4 +1,5 @@
 """Application-wide constants"""
+
 from datetime import datetime, timezone
 
 # Default timestamp for filtering - represents "beginning of time" for our application

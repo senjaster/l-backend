@@ -1,4 +1,5 @@
 """EquipmentType aggregate models"""
+
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -6,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class ControlPointTemplate(BaseModel):
     """Control point template for equipment type"""
+
     id: int
     equipment_type_id: int
     name: str
@@ -18,6 +20,7 @@ class ControlPointTemplate(BaseModel):
 
 class EquipmentType(BaseModel):
     """EquipmentType aggregate with control point templates"""
+
     id: int
     name: str
     is_deleted: bool = False
@@ -27,4 +30,5 @@ class EquipmentType(BaseModel):
 
 class EquipmentTypeListResponse(BaseModel):
     """List of EquipmentType items"""
+
     items: list[EquipmentType]

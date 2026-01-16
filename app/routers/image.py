@@ -1,4 +1,5 @@
 """Image router - implements API design principles"""
+
 from uuid import UUID
 from datetime import datetime
 import logging
@@ -25,22 +26,29 @@ async def get_image_by_id(image_id: UUID, conn=Depends(get_db_connection)):
 @router.get("/by_plant_id/{plant_id}", response_model=list[Image])
 async def get_images_by_plant_id(
     plant_id: UUID,
-    modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Only return images modified after this timestamp"),
-    conn=Depends(get_db_connection)
+    modified_since: datetime = Query(
+        DEFAULT_MODIFIED_SINCE,
+        description="Only return images modified after this timestamp",
+    ),
+    conn=Depends(get_db_connection),
 ):
     """Get all images for a plant, optionally filtered by modification date"""
-    return await image_repo.get_by_plant_id(conn, plant_id, modified_since=modified_since)
+    return await image_repo.get_by_plant_id(
+        conn, plant_id, modified_since=modified_since
+    )
 
 
 @router.put("", response_model=Image)
 async def upsert_image(
     image: Image,
-    force: bool = Query(default=False, description="If true, ignore server_modified_at validation"),
-    conn=Depends(get_db_connection)
+    force: bool = Query(
+        default=False, description="If true, ignore server_modified_at validation"
+    ),
+    conn=Depends(get_db_connection),
 ):
     """
     Create or replace image.
-    
+
     Rules:
     - force=false (default):
       - Validates server_modified_at for existing images
@@ -58,19 +66,14 @@ async def upsert_image(
             "Concurrent modification detected for image",
             extra={
                 "image_id": str(image.id),
-                "conflict": e.conflict_error.model_dump(mode='json')
-            }
+                "conflict": e.conflict_error.model_dump(mode="json"),
+            },
         )
         raise HTTPException(
-            status_code=409,
-            detail=e.conflict_error.model_dump(mode='json')
+            status_code=409, detail=e.conflict_error.model_dump(mode="json")
         )
     except ValueError as e:
         logger.warning(
-            "Invalid image data",
-            extra={
-                "image_id": str(image.id),
-                "error": str(e)
-            }
+            "Invalid image data", extra={"image_id": str(image.id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))

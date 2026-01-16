@@ -1,4 +1,5 @@
 """Plant aggregate models"""
+
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -9,6 +10,7 @@ from app.models import ConflictDetail, ConflictError
 # Read models (returned from GET endpoints)
 class Facility(BaseModel):
     """Energy facility (part of plant) - read model"""
+
     id: UUID
     name: str
     is_deleted: bool = False
@@ -17,6 +19,7 @@ class Facility(BaseModel):
 
 class Plant(BaseModel):
     """Plant aggregate with facilities - read model"""
+
     id: UUID
     name: str
     claimed_by_device_id: Optional[UUID] = None
@@ -30,6 +33,7 @@ class Plant(BaseModel):
 # List models
 class PlantListItem(BaseModel):
     """Lightweight plant item for list view"""
+
     id: UUID
     name: str
     claimed_by_device_id: Optional[UUID] = None
@@ -41,5 +45,5 @@ class PlantListItem(BaseModel):
 
 class PlantListResponse(BaseModel):
     """Wrapped response for plant list with items key"""
-    items: list[PlantListItem]
 
+    items: list[PlantListItem]

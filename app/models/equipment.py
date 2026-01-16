@@ -1,4 +1,5 @@
 """Equipment aggregate models"""
+
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -9,12 +10,14 @@ from app.models import ConflictDetail, ConflictError
 
 class DefectStatus(str, Enum):
     """Defect status enum"""
+
     DETECTED = "DETECTED"
     RESOLVED = "RESOLVED"
 
 
 class ControlPoint(BaseModel):
     """Control point within equipment (child entity)"""
+
     id: UUID
     control_point_type: str
     point_count: int
@@ -27,6 +30,7 @@ class ControlPoint(BaseModel):
 
 class Defect(BaseModel):
     """Defect within equipment (child entity)"""
+
     id: UUID
     unit_name: str
     t_max: Optional[int] = None
@@ -39,6 +43,7 @@ class Defect(BaseModel):
 
 class Equipment(BaseModel):
     """Equipment aggregate root - read model"""
+
     id: UUID
     facility_id: UUID
     parent_id: Optional[UUID] = None
@@ -53,9 +58,11 @@ class Equipment(BaseModel):
     defects: list[Defect] = Field(default_factory=list)
     inspection_ids: Optional[list[UUID]] = Field(default_factory=list)
 
+
 # List models
 class EquipmentListItem(BaseModel):
     """Lightweight equipment item for list view"""
+
     id: UUID
     facility_id: UUID
     parent_id: Optional[UUID] = None
@@ -67,5 +74,5 @@ class EquipmentListItem(BaseModel):
 
 class EquipmentListResponse(BaseModel):
     """Wrapped response for equipment list with items key"""
-    items: list[EquipmentListItem]
 
+    items: list[EquipmentListItem]

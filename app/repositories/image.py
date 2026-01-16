@@ -1,4 +1,5 @@
 """Image repository"""
+
 from typing import Optional
 from uuid import UUID
 from datetime import datetime, timezone
@@ -19,57 +20,64 @@ queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queri
 
 class ImageRepository:
     """Repository for Image aggregate"""
-    
+
     async def get_by_id(self, conn, image_id: UUID) -> Optional[Image]:
         """Get image by ID"""
         row = await queries.get_by_id(conn, id=image_id)
         if row:
             # Parse JSONB metadata if it's a string
             row_dict = dict(row)
-            if row_dict.get('metadata') and isinstance(row_dict['metadata'], str):
-                row_dict['metadata'] = json.loads(row_dict['metadata'])
+            if row_dict.get("metadata") and isinstance(row_dict["metadata"], str):
+                row_dict["metadata"] = json.loads(row_dict["metadata"])
             return Image(**row_dict)
         return None
-    
-    async def get_by_plant_id(self, conn, plant_id: UUID, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> list[Image]:
+
+    async def get_by_plant_id(
+        self, conn, plant_id: UUID, modified_since: datetime = DEFAULT_MODIFIED_SINCE
+    ) -> list[Image]:
         """Get all images for a plant (joins through equipment and facility)"""
-        rows = [row async for row in queries.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)]
+        rows = [
+            row
+            async for row in queries.get_by_plant_id(
+                conn, plant_id=plant_id, modified_since=modified_since
+            )
+        ]
         images = []
         for row in rows:
             row_dict = dict(row)
-            if row_dict.get('metadata') and isinstance(row_dict['metadata'], str):
-                row_dict['metadata'] = json.loads(row_dict['metadata'])
+            if row_dict.get("metadata") and isinstance(row_dict["metadata"], str):
+                row_dict["metadata"] = json.loads(row_dict["metadata"])
             images.append(Image(**row_dict))
         return images
-    
+
     async def save(self, conn, image: Image, force: bool = False) -> Image:
         """
         Create or update image with optimistic concurrency control.
         Must be called within transaction.
-        
+
         Args:
             conn: Database connection
             image: Image data to save
             force: If True, ignore server_modified_at validation
-        
+
         Raises:
             ConcurrentModificationError: If concurrent modification detected (force=False)
             ValueError: If plant_id does not exist
         """
         image_id = image.id
-        
+
         # Validate that plant_id exists
         result = await queries.plant_exists(conn, plant_id=image.plant_id)
-        plant_exists = result['exists'] if result else False
+        plant_exists = result["exists"] if result else False
         if not plant_exists:
             raise ValueError(f"Plant {image.plant_id} does not exist")
-        
+
         # Get current state if exists
         current = await self.get_by_id(conn, image_id)
-        
+
         # New server_modified_at timestamp
         new_server_modified_at = datetime.now(timezone.utc)
-        
+
         if current and not force:
             # Validate server_modified_at for existing image
             if image.server_modified_at is None:
@@ -80,13 +88,15 @@ class ImageRepository:
                         conflicts=[
                             ConflictDetail(
                                 field="server_modified_at",
-                                message="Missing server_modified_at in request"
+                                message="Missing server_modified_at in request",
                             )
-                        ]
+                        ],
                     )
                 )
-            
-            if truncate_to_milliseconds(image.server_modified_at) != truncate_to_milliseconds(current.server_modified_at):
+
+            if truncate_to_milliseconds(
+                image.server_modified_at
+            ) != truncate_to_milliseconds(current.server_modified_at):
                 raise ConcurrentModificationError(
                     ConflictError(
                         message="Image was modified by another client",
@@ -97,12 +107,12 @@ class ImageRepository:
                                 field="server_modified_at",
                                 message="Timestamp mismatch",
                                 server_value=current.server_modified_at.isoformat(),
-                                client_value=image.server_modified_at.isoformat()
+                                client_value=image.server_modified_at.isoformat(),
                             )
-                        ]
+                        ],
                     )
                 )
-        
+
         # Upsert image
         await queries.upsert(
             conn,
@@ -112,14 +122,14 @@ class ImageRepository:
             image_type=image.image_type.value,
             metadata=json.dumps(image.metadata) if image.metadata else None,
             is_deleted=image.is_deleted,
-            server_modified_at=new_server_modified_at
+            server_modified_at=new_server_modified_at,
         )
-        
+
         result = await self.get_by_id(conn, image_id)
         if not result:
             raise ValueError(f"Image {image_id} not found after save")
         return result
-    
+
     async def delete(self, conn, image_id: UUID) -> bool:
         """Delete image (actual delete, no is_deleted flag)"""
         await queries.delete(conn, id=image_id)

@@ -1,4 +1,5 @@
 """Log model"""
+
 from datetime import datetime
 from enum import Enum
 from typing import Optional
@@ -8,6 +9,7 @@ from pydantic import BaseModel, field_validator
 
 class LogEntityType(str, Enum):
     """Log entity type enum"""
+
     INSPECTOR = "INSPECTOR"
     PLANT = "PLANT"
     FACILITY = "FACILITY"
@@ -18,6 +20,7 @@ class LogEntityType(str, Enum):
 
 class LogOperation(str, Enum):
     """Log operation enum"""
+
     CREATE = "CREATE"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
@@ -25,6 +28,7 @@ class LogOperation(str, Enum):
 
 class LogEntry(BaseModel):
     """Log entry model"""
+
     logged_at: datetime
     plant_id: Optional[UUID] = None
     inspector_id: int

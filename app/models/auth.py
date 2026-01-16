@@ -1,4 +1,5 @@
 """Authentication models"""
+
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field
@@ -6,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class Token(BaseModel):
     """Refresh token stored in database"""
+
     id: UUID
     inspector_id: int
     device_id: UUID
@@ -19,6 +21,7 @@ class Token(BaseModel):
 
 class LoginRequest(BaseModel):
     """Login request payload"""
+
     username: str = Field(..., min_length=1)
     password: str = Field(..., min_length=1)
     device_id: UUID
@@ -26,6 +29,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     """Login response with tokens"""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -33,21 +37,24 @@ class TokenResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     """Refresh token request payload"""
+
     refresh_token: str = Field(..., min_length=1)
 
 
 class TokenPayload(BaseModel):
     """JWT token payload"""
-    sub: int   # inspector_id
+
+    sub: int  # inspector_id
     dev: UUID  # device id
-    exp: int   # expiration time
-    iat: int   # issued at time
-    iss: str   # issuer
-    aud: str   # audience
+    exp: int  # expiration time
+    iat: int  # issued at time
+    iss: str  # issuer
+    aud: str  # audience
 
 
 class InspectorWithPassword(BaseModel):
     """Inspector with password hash - Internal use only (for authentication)"""
+
     id: int
     full_name: str
     username: str
@@ -57,6 +64,7 @@ class InspectorWithPassword(BaseModel):
 
 class PasswordChangeRequest(BaseModel):
     """Request for a password change"""
+
     old_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=1)
     device_id: UUID
