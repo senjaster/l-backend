@@ -32,7 +32,7 @@ class Plant(BaseModel):
 
     @computed_field
     @property
-    def is_stale(self) -> bool:
+    def is_claim_stale(self) -> bool:
         """
         Indicates if the claim is stale (can be overridden by another user).
         A claim becomes stale at 3:00 AM Moscow time each day.
@@ -54,7 +54,7 @@ class PlantListItem(BaseModel):
 
     @computed_field
     @property
-    def is_stale(self) -> bool:
+    def is_claim_stale(self) -> bool:
         """
         Indicates if the claim is stale (can be overridden by another user).
         A claim becomes stale at 3:00 AM Moscow time each day.

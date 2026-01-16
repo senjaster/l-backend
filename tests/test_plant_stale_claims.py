@@ -45,10 +45,10 @@ def access_token_2():
     return AuthService().create_access_token(user_id, device_id)
 
 
-def test_is_stale_field_in_response(
+def test_is_claim_stale_field_in_response(
     client: TestClient, plant_data, plant_id, access_token_1
 ):
-    """Test that is_stale computed field is included in API responses"""
+    """Test that is_claim_stale computed field is included in API responses"""
 
     # Create plant
     client.put("/plant", json=plant_data)
@@ -59,18 +59,18 @@ def test_is_stale_field_in_response(
         headers={"Authorization": f"Bearer {access_token_1}"},
     )
 
-    # Get plant and verify is_stale field exists
+    # Get plant and verify is_claim_stale field exists
     response = client.get(f"/plant/by_id/{plant_id}")
     assert response.status_code == 200
     data = response.json()
-    assert "is_stale" in data
-    assert isinstance(data["is_stale"], bool)
+    assert "is_claim_stale" in data
+    assert isinstance(data["is_claim_stale"], bool)
 
 
-def test_is_stale_field_in_list_response(
+def test_is_claim_stale_field_in_list_response(
     client: TestClient, plant_data, plant_id, access_token_1
 ):
-    """Test that is_stale computed field is included in list responses"""
+    """Test that is_claim_stale computed field is included in list responses"""
 
     # Create and claim plant
     client.put("/plant", json=plant_data)
@@ -80,15 +80,15 @@ def test_is_stale_field_in_list_response(
         headers={"Authorization": f"Bearer {access_token_1}"},
     )
 
-    # Get all plants and verify is_stale field exists
+    # Get all plants and verify is_claim_stale field exists
     response = client.get("/plant/all")
     assert response.status_code == 200
     data = response.json()
 
     plant = next((p for p in data["items"] if p["id"] == str(plant_id)), None)
     assert plant is not None
-    assert "is_stale" in plant
-    assert isinstance(plant["is_stale"], bool)
+    assert "is_claim_stale" in plant
+    assert isinstance(plant["is_claim_stale"], bool)
 
 
 def test_fresh_claim_is_not_stale(
@@ -108,10 +108,10 @@ def test_fresh_claim_is_not_stale(
     response = client.get(f"/plant/by_id/{plant_id}")
     assert response.status_code == 200
     data = response.json()
-    assert data["is_stale"] is False
+    assert data["is_claim_stale"] is False
 
 
-def test_claim_from_yesterday_is_stale(client: TestClient, plant_data, plant_id):
+def test_claim_from_yesterday_is_claim_stale(client: TestClient, plant_data, plant_id):
     """Test that a claim from yesterday (before 3:00 AM) is stale"""
 
     # Create plant with claim from yesterday
@@ -126,10 +126,10 @@ def test_claim_from_yesterday_is_stale(client: TestClient, plant_data, plant_id)
     response = client.get(f"/plant/by_id/{plant_id}")
     assert response.status_code == 200
     data = response.json()
-    assert data["is_stale"] is True
+    assert data["is_claim_stale"] is True
 
 
-def test_unclaimed_plant_is_stale(client: TestClient, plant_data, plant_id):
+def test_unclaimed_plant_is_claim_stale(client: TestClient, plant_data, plant_id):
     """Test that an unclaimed plant (claimed_at is None) is considered stale"""
     # Create plant without claim
     client.put("/plant", json=plant_data)
@@ -138,7 +138,7 @@ def test_unclaimed_plant_is_stale(client: TestClient, plant_data, plant_id):
     response = client.get(f"/plant/by_id/{plant_id}")
     assert response.status_code == 200
     data = response.json()
-    assert data["is_stale"] is True
+    assert data["is_claim_stale"] is True
 
 
 def test_reclaim_stale_plant_by_different_user(
@@ -167,7 +167,7 @@ def test_reclaim_stale_plant_by_different_user(
     assert get_response.status_code == 200
     data = get_response.json()
     assert data["claimed_by_user_id"] == 2
-    assert data["is_stale"] is False
+    assert data["is_claim_stale"] is False
 
 
 def test_cannot_reclaim_fresh_plant_by_different_user(
@@ -291,7 +291,7 @@ def test_stale_claim_persists_in_database(client: TestClient, plant_data, plant_
     assert data["claimed_at"] is not None
 
     # But it should be marked as stale
-    assert data["is_stale"] is True
+    assert data["is_claim_stale"] is True
 
 
 def test_equipment_modification_with_stale_plant_claim(
@@ -369,7 +369,7 @@ def test_claim_expiration_at_3am_moscow_time(client: TestClient, plant_data, pla
     response = client.get(f"/plant/by_id/{plant_id}")
     assert response.status_code == 200
     data = response.json()
-    assert data["is_stale"] is True
+    assert data["is_claim_stale"] is True
 
 
 def test_release_plant_clears_claim(
@@ -396,4 +396,4 @@ def test_release_plant_clears_claim(
     assert data["claimed_by_device_id"] is None
     assert data["claimed_by_user_id"] is None
     assert data["claimed_at"] is None
-    assert data["is_stale"] is True  # No claim = stale
+    assert data["is_claim_stale"] is True  # No claim = stale

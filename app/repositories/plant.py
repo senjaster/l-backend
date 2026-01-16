@@ -191,7 +191,7 @@ class PlantRepository:
             and current.claimed_by_user_id != user_id
         ):
             # Plant is claimed by another user - check if stale
-            if not current.is_stale:
+            if not current.is_claim_stale:
                 return False
 
         # Claim is allowed - update the claim
