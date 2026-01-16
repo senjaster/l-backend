@@ -10,7 +10,7 @@ from app.repositories.plant import PlantRepository, queries as plant_queries
 from app.repositories.equipment import EquipmentRepository, queries as equipment_queries
 from app.repositories.inspection import InspectionRepository, queries as inspection_queries
 from app.exceptions import ConcurrentModificationError
-from app.utils.grab_utils import is_grab_expired
+from app.utils.claim_utils import is_claim_expired
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class OwnershipValidator:
     """
     Service to validate ownership of plant, equipment, and inspection aggregates.
-    Checks if a user has the right to modify an aggregate based on grab ownership or creator ownership.
+    Checks if a user has the right to modify an aggregate based on claim ownership or creator ownership.
     """
     
     def __init__(self, conn, current_user: Inspector):
@@ -37,14 +37,14 @@ class OwnershipValidator:
     
     async def validate_plant_ownership(self, plant: Plant) -> None:
         """
-        Validate that the plant is grabbed by the current user.
+        Validate that the plant is claimed by the current user.
         Pessimistic locks are never bypassed, only by anonymous user (when auth is disabled).
         
         Args:
             plant: Plant to validate
         
         Raises:
-            ConcurrentModificationError: If plant is not grabbed by current user
+            ConcurrentModificationError: If plant is not claimed by current user
         """
         # Skip validation only for anonymous user (when auth is disabled)
         if self.current_user.id == -1:
@@ -54,42 +54,42 @@ class OwnershipValidator:
         if not current:
             return  # New plant, no validation needed
         
-        # Check if grab expired, release it first
-        if current.grabbed_by_device_id is not None and is_grab_expired(current.grabbed_at):
+        # Check if claim expired, release it first
+        if current.claimed_by_device_id is not None and is_claim_expired(current.claimed_at):
             await self.plant_repo.release(self.conn, plant.id)
             # Refresh current state
             current = await self.plant_repo.get_by_id(self.conn, plant.id)
             if not current:
                 return  # Should not happen, but handle gracefully
         
-        # Check grab ownership
-        if current.grabbed_by_user_id is None:
+        # Check claim ownership
+        if current.claimed_by_user_id is None:
             raise ConcurrentModificationError(
                 ConflictError(
-                    message="Plant must be grabbed before modification",
+                    message="Plant must be claimed before modification",
                     server_modified_at=current.server_modified_at,
                     conflicts=[
                         ConflictDetail(
-                            field="grabbed_by_user_id",
-                            message="Plant is not grabbed by any user"
+                            field="claimed_by_user_id",
+                            message="Plant is not claimed by any user"
                         )
                     ]
                 )
             )
         
-        if current.grabbed_by_user_id != self.current_user.id:
+        if current.claimed_by_user_id != self.current_user.id:
             # Get username for better error message
             plant_with_username = await plant_queries.get_by_id_with_username(self.conn, id=plant.id)
-            grabbed_by_username = plant_with_username['grabbed_by_username'] if plant_with_username else f"user ID {current.grabbed_by_user_id}"
+            claimed_by_username = plant_with_username['claimed_by_username'] if plant_with_username else f"user ID {current.claimed_by_user_id}"
             
             raise ConcurrentModificationError(
                 ConflictError(
-                    message="Plant is grabbed by another user",
+                    message="Plant is claimed by another user",
                     server_modified_at=current.server_modified_at,
                     conflicts=[
                         ConflictDetail(
-                            field="grabbed_by_user_id",
-                            message=f"Plant is grabbed by {grabbed_by_username}, not by {self.current_user.username}"
+                            field="claimed_by_user_id",
+                            message=f"Plant is claimed by {claimed_by_username}, not by {self.current_user.username}"
                         )
                     ]
                 )
@@ -97,14 +97,14 @@ class OwnershipValidator:
     
     async def validate_equipment_ownership(self, equipment: Equipment) -> None:
         """
-        Validate that the plant (parent of equipment) is grabbed by the current user.
+        Validate that the plant (parent of equipment) is claimed by the current user.
         Pessimistic locks are never bypassed, only by anonymous user (when auth is disabled).
         
         Args:
             equipment: Equipment to validate
         
         Raises:
-            ConcurrentModificationError: If plant is not grabbed by current user
+            ConcurrentModificationError: If plant is not claimed by current user
         """
         # Skip validation only for anonymous user (when auth is disabled)
         if self.current_user.id == -1:
@@ -114,45 +114,45 @@ class OwnershipValidator:
         if not current:
             return  # New equipment, no validation needed
         
-        # Get plant grab info for this equipment
-        plant_grab_info_row = await equipment_queries.get_plant_grab_info_for_equipment(self.conn, equipment_id=equipment.id)
-        if not plant_grab_info_row:
+        # Get plant claim info for this equipment
+        plant_claim_info_row = await equipment_queries.get_plant_claim_info_for_equipment(self.conn, equipment_id=equipment.id)
+        if not plant_claim_info_row:
             return  # No plant found (shouldn't happen in normal flow)
         
-        # Check if grab expired, release it first
-        if plant_grab_info_row['grabbed_by_device_id'] is not None and is_grab_expired(plant_grab_info_row['grabbed_at']):
-            await self.plant_repo.release(self.conn, plant_grab_info_row['plant_id'])
-            # Refresh plant grab info
-            plant_grab_info_row = await equipment_queries.get_plant_grab_info_for_equipment(self.conn, equipment_id=equipment.id)
-            if not plant_grab_info_row:
+        # Check if claim expired, release it first
+        if plant_claim_info_row['claimed_by_device_id'] is not None and is_claim_expired(plant_claim_info_row['claimed_at']):
+            await self.plant_repo.release(self.conn, plant_claim_info_row['plant_id'])
+            # Refresh plant claim info
+            plant_claim_info_row = await equipment_queries.get_plant_claim_info_for_equipment(self.conn, equipment_id=equipment.id)
+            if not plant_claim_info_row:
                 return  # Should not happen, but handle gracefully
         
-        # Check grab ownership
-        if plant_grab_info_row['grabbed_by_user_id'] is None:
+        # Check claim ownership
+        if plant_claim_info_row['claimed_by_user_id'] is None:
             raise ConcurrentModificationError(
                 ConflictError(
-                    message="Plant must be grabbed before modifying equipment",
+                    message="Plant must be claimed before modifying equipment",
                     server_modified_at=current.server_modified_at,
                     conflicts=[
                         ConflictDetail(
-                            field="plant_grab",
-                            message=f"Plant {plant_grab_info_row['plant_id']} is not grabbed by any user"
+                            field="plant_claim",
+                            message=f"Plant {plant_claim_info_row['plant_id']} is not claimed by any user"
                         )
                     ]
                 )
             )
         
-        if plant_grab_info_row['grabbed_by_user_id'] != self.current_user.id:
-            grabbed_by_username = plant_grab_info_row.get('grabbed_by_username') or f"user ID {plant_grab_info_row['grabbed_by_user_id']}"
+        if plant_claim_info_row['claimed_by_user_id'] != self.current_user.id:
+            claimed_by_username = plant_claim_info_row.get('claimed_by_username') or f"user ID {plant_claim_info_row['claimed_by_user_id']}"
             
             raise ConcurrentModificationError(
                 ConflictError(
-                    message="Plant is grabbed by another user",
+                    message="Plant is claimed by another user",
                     server_modified_at=current.server_modified_at,
                     conflicts=[
                         ConflictDetail(
-                            field="plant_grab",
-                            message=f"Plant {plant_grab_info_row['plant_id']} is grabbed by {grabbed_by_username}, not by {self.current_user.username}"
+                            field="plant_claim",
+                            message=f"Plant {plant_claim_info_row['plant_id']} is claimed by {claimed_by_username}, not by {self.current_user.username}"
                         )
                     ]
                 )

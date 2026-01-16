@@ -6,9 +6,9 @@ from copy import deepcopy
 
 PUT_BODY_TEMPLATE = {
     "name": "Test Power Plant",
-    "grabbed_by_device_id": None,
-    "grabbed_by_user_id": None,
-    "grabbed_at": None,
+    "claimed_by_device_id": None,
+    "claimed_by_user_id": None,
+    "claimed_at": None,
     "server_modified_at": "2024-01-01T00:00:00Z",
     "is_deleted": False,
     "facilities": [
@@ -221,8 +221,8 @@ def test_missing_timestamp_for_update(client: TestClient, plant_data):
     assert "modified by another client" in error_data["message"].lower()
 
 
-def test_grab_plant(client: TestClient, plant_data, plant_id):
-    """Test grabbing a plant using new by_id path (user_id and device_id from token)"""
+def test_claim_plant(client: TestClient, plant_data, plant_id):
+    """Test claiming a plant using new by_id path (user_id and device_id from token)"""
     from app.services.auth import AuthService
     
     plant_data["facilities"] = []
@@ -234,29 +234,29 @@ def test_grab_plant(client: TestClient, plant_data, plant_id):
     user_id = 1
     access_token = auth_service.create_access_token(user_id, device_id)
     
-    # Grab plant (no body needed, user_id and device_id extracted from token)
+    # Claim plant (no body needed, user_id and device_id extracted from token)
     response = client.post(
-        f"/plant/by_id/{plant_id}/grab",
+        f"/plant/by_id/{plant_id}/claim",
         headers={"Authorization": f"Bearer {access_token}"}
     )
     assert response.status_code == 204
     
-    # Verify it's grabbed
+    # Verify it's claimed
     get_response = client.get(f"/plant/by_id/{plant_id}")
     assert get_response.status_code == 200
     data = get_response.json()
-    assert data["grabbed_by_device_id"] == str(device_id)
-    assert data["grabbed_by_user_id"] == user_id
-    assert data["grabbed_at"] is not None
+    assert data["claimed_by_device_id"] == str(device_id)
+    assert data["claimed_by_user_id"] == user_id
+    assert data["claimed_at"] is not None
 
 
 def test_release_plant(client: TestClient, plant_data, plant_id):
     """Test releasing a plant using new by_id path"""
     device_id = uuid4()
     plant_data["facilities"] = []
-    plant_data["grabbed_by_device_id"] = str(device_id)
-    plant_data["grabbed_by_user_id"] = 1
-    plant_data["grabbed_at"] = "2024-01-01T00:00:00Z"
+    plant_data["claimed_by_device_id"] = str(device_id)
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = "2024-01-01T00:00:00Z"
     
     client.put("/plant", json=plant_data)
     
@@ -268,9 +268,9 @@ def test_release_plant(client: TestClient, plant_data, plant_id):
     get_response = client.get(f"/plant/by_id/{plant_id}")
     assert get_response.status_code == 200
     data = get_response.json()
-    assert data["grabbed_by_device_id"] is None
-    assert data["grabbed_by_user_id"] is None
-    assert data["grabbed_at"] is None
+    assert data["claimed_by_device_id"] is None
+    assert data["claimed_by_user_id"] is None
+    assert data["claimed_at"] is None
 
 
 def test_facility_transfer_not_allowed(client: TestClient, plant_data, facility_id_1):

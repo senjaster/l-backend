@@ -62,7 +62,7 @@ async def upsert_equipment(
       - Ignores server_modified_at validation
       - Marks extra child entities as deleted
     - Never allows "stealing" child entities from other equipment
-    - Pessimistic lock: Only the user who grabbed the parent plant can modify equipment
+    - Pessimistic lock: Only the user who claimed the parent plant can modify equipment
     """
     try:
         async with conn.transaction():

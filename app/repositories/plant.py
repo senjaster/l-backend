@@ -135,9 +135,9 @@ class PlantRepository:
             conn,
             id=plant_id,
             name=plant.name,
-            grabbed_by_device_id=plant.grabbed_by_device_id,
-            grabbed_by_user_id=plant.grabbed_by_user_id,
-            grabbed_at=plant.grabbed_at,
+            claimed_by_device_id=plant.claimed_by_device_id,
+            claimed_by_user_id=plant.claimed_by_user_id,
+            claimed_at=plant.claimed_at,
             is_deleted=plant.is_deleted,
             server_modified_at=new_server_modified_at
         )
@@ -159,14 +159,14 @@ class PlantRepository:
             return result > 0
         return result is not None and "0" not in result
     
-    async def grab(self, conn, plant_id: UUID, device_id: UUID, user_id: int) -> bool:
-        """Grab plant for editing (must be called within transaction)"""
-        result = await queries.grab_plant(
+    async def claim(self, conn, plant_id: UUID, device_id: UUID, user_id: int) -> bool:
+        """Claim plant for editing (must be called within transaction)"""
+        result = await queries.claim_plant(
             conn,
             id=plant_id,
             device_id=device_id,
             user_id=user_id,
-            grabbed_at=datetime.now(timezone.utc)
+            claimed_at=datetime.now(timezone.utc)
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):

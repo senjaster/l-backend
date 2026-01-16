@@ -39,7 +39,7 @@
     - Models (Plant + Facility + PlantListItem + PlantListResponse)
     - Queries (including get_all_plants, get_equipment_ids_by_facility)
     - Repository (with facility sync and equipment ID loading)
-    - Router (including GET /plants, grab/release endpoints)
+    - Router (including GET /plants, claim/release endpoints)
 
 ### Phase 5: Equipment
 

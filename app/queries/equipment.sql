@@ -100,14 +100,14 @@ FROM lesiv.inspection
 WHERE equipment_id = :equipment_id AND is_deleted = false
 ORDER BY started_at DESC;
 
--- name: get_plant_grab_info_for_equipment(equipment_id)^
--- Get plant grab info for equipment (joins through facility to plant)
-SELECT p.id as plant_id, p.grabbed_by_user_id, p.grabbed_by_device_id, p.grabbed_at,
-       i.username as grabbed_by_username
+-- name: get_plant_claim_info_for_equipment(equipment_id)^
+-- Get plant claim info for equipment (joins through facility to plant)
+SELECT p.id as plant_id, p.claimed_by_user_id, p.claimed_by_device_id, p.claimed_at,
+       i.username as claimed_by_username
 FROM lesiv.equipment e
 JOIN lesiv.facility f ON e.facility_id = f.id
 JOIN lesiv.plant p ON f.plant_id = p.id
-LEFT JOIN lesiv.inspector i ON p.grabbed_by_user_id = i.id
+LEFT JOIN lesiv.inspector i ON p.claimed_by_user_id = i.id
 WHERE e.id = :equipment_id;
 
 -- name: upsert_equipment(id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, estimated_point_count, is_deleted, server_modified_at)!

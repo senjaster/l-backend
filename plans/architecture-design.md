@@ -43,7 +43,7 @@ Based on [`ddl.sql`](../ddl.sql:1), the following aggregates are identified:
 - **Root**: [`lesiv.plant`](../ddl.sql:98)
 - **Children**: [`lesiv.facility`](../ddl.sql:113)
 - **Operations**: GET, PUT, DELETE
-- **Custom Operations**: POST /plant/{id}/grab, POST /plant/{id}/release
+- **Custom Operations**: POST /plant/{id}/claim, POST /plant/{id}/release
 
 ### 5. Equipment Aggregate
 - **Root**: [`lesiv.equipment`](../ddl.sql:130)
@@ -181,7 +181,7 @@ GET    /plants                  # List all plants (id, name only)
 GET    /plant/{id}              # Get plant with facilities and equipment IDs
 PUT    /plant/{id}              # Create or update plant
 DELETE /plant/{id}              # Logical delete
-POST   /plant/{id}/grab         # Custom: grab plant for editing
+POST   /plant/{id}/claim         # Custom: claim plant for editing
 POST   /plant/{id}/release       # Custom: release plant
 ```
 
@@ -253,9 +253,9 @@ class Facility(BaseModel):
 class Plant(BaseModel):
     id: UUID
     name: str
-    grabbed_by_device_id: Optional[UUID] = None
-    grabbed_by_user_id: Optional[int] = None
-    grabbed_at: Optional[datetime] = None
+    claimed_by_device_id: Optional[UUID] = None
+    claimed_by_user_id: Optional[int] = None
+    claimed_at: Optional[datetime] = None
     is_deleted: bool = False
     server_modified_at: datetime
     facilities: list[Facility] = Field(default_factory=list)
@@ -538,9 +538,9 @@ ORDER BY name;
 UPDATE lesiv.plant
 SET 
     name = :name,
-    grabbed_by_device_id = :grabbed_by_device_id,
-    grabbed_by_user_id = :grabbed_by_user_id,
-    grabbed_at = :grabbed_at,
+    claimed_by_device_id = :claimed_by_device_id,
+    claimed_by_user_id = :claimed_by_user_id,
+    claimed_at = :claimed_at,
     is_deleted = :is_deleted,
     server_modified_at = CURRENT_TIMESTAMP
 WHERE id = :id;
@@ -615,13 +615,13 @@ async def delete_plant(plant_id: UUID, conn=Depends(get_db_connection)):
         raise HTTPException(status_code=404, detail="Plant not found")
 ```
 
-### Custom Grab/Release Endpoints
+### Custom Claim/Release Endpoints
 
 ```python
 from pydantic import BaseModel
 
 
-class GrabRequest(BaseModel):
+class ClaimRequest(BaseModel):
     device_id: UUID
     user_id: int
 
@@ -630,14 +630,14 @@ class ReleaseRequest(BaseModel):
     device_id: UUID
 
 
-@router.post("/{plant_id}/grab", response_model=Plant)
-async def grab_plant(
+@router.post("/{plant_id}/claim", response_model=Plant)
+async def claim_plant(
     plant_id: UUID,
-    request: GrabRequest,
+    request: ClaimRequest,
     conn=Depends(get_db_connection)
 ):
     async with conn.transaction():
-        plant = await plant_repo.grab(
+        plant = await plant_repo.claim(
             conn,
             plant_id,
             request.device_id,
@@ -903,5 +903,5 @@ The design follows the requirements exactly:
 - Same models for all layers
 - Flat API structure
 - Standard CRUD operations
-- Custom grab/release for Plant
+- Custom claim/release for Plant
 - Batch log insertion

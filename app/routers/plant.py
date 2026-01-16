@@ -54,7 +54,7 @@ async def upsert_plant(
       - Ignores server_modified_at validation
       - Marks extra child facilities as deleted
     - Never allows "stealing" facilities from other plants
-    - Pessimistic lock: Only the user who grabbed the plant can modify it
+    - Pessimistic lock: Only the user who claimed the plant can modify it
     """
     try:
         async with conn.transaction():
@@ -85,15 +85,15 @@ async def upsert_plant(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/by_id/{plant_id}/grab", status_code=204)
-async def grab_plant(
+@router.post("/by_id/{plant_id}/claim", status_code=204)
+async def claim_plant(
     plant_id: UUID,
     token_payload: TokenPayload = Depends(get_token_payload),
     conn=Depends(get_db_connection)
 ):
-    """Grab plant for editing (user_id and device_id extracted from auth token)"""
+    """Claim plant for editing (user_id and device_id extracted from auth token)"""
     async with conn.transaction():
-        success = await plant_repo.grab(
+        success = await plant_repo.claim(
             conn,
             plant_id,
             token_payload.dev,  # device_id from token

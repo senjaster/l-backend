@@ -1,15 +1,15 @@
 -- name: get_by_id(id)^
 -- Get plant by ID
-SELECT id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at
+SELECT id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at
 FROM lesiv.plant
 WHERE id = :id;
 
 -- name: get_by_id_with_username(id)^
--- Get plant by ID with username of user who grabbed it
-SELECT p.id, p.name, p.grabbed_by_device_id, p.grabbed_by_user_id, p.grabbed_at, p.is_deleted, p.server_modified_at,
-       i.username as grabbed_by_username
+-- Get plant by ID with username of user who claimed it
+SELECT p.id, p.name, p.claimed_by_device_id, p.claimed_by_user_id, p.claimed_at, p.is_deleted, p.server_modified_at,
+       i.username as claimed_by_username
 FROM lesiv.plant p
-LEFT JOIN lesiv.inspector i ON p.grabbed_by_user_id = i.id
+LEFT JOIN lesiv.inspector i ON p.claimed_by_user_id = i.id
 WHERE p.id = :id;
 
 -- name: get_facilities(plant_id)
@@ -40,20 +40,20 @@ WHERE id = :facility_id;
 -- name: get_all_plants(modified_since)
 -- Get all plants (lightweight list)
 -- :modified_since defaults to 1790-01-01 - only return plants modified after that timestamp
-SELECT id, name, is_deleted, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, server_modified_at
+SELECT id, name, is_deleted, claimed_by_device_id, claimed_by_user_id, claimed_at, server_modified_at
 FROM lesiv.plant
 WHERE server_modified_at > :modified_since
 ORDER BY name;
 
--- name: upsert_plant(id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at)!
+-- name: upsert_plant(id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)!
 -- Insert or update plant
-INSERT INTO lesiv.plant (id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at)
-VALUES (:id, :name, :grabbed_by_device_id, :grabbed_by_user_id, :grabbed_at, :is_deleted, :server_modified_at)
+INSERT INTO lesiv.plant (id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)
+VALUES (:id, :name, :claimed_by_device_id, :claimed_by_user_id, :claimed_at, :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
-    grabbed_by_device_id = EXCLUDED.grabbed_by_device_id,
-    grabbed_by_user_id = EXCLUDED.grabbed_by_user_id,
-    grabbed_at = EXCLUDED.grabbed_at,
+    claimed_by_device_id = EXCLUDED.claimed_by_device_id,
+    claimed_by_user_id = EXCLUDED.claimed_by_user_id,
+    claimed_at = EXCLUDED.claimed_at,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
@@ -77,18 +77,18 @@ UPDATE lesiv.facility
 SET is_deleted = true
 WHERE id = :id;
 
--- name: grab_plant(id, device_id, user_id, grabbed_at)!
--- Grab plant for editing
+-- name: claim_plant(id, device_id, user_id, claimed_at)!
+-- Claim plant for editing
 UPDATE lesiv.plant
-SET grabbed_by_device_id = :device_id,
-    grabbed_by_user_id = :user_id,
-    grabbed_at = :grabbed_at
+SET claimed_by_device_id = :device_id,
+    claimed_by_user_id = :user_id,
+    claimed_at = :claimed_at
 WHERE id = :id;
 
 -- name: release_plant(id)!
 -- Release plant
 UPDATE lesiv.plant
-SET grabbed_by_device_id = NULL,
-    grabbed_by_user_id = NULL,
-    grabbed_at = NULL
+SET claimed_by_device_id = NULL,
+    claimed_by_user_id = NULL,
+    claimed_at = NULL
 WHERE id = :id;

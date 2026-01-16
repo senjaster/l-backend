@@ -164,7 +164,7 @@ SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipmen
 -- 4. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
 -- ============================================================================
 
-INSERT INTO lesiv.plant (id, name, grabbed_by_device_id, grabbed_by_user_id, grabbed_at, is_deleted, server_modified_at)
+INSERT INTO lesiv.plant (id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)
 VALUES 
     (gen_random_uuid(), 'ТЭЦ-1', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'ТЭЦ-2', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
