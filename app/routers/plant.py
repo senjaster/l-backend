@@ -93,7 +93,16 @@ async def claim_plant(
     token_payload: TokenPayload = Depends(get_token_payload),
     conn=Depends(get_db_connection),
 ):
-    """Claim plant for editing (user_id and device_id extracted from auth token)"""
+    """
+    Claim plant for editing (user_id and device_id extracted from auth token).
+
+    Allows claiming if:
+    - Plant is not claimed
+    - Plant is already claimed by the same user
+    - Claim is stale (expired at 3:00 AM Moscow time)
+
+    Returns 409 if plant is claimed by another user and claim is not stale.
+    """
     async with conn.transaction():
         success = await plant_repo.claim(
             conn,
@@ -101,8 +110,31 @@ async def claim_plant(
             token_payload.dev,  # device_id from token
             token_payload.sub,  # user_id (inspector_id) from token
         )
-    if not success:
+
+    if success is None:
         raise HTTPException(status_code=404, detail="Plant not found")
+
+    if not success:
+        # Get plant info for better error message
+        plant = await plant_repo.get_by_id(conn, plant_id)
+        from app.models import ConflictError, ConflictDetail
+        from datetime import datetime, timezone
+
+        raise HTTPException(
+            status_code=409,
+            detail=ConflictError(
+                message="Plant is claimed by another user and claim is not stale",
+                server_modified_at=(
+                    plant.server_modified_at if plant else datetime.now(timezone.utc)
+                ),
+                conflicts=[
+                    ConflictDetail(
+                        field="claimed_by_user_id",
+                        message=f"Plant is claimed by user {plant.claimed_by_user_id if plant else 'unknown'} and claim has not expired yet",
+                    )
+                ],
+            ).model_dump(mode="json"),
+        )
 
 
 @router.post("/by_id/{plant_id}/release", status_code=204)

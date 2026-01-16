@@ -4,15 +4,16 @@ from typing import Optional
 from datetime import datetime, timezone, time, timedelta
 
 
-def is_claim_expired(claimed_at: Optional[datetime]) -> bool:
+def is_claim_stale(claimed_at: Optional[datetime]) -> bool:
     """
-    Check if claim has expired. Claim expires at 3:00 AM Moscow time (UTC+3) every day.
+    Check if claim is stale. Claim becomes stale at 3:00 AM Moscow time (UTC+3) every day.
+    Stale claims persist but can be overridden by other users.
 
     Args:
         claimed_at: The timestamp when the plant was claimed
 
     Returns:
-        True if claim has expired, False otherwise
+        True if claim is stale (can be overridden), False otherwise
     """
     if claimed_at is None:
         return True

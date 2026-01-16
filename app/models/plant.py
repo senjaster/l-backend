@@ -3,8 +3,9 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from app.models import ConflictDetail, ConflictError
+from app.utils.claim_utils import is_claim_stale
 
 
 # Read models (returned from GET endpoints)
@@ -29,6 +30,15 @@ class Plant(BaseModel):
     server_modified_at: datetime
     facilities: list[Facility] = Field(default_factory=list)
 
+    @computed_field
+    @property
+    def is_stale(self) -> bool:
+        """
+        Indicates if the claim is stale (can be overridden by another user).
+        A claim becomes stale at 3:00 AM Moscow time each day.
+        """
+        return is_claim_stale(self.claimed_at)
+
 
 # List models
 class PlantListItem(BaseModel):
@@ -41,6 +51,15 @@ class PlantListItem(BaseModel):
     claimed_at: Optional[datetime] = None
     is_deleted: bool = False
     server_modified_at: datetime
+
+    @computed_field
+    @property
+    def is_stale(self) -> bool:
+        """
+        Indicates if the claim is stale (can be overridden by another user).
+        A claim becomes stale at 3:00 AM Moscow time each day.
+        """
+        return is_claim_stale(self.claimed_at)
 
 
 class PlantListResponse(BaseModel):

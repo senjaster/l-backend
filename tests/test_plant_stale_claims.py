@@ -1,0 +1,399 @@
+"""Tests for stale claim mechanism - claims persist but can be overridden after 3:00 AM"""
+
+import pytest
+from uuid import uuid4
+from datetime import datetime, timezone, timedelta, time
+from fastapi.testclient import TestClient
+from copy import deepcopy
+from unittest.mock import patch
+from app.services.auth import AuthService
+
+PUT_BODY_TEMPLATE = {
+    "name": "Test Power Plant",
+    "claimed_by_device_id": None,
+    "claimed_by_user_id": None,
+    "claimed_at": None,
+    "server_modified_at": "2024-01-01T00:00:00Z",
+    "is_deleted": False,
+    "facilities": [],
+}
+
+
+@pytest.fixture
+def plant_id():
+    return uuid4()
+
+
+@pytest.fixture
+def plant_data(plant_id):
+    data = deepcopy(PUT_BODY_TEMPLATE)
+    data["id"] = str(plant_id)
+    return data
+
+
+@pytest.fixture
+def access_token_1():
+    device_id = uuid4()
+    user_id = 1
+    return AuthService().create_access_token(user_id, device_id)
+
+
+@pytest.fixture
+def access_token_2():
+    device_id = uuid4()
+    user_id = 2
+    return AuthService().create_access_token(user_id, device_id)
+
+
+def test_is_stale_field_in_response(
+    client: TestClient, plant_data, plant_id, access_token_1
+):
+    """Test that is_stale computed field is included in API responses"""
+
+    # Create plant
+    client.put("/plant", json=plant_data)
+
+    # Claim it
+    client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_1}"},
+    )
+
+    # Get plant and verify is_stale field exists
+    response = client.get(f"/plant/by_id/{plant_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert "is_stale" in data
+    assert isinstance(data["is_stale"], bool)
+
+
+def test_is_stale_field_in_list_response(
+    client: TestClient, plant_data, plant_id, access_token_1
+):
+    """Test that is_stale computed field is included in list responses"""
+
+    # Create and claim plant
+    client.put("/plant", json=plant_data)
+
+    client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_1}"},
+    )
+
+    # Get all plants and verify is_stale field exists
+    response = client.get("/plant/all")
+    assert response.status_code == 200
+    data = response.json()
+
+    plant = next((p for p in data["items"] if p["id"] == str(plant_id)), None)
+    assert plant is not None
+    assert "is_stale" in plant
+    assert isinstance(plant["is_stale"], bool)
+
+
+def test_fresh_claim_is_not_stale(
+    client: TestClient, plant_data, plant_id, access_token_1
+):
+    """Test that a freshly claimed plant is not stale"""
+
+    # Create plant
+    client.put("/plant", json=plant_data)
+
+    client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_1}"},
+    )
+
+    # Get plant and verify it's not stale
+    response = client.get(f"/plant/by_id/{plant_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_stale"] is False
+
+
+def test_claim_from_yesterday_is_stale(client: TestClient, plant_data, plant_id):
+    """Test that a claim from yesterday (before 3:00 AM) is stale"""
+
+    # Create plant with claim from yesterday
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    plant_data["claimed_by_device_id"] = str(uuid4())
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = yesterday.isoformat()
+
+    client.put("/plant", json=plant_data)
+
+    # Get plant and verify it's stale
+    response = client.get(f"/plant/by_id/{plant_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_stale"] is True
+
+
+def test_unclaimed_plant_is_stale(client: TestClient, plant_data, plant_id):
+    """Test that an unclaimed plant (claimed_at is None) is considered stale"""
+    # Create plant without claim
+    client.put("/plant", json=plant_data)
+
+    # Get plant and verify it's stale (no claim = stale)
+    response = client.get(f"/plant/by_id/{plant_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_stale"] is True
+
+
+def test_reclaim_stale_plant_by_different_user(
+    client: TestClient, plant_data, plant_id, access_token_2
+):
+    """Test that a different user can claim a stale plant"""
+
+    # Create plant with stale claim (from yesterday)
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    device_id_1 = uuid4()
+    plant_data["claimed_by_device_id"] = str(device_id_1)
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = yesterday.isoformat()
+
+    client.put("/plant", json=plant_data)
+
+    # Different user tries to claim it
+    response = client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_2}"},
+    )
+    assert response.status_code == 204
+
+    # Verify the claim was updated
+    get_response = client.get(f"/plant/by_id/{plant_id}")
+    assert get_response.status_code == 200
+    data = get_response.json()
+    assert data["claimed_by_user_id"] == 2
+    assert data["is_stale"] is False
+
+
+def test_cannot_reclaim_fresh_plant_by_different_user(
+    client: TestClient, plant_data, plant_id, access_token_1, access_token_2
+):
+    """Test that a different user cannot claim a fresh (non-stale) plant"""
+
+    # Create plant
+    client.put("/plant", json=plant_data)
+
+    client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_1}"},
+    )
+
+    response = client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_2}"},
+    )
+    assert response.status_code == 409
+
+    error_data = response.json()["detail"]
+    assert error_data["type"] == "conflict"
+    assert "not stale" in error_data["message"].lower()
+
+
+def test_can_modify_plant_with_stale_claim(
+    client: TestClient, plant_data, plant_id, access_token_1
+):
+    """Test that modifying a plant with a stale claim requires re-claiming"""
+
+    # Create plant with stale claim
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    device_id_1 = uuid4()
+    plant_data["claimed_by_device_id"] = str(device_id_1)
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = yesterday.isoformat()
+
+    create_response = client.put("/plant", json=plant_data)
+    assert create_response.status_code == 200
+    server_modified_at = create_response.json()["server_modified_at"]
+
+    plant_data["server_modified_at"] = server_modified_at
+    plant_data["name"] = "Updated Name"
+
+    response = client.put(
+        "/plant",
+        json=plant_data,
+        headers={"Authorization": f"Bearer {access_token_1}"},
+    )
+    assert response.status_code == 200
+
+
+def test_can_modify_after_reclaiming_stale_plant(
+    client: TestClient, plant_data, plant_id
+):
+    """Test that after re-claiming a stale plant, user can modify it"""
+
+    # Create plant with stale claim
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    device_id_1 = uuid4()
+    plant_data["claimed_by_device_id"] = str(device_id_1)
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = yesterday.isoformat()
+
+    create_response = client.put("/plant", json=plant_data)
+    assert create_response.status_code == 200
+
+    # Different user claims it
+    auth_service = AuthService()
+    device_id_2 = uuid4()
+    user_id_2 = 2
+    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2)
+
+    claim_response = client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_2}"},
+    )
+    assert claim_response.status_code == 204
+
+    # Now user 2 can modify it
+    get_response = client.get(f"/plant/by_id/{plant_id}")
+    server_modified_at = get_response.json()["server_modified_at"]
+
+    plant_data["server_modified_at"] = server_modified_at
+    plant_data["name"] = "Updated Name"
+    plant_data["claimed_by_device_id"] = str(device_id_2)
+    plant_data["claimed_by_user_id"] = user_id_2
+
+    response = client.put(
+        "/plant",
+        json=plant_data,
+        headers={"Authorization": f"Bearer {access_token_2}"},
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["name"] == "Updated Name"
+
+
+def test_stale_claim_persists_in_database(client: TestClient, plant_data, plant_id):
+    """Test that stale claims are not removed from database, just marked as stale"""
+
+    # Create plant with stale claim
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    device_id = uuid4()
+    plant_data["claimed_by_device_id"] = str(device_id)
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = yesterday.isoformat()
+
+    client.put("/plant", json=plant_data)
+
+    # Get plant and verify claim data still exists
+    response = client.get(f"/plant/by_id/{plant_id}")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Claim data should still be present
+    assert data["claimed_by_device_id"] == str(device_id)
+    assert data["claimed_by_user_id"] == 1
+    assert data["claimed_at"] is not None
+
+    # But it should be marked as stale
+    assert data["is_stale"] is True
+
+
+def test_equipment_modification_with_stale_plant_claim(
+    client: TestClient, plant_data, plant_id, access_token_1
+):
+    """Test that equipment can be modified if parent plant has stale claim"""
+
+    # Create plant with facility
+    facility_id = uuid4()
+    plant_data["facilities"] = [
+        {"id": str(facility_id), "name": "Facility 1", "is_deleted": False}
+    ]
+
+    # Create with stale claim
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    device_id_1 = uuid4()
+    plant_data["claimed_by_device_id"] = str(device_id_1)
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = yesterday.isoformat()
+
+    client.put("/plant", json=plant_data)
+
+    # Create equipment
+    equipment_id = uuid4()
+    equipment_data = {
+        "id": str(equipment_id),
+        "facility_id": str(facility_id),
+        "parent_id": str(facility_id),
+        "name": "Motor 1",
+        "qr_code": None,
+        "is_container": False,
+        "equipment_type_id": None,
+        "estimated_point_count": 10,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "is_deleted": False,
+        "control_points": [],
+        "defects": [],
+    }
+
+    create_response = client.put("/equipment", json=equipment_data)
+    assert create_response.status_code == 200
+    server_modified_at = create_response.json()["server_modified_at"]
+
+    equipment_data["server_modified_at"] = server_modified_at
+    equipment_data["name"] = "Updated Motor"
+
+    response = client.put(
+        "/equipment",
+        json=equipment_data,
+        headers={"Authorization": f"Bearer {access_token_1}"},
+    )
+    assert response.status_code == 200
+
+
+def test_claim_expiration_at_3am_moscow_time(client: TestClient, plant_data, plant_id):
+    """Test that claims expire at 3:00 AM Moscow time (00:00 UTC)"""
+
+    # Create plant with claim at 2:59 AM Moscow time (23:59 UTC yesterday)
+    now_utc = datetime.now(timezone.utc)
+    today_midnight_utc = datetime.combine(
+        now_utc.date(), time(0, 0), tzinfo=timezone.utc
+    )
+
+    # Claim made 1 minute before 3:00 AM Moscow (23:59 UTC yesterday)
+    claim_time = today_midnight_utc - timedelta(minutes=1)
+
+    device_id = uuid4()
+    plant_data["claimed_by_device_id"] = str(device_id)
+    plant_data["claimed_by_user_id"] = 1
+    plant_data["claimed_at"] = claim_time.isoformat()
+
+    client.put("/plant", json=plant_data)
+
+    # Get plant - claim should be stale (it's before today's 3:00 AM Moscow)
+    response = client.get(f"/plant/by_id/{plant_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_stale"] is True
+
+
+def test_release_plant_clears_claim(
+    client: TestClient, plant_data, plant_id, access_token_1
+):
+    """Test that releasing a plant clears the claim data"""
+
+    # Create and claim plant
+    client.put("/plant", json=plant_data)
+
+    client.post(
+        f"/plant/by_id/{plant_id}/claim",
+        headers={"Authorization": f"Bearer {access_token_1}"},
+    )
+
+    # Release plant
+    response = client.post(f"/plant/by_id/{plant_id}/release")
+    assert response.status_code == 204
+
+    # Verify claim is cleared
+    get_response = client.get(f"/plant/by_id/{plant_id}")
+    assert get_response.status_code == 200
+    data = get_response.json()
+    assert data["claimed_by_device_id"] is None
+    assert data["claimed_by_user_id"] is None
+    assert data["claimed_at"] is None
+    assert data["is_stale"] is True  # No claim = stale

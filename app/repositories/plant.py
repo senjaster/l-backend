@@ -11,6 +11,7 @@ from app.models.plant import Plant, Facility, PlantListItem, PlantListResponse
 from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.utils.datetime_utils import truncate_to_milliseconds
+from app.utils.claim_utils import is_claim_stale
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/plant.sql", settings.db_driver)
@@ -167,8 +168,33 @@ class PlantRepository:
             return result > 0
         return result is not None and "0" not in result
 
-    async def claim(self, conn, plant_id: UUID, device_id: UUID, user_id: int) -> bool:
-        """Claim plant for editing (must be called within transaction)"""
+    async def claim(
+        self, conn, plant_id: UUID, device_id: UUID, user_id: int
+    ) -> Optional[bool]:
+        """
+        Claim plant for editing (must be called within transaction).
+
+        Returns:
+            - True if claim succeeded
+            - False if plant is claimed by another user and not stale
+            - None if equipment is not found
+        """
+
+        # Get current plant state
+        current = await self.get_by_id(conn, plant_id)
+        if not current:
+            return None
+
+        # Check if claiming is allowed
+        if (
+            current.claimed_by_user_id is not None
+            and current.claimed_by_user_id != user_id
+        ):
+            # Plant is claimed by another user - check if stale
+            if not current.is_stale:
+                return False
+
+        # Claim is allowed - update the claim
         result = await queries.claim_plant(
             conn,
             id=plant_id,
@@ -178,8 +204,11 @@ class PlantRepository:
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):
-            return result > 0
-        return result is not None and "0" not in result
+            success = result > 0
+        else:
+            success = result is not None and "0" not in result
+
+        return success
 
     async def release(self, conn, plant_id: UUID) -> bool:
         """Release plant (must be called within transaction)"""

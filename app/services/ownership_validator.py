@@ -14,7 +14,7 @@ from app.repositories.inspection import (
     queries as inspection_queries,
 )
 from app.exceptions import ConcurrentModificationError
-from app.utils.claim_utils import is_claim_expired
+from app.utils.claim_utils import is_claim_stale
 
 logger = logging.getLogger(__name__)
 
@@ -57,16 +57,6 @@ class OwnershipValidator:
         current = await self.plant_repo.get_by_id(self.conn, plant.id)
         if not current:
             return  # New plant, no validation needed
-
-        # Check if claim expired, release it first
-        if current.claimed_by_device_id is not None and is_claim_expired(
-            current.claimed_at
-        ):
-            await self.plant_repo.release(self.conn, plant.id)
-            # Refresh current state
-            current = await self.plant_repo.get_by_id(self.conn, plant.id)
-            if not current:
-                return  # Should not happen, but handle gracefully
 
         # Check claim ownership
         if current.claimed_by_user_id is None:
@@ -134,20 +124,6 @@ class OwnershipValidator:
         )
         if not plant_claim_info_row:
             return  # No plant found (shouldn't happen in normal flow)
-
-        # Check if claim expired, release it first
-        if plant_claim_info_row[
-            "claimed_by_device_id"
-        ] is not None and is_claim_expired(plant_claim_info_row["claimed_at"]):
-            await self.plant_repo.release(self.conn, plant_claim_info_row["plant_id"])
-            # Refresh plant claim info
-            plant_claim_info_row = (
-                await equipment_queries.get_plant_claim_info_for_equipment(
-                    self.conn, equipment_id=equipment.id
-                )
-            )
-            if not plant_claim_info_row:
-                return  # Should not happen, but handle gracefully
 
         # Check claim ownership
         if plant_claim_info_row["claimed_by_user_id"] is None:
