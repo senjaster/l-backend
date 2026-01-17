@@ -77,18 +77,20 @@ UPDATE lesiv.facility
 SET is_deleted = true
 WHERE id = :id;
 
--- name: claim_plant(id, device_id, user_id, claimed_at)!
--- Claim plant for editing
+-- name: claim_plant(id, device_id, user_id, claimed_at, server_modified_at)!
+-- Claim plant for editing (updates server_modified_at for sync)
 UPDATE lesiv.plant
 SET claimed_by_device_id = :device_id,
     claimed_by_user_id = :user_id,
-    claimed_at = :claimed_at
+    claimed_at = :claimed_at,
+    server_modified_at = :server_modified_at
 WHERE id = :id;
 
--- name: release_plant(id)!
--- Release plant
+-- name: release_plant(id, server_modified_at)!
+-- Release plant (updates server_modified_at for sync)
 UPDATE lesiv.plant
 SET claimed_by_device_id = NULL,
     claimed_by_user_id = NULL,
-    claimed_at = NULL
+    claimed_at = NULL,
+    server_modified_at = :server_modified_at
 WHERE id = :id;
