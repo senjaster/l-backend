@@ -94,18 +94,17 @@ SELECT setval('lesiv.sticker_type_id_seq', (SELECT MAX(id) FROM lesiv.sticker_ty
 
 -- Equipment Type 1: Электродвигатель 0,4 кВ - подшипник качения
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
-VALUES (1, 'Электродвигатель 0,4 кВ - подшипник качения', FALSE, CURRENT_TIMESTAMP);
+VALUES (1, 'Система возбуждения', FALSE, CURRENT_TIMESTAMP);
 
 INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
 VALUES 
-    (1, 'Передний подшипник', 'ПП', 100, 60, 3, FALSE),
-    (1, 'Задний подшипник', 'ЗП', 100, 60, 3, FALSE),
-    (1, 'Корпус', 'Корпус', 100, 60, 2, FALSE),
-    (1, 'Блок распределения начала обмоток', 'БРНО', 100, 60, 2, FALSE);
-
--- Equipment Type 2: Электродвигатель 0,4 кВ - подшипник скольжения
+    (1, 'Контакт рубильника', 'Контакт рубильника', 100, 60, 3, FALSE),
+    (1, 'Болтовое контактное соединение', 'БКС', 100, 60, 3, FALSE),
+    (1, 'Кабельный наконечник', 'Кабельный наконечник', 100, 60, 2, FALSE);
+ 
+-- Equipment Type 2: Электродвигатель 0,4 кВ
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
-VALUES (2, 'Электродвигатель 0,4 кВ - подшипник скольжения', FALSE, CURRENT_TIMESTAMP);
+VALUES (2, 'Электродвигатель 0,4 кВ ', FALSE, CURRENT_TIMESTAMP);
 
 INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
 VALUES 
@@ -114,9 +113,9 @@ VALUES
     (2, 'Корпус', 'Корпус', 100, 60, 2, FALSE),
     (2, 'Блок распределения начала обмоток', 'БРНО', 100, 60, 2, FALSE);
 
--- Equipment Type 3: Электродвигатель 6-10 кВ - подшипник качения
+-- Equipment Type 3: Электродвигатель 6-10 кВ
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
-VALUES (3, 'Электродвигатель 6-10 кВ - подшипник качения', FALSE, CURRENT_TIMESTAMP);
+VALUES (3, 'Электродвигатель 6-10 кВ', FALSE, CURRENT_TIMESTAMP);
 
 INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
 VALUES 
@@ -124,17 +123,6 @@ VALUES
     (3, 'Задний подшипник', 'ЗП', 100, 60, 3, FALSE),
     (3, 'Корпус', 'Корпус', 100, 60, 2, FALSE),
     (3, 'Блок распределения начала обмоток', 'БРНО', 100, 60, 2, FALSE);
-
--- Equipment Type 4: Электродвигатель 6-10 кВ - подшипник скольжения
-INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
-VALUES (4, 'Электродвигатель 6-10 кВ - подшипник скольжения', FALSE, CURRENT_TIMESTAMP);
-
-INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
-VALUES 
-    (4, 'Передний подшипник', 'ПП', 100, 60, 3, FALSE),
-    (4, 'Задний подшипник', 'ЗП', 100, 60, 3, FALSE),
-    (4, 'Корпус', 'Корпус', 100, 60, 2, FALSE),
-    (4, 'Блок распределения начала обмоток', 'БРНО', 100, 60, 2, FALSE);
 
 -- Equipment Type 5: Ячейка КРУ 6-10 кВ
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
@@ -164,18 +152,18 @@ SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipmen
 -- 4. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
 -- ============================================================================
 
-INSERT INTO lesiv.plant (id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)
-VALUES 
-    (gen_random_uuid(), 'ТЭЦ-1', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-2', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-3', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-4', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-5', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-6', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-7', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-8', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-9', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-10', NULL, NULL, NULL, FALSE, CURRENT_TIMESTAMP);
+INSERT INTO lesiv.plant (id, name, is_deleted, server_modified_at)
+VALUES
+    (gen_random_uuid(), 'ТЭЦ-1', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-2', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-3', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-4', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-5', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-6', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-7', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-8', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-9', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-10', FALSE, CURRENT_TIMESTAMP);
 
 -- ============================================================================
 -- 5. Create test inspectors with known credentials

@@ -139,20 +139,11 @@ class PlantRepository:
                     )
                 )
 
-        # Preserve claim-related fields from existing plant (if any)
-        # These fields should only be modified through claim/release endpoints
-        claimed_by_device_id = current.claimed_by_device_id if current else None
-        claimed_by_user_id = current.claimed_by_user_id if current else None
-        claimed_at = current.claimed_at if current else None
-
-        # Upsert plant
+        # Upsert plant (claim fields are managed separately via claim/release endpoints)
         await queries.upsert_plant(
             conn,
             id=plant_id,
             name=plant.name,
-            claimed_by_device_id=claimed_by_device_id,
-            claimed_by_user_id=claimed_by_user_id,
-            claimed_at=claimed_at,
             is_deleted=plant.is_deleted,
             server_modified_at=new_server_modified_at,
         )

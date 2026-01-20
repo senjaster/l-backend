@@ -45,15 +45,12 @@ FROM lesiv.plant
 WHERE server_modified_at > :modified_since
 ORDER BY name;
 
--- name: upsert_plant(id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)!
--- Insert or update plant
-INSERT INTO lesiv.plant (id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)
-VALUES (:id, :name, :claimed_by_device_id, :claimed_by_user_id, :claimed_at, :is_deleted, :server_modified_at)
+-- name: upsert_plant(id, name, is_deleted, server_modified_at)!
+-- Insert or update plant (claim fields are managed separately via claim/release endpoints)
+INSERT INTO lesiv.plant (id, name, is_deleted, server_modified_at)
+VALUES (:id, :name, :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
-    claimed_by_device_id = EXCLUDED.claimed_by_device_id,
-    claimed_by_user_id = EXCLUDED.claimed_by_user_id,
-    claimed_at = EXCLUDED.claimed_at,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 

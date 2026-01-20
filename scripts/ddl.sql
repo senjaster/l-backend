@@ -130,7 +130,12 @@ CREATE TABLE lesiv.plant (
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_plant_claimed_by_user
-        FOREIGN KEY (claimed_by_user_id) REFERENCES lesiv.inspector(id)
+        FOREIGN KEY (claimed_by_user_id) REFERENCES lesiv.inspector(id),
+    CONSTRAINT chk_claim_fields_consistency
+        CHECK (
+            (claimed_by_device_id IS NULL AND claimed_by_user_id IS NULL AND claimed_at IS NULL) OR
+            (claimed_by_device_id IS NOT NULL AND claimed_by_user_id IS NOT NULL AND claimed_at IS NOT NULL)
+        )
 );
 
 CREATE INDEX idx_plant_name ON lesiv.plant(name);
