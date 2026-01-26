@@ -49,6 +49,7 @@ class Equipment(BaseModel):
     qr_code: Optional[str] = None
     is_container: bool = False
     equipment_type_id: Optional[int] = None
+    facility_template_equipment_id: Optional[int] = None
     estimated_point_count: Optional[int] = None
     is_deleted: bool = False
     server_modified_at: datetime

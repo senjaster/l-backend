@@ -1,7 +1,7 @@
 -- name: get_all_equipment(modified_since)
 -- Get all equipment (lightweight list)
 -- :modified_since defaults to 1790-01-01 - only return equipment modified after that timestamp
-SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, is_deleted
+SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, facility_template_equipment_id, is_deleted
 FROM lesiv.equipment
 WHERE server_modified_at > :modified_since
 ORDER BY name;
@@ -10,7 +10,7 @@ ORDER BY name;
 -- Get all equipment for a plant (full data for aggregates) - joins through facility
 -- :modified_since defaults to 1790-01-01 - only return equipment modified after that timestamp
 SELECT e.id, e.facility_id, e.parent_id, e.name, e.qr_code, e.is_container, e.equipment_type_id,
-       e.estimated_point_count, e.is_deleted, e.server_modified_at
+       e.facility_template_equipment_id, e.estimated_point_count, e.is_deleted, e.server_modified_at
 FROM lesiv.equipment e
 JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
@@ -49,7 +49,7 @@ ORDER BY i.equipment_id, i.started_at DESC;
 -- name: get_by_id(id)^
 -- Get equipment by ID
 SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id,
-       estimated_point_count, is_deleted, server_modified_at
+       facility_template_equipment_id, estimated_point_count, is_deleted, server_modified_at
 FROM lesiv.equipment
 WHERE id = :id;
 
@@ -110,13 +110,13 @@ JOIN lesiv.plant p ON f.plant_id = p.id
 LEFT JOIN lesiv.inspector i ON p.claimed_by_user_id = i.id
 WHERE e.id = :equipment_id;
 
--- name: upsert_equipment(id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, estimated_point_count, is_deleted, server_modified_at)!
+-- name: upsert_equipment(id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, facility_template_equipment_id, estimated_point_count, is_deleted, server_modified_at)!
 -- Insert or update equipment
 INSERT INTO lesiv.equipment (id, facility_id, parent_id, name, qr_code, is_container,
-                             equipment_type_id, estimated_point_count,
+                             equipment_type_id, facility_template_equipment_id, estimated_point_count,
                              is_deleted, server_modified_at)
 VALUES (:id, :facility_id, :parent_id, :name, :qr_code, :is_container,
-        :equipment_type_id, :estimated_point_count,
+        :equipment_type_id, :facility_template_equipment_id, :estimated_point_count,
         :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     facility_id = EXCLUDED.facility_id,
@@ -125,6 +125,7 @@ ON CONFLICT (id) DO UPDATE SET
     qr_code = EXCLUDED.qr_code,
     is_container = EXCLUDED.is_container,
     equipment_type_id = EXCLUDED.equipment_type_id,
+    facility_template_equipment_id = EXCLUDED.facility_template_equipment_id,
     estimated_point_count = EXCLUDED.estimated_point_count,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;

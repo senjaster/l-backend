@@ -187,9 +187,12 @@ CREATE TABLE lesiv.facility (
     id UUID PRIMARY KEY,
     plant_id UUID NOT NULL,
     name TEXT NOT NULL,
+    facility_template_id INTEGER,  -- Optional reference to facility_template
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_facility_plant
-        FOREIGN KEY (plant_id) REFERENCES lesiv.plant(id)
+        FOREIGN KEY (plant_id) REFERENCES lesiv.plant(id),
+    CONSTRAINT fk_facility_template
+        FOREIGN KEY (facility_template_id) REFERENCES lesiv.facility_template(id)
 );
 
 CREATE INDEX idx_facility_plant ON lesiv.facility(plant_id);
@@ -208,11 +211,14 @@ CREATE TABLE lesiv.equipment (
     qr_code TEXT,
     is_container BOOLEAN NOT NULL DEFAULT FALSE,  -- true = may have child equipment, but no control_points and defects
     equipment_type_id INTEGER,
+    facility_template_equipment_id INTEGER,  -- Optional reference to facility_template_equipment
     estimated_point_count INTEGER,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_equipment_type
-        FOREIGN KEY (equipment_type_id) REFERENCES lesiv.equipment_type(id)
+        FOREIGN KEY (equipment_type_id) REFERENCES lesiv.equipment_type(id),
+    CONSTRAINT fk_equipment_facility_template_equipment
+        FOREIGN KEY (facility_template_equipment_id) REFERENCES lesiv.facility_template_equipment(id)
 );
 
 CREATE INDEX idx_equipment_plant ON lesiv.equipment(facility_id);

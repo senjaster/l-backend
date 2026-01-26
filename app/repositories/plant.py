@@ -259,6 +259,7 @@ class PlantRepository:
                 id=facility.id,
                 plant_id=plant_id,
                 name=facility.name,
+                facility_template_id=facility.facility_template_id,
                 is_deleted=facility.is_deleted,
             )
 

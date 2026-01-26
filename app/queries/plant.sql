@@ -14,7 +14,7 @@ WHERE p.id = :id;
 
 -- name: get_facilities(plant_id)
 -- Get facilities for a plant
-SELECT id, name, is_deleted
+SELECT id, name, facility_template_id, is_deleted
 FROM lesiv.facility
 WHERE plant_id = :plant_id
 ORDER BY name;
@@ -54,12 +54,13 @@ ON CONFLICT (id) DO UPDATE SET
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
--- name: upsert_facility(id, plant_id, name, is_deleted)!
+-- name: upsert_facility(id, plant_id, name, facility_template_id, is_deleted)!
 -- Insert or update facility
-INSERT INTO lesiv.facility (id, plant_id, name, is_deleted)
-VALUES (:id, :plant_id, :name, :is_deleted)
+INSERT INTO lesiv.facility (id, plant_id, name, facility_template_id, is_deleted)
+VALUES (:id, :plant_id, :name, :facility_template_id, :is_deleted)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
+    facility_template_id = EXCLUDED.facility_template_id,
     is_deleted = EXCLUDED.is_deleted;
 
 -- name: delete_plant(id)!

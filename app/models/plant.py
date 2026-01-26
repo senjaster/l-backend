@@ -14,6 +14,7 @@ class Facility(BaseModel):
 
     id: UUID
     name: str
+    facility_template_id: Optional[int] = None
     is_deleted: bool = False
     equipment_ids: Optional[list[UUID]] = Field(default_factory=list)
 

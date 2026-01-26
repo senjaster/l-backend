@@ -274,6 +274,7 @@ class EquipmentRepository:
             qr_code=equipment.qr_code,
             is_container=equipment.is_container,
             equipment_type_id=equipment.equipment_type_id,
+            facility_template_equipment_id=equipment.facility_template_equipment_id,
             estimated_point_count=equipment.estimated_point_count,
             is_deleted=equipment.is_deleted,
             server_modified_at=new_server_modified_at,
