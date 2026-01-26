@@ -18,8 +18,6 @@ PUT_BODY_TEMPLATE = {
             "point_count": 30,
             "sticker_count": 25,
             "sticker_type_id": None,
-            "t_max": 90,
-            "t_excess": 40,
             "is_deleted": False,
         },
     ],
@@ -158,8 +156,6 @@ def test_sync_control_points_add_new(client: TestClient, equipment_data):
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -180,8 +176,6 @@ def test_sync_control_points_reject_missing_child(client: TestClient, equipment_
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -205,8 +199,6 @@ def test_sync_control_points_force_update(client: TestClient, equipment_data):
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -428,8 +420,6 @@ def test_mismatched_control_point_ids_rejection(
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -440,8 +430,6 @@ def test_mismatched_control_point_ids_rejection(
             "point_count": 10,
             "sticker_count": 8,
             "sticker_type_id": None,
-            "t_max": 85,
-            "t_excess": 38,
             "is_deleted": False,
         }
     )
@@ -459,8 +447,6 @@ def test_mismatched_control_point_ids_rejection(
         "point_count": 12,
         "sticker_count": 10,
         "sticker_type_id": None,
-        "t_max": 90,
-        "t_excess": 40,
         "is_deleted": False,
     }
 
@@ -547,8 +533,6 @@ def test_deleted_control_points_persist_through_updates(
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -680,8 +664,6 @@ def test_empty_control_points_list_without_force(
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -716,8 +698,6 @@ def test_empty_control_points_list_with_force(
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -823,8 +803,6 @@ def test_multiple_operations_in_single_request(
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
@@ -865,8 +843,6 @@ def test_multiple_operations_in_single_request(
             "point_count": 10,
             "sticker_count": 8,
             "sticker_type_id": None,
-            "t_max": 85,
-            "t_excess": 38,
             "is_deleted": False,
         }
     )
@@ -1034,8 +1010,6 @@ def test_concurrent_modification_with_control_points(
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "t_max": 80,
-            "t_excess": 35,
             "is_deleted": False,
         }
     )
