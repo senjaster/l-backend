@@ -122,6 +122,20 @@ CREATE TABLE lesiv.facility_template_equipment (
 CREATE INDEX idx_ft_eq_template ON lesiv.facility_template_equipment(facility_template_id);
 
 -- ============================================================================
+-- Defect Type Aggregate
+-- ============================================================================
+
+CREATE TABLE lesiv.defect_type (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    short_name TEXT NOT NULL,
+    t_max INTEGER NOT NULL,
+    t_excess INTEGER NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
 -- Log
 -- ============================================================================
 

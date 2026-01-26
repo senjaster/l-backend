@@ -113,6 +113,7 @@ from app.routers import (
     sticker_type,
     equipment_type,
     facility_template,
+    defect_type,
     plant,
     equipment,
     inspection,
@@ -125,6 +126,7 @@ app.include_router(log.router)
 app.include_router(sticker_type.router)
 app.include_router(equipment_type.router)
 app.include_router(facility_template.router)
+app.include_router(defect_type.router)
 app.include_router(plant.router)
 app.include_router(equipment.router)
 app.include_router(inspection.router)
