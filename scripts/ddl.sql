@@ -92,6 +92,36 @@ CREATE TABLE lesiv.equipment_control_point_template (
 CREATE INDEX idx_control_point_template_equipment_type ON lesiv.equipment_control_point_template(equipment_type_id);
 
 -- ============================================================================
+-- Facility Template Aggregate
+-- ============================================================================
+
+CREATE TABLE lesiv.facility_template (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_multiple_allowed BOOLEAN NOT NULL DEFAULT FALSE,  -- true = facility based on this template can be added multiple times
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE lesiv.facility_template_equipment (
+    id SERIAL PRIMARY KEY,
+    facility_template_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    is_container BOOLEAN NOT NULL DEFAULT FALSE,  -- true = may have child equipment, but no control_points and defects
+    equipment_type_id INTEGER,
+    parent_id INTEGER,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    CONSTRAINT fk_ft_eq_template
+        FOREIGN KEY (facility_template_id) REFERENCES lesiv.facility_template(id),
+    CONSTRAINT fk_ft_eq_type
+        FOREIGN KEY (equipment_type_id) REFERENCES lesiv.equipment_type(id),
+    CONSTRAINT fk_ft_eq_parent
+        FOREIGN KEY (parent_id) REFERENCES lesiv.facility_template_equipment(id)
+);
+
+CREATE INDEX idx_ft_eq_template ON lesiv.facility_template_equipment(facility_template_id);
+
+-- ============================================================================
 -- Log
 -- ============================================================================
 
@@ -146,7 +176,7 @@ CREATE TABLE lesiv.facility (
     plant_id UUID NOT NULL,
     name TEXT NOT NULL,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    CONSTRAINT fk_facility_plant 
+    CONSTRAINT fk_facility_plant
         FOREIGN KEY (plant_id) REFERENCES lesiv.plant(id)
 );
 

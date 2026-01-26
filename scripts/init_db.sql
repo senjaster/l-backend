@@ -29,6 +29,10 @@ DELETE FROM lesiv.equipment;
 DELETE FROM lesiv.facility;
 DELETE FROM lesiv.plant;
 
+-- Clear facility templates
+DELETE FROM lesiv.facility_template_equipment;
+DELETE FROM lesiv.facility_template;
+
 -- Clear logs
 DELETE FROM lesiv.log;
 
