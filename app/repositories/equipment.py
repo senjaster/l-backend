@@ -352,8 +352,6 @@ class EquipmentRepository:
                 point_count=control_point.point_count,
                 sticker_count=control_point.sticker_count,
                 sticker_type_id=control_point.sticker_type_id,
-                t_max=control_point.t_max,
-                t_excess=control_point.t_excess,
                 is_deleted=control_point.is_deleted,
             )
 

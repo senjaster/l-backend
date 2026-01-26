@@ -20,7 +20,7 @@ ORDER BY e.name;
 -- name: get_control_points_by_plant(plant_id)
 -- Get all control points for equipment in a plant
 SELECT cp.id, cp.equipment_id, cp.control_point_type, cp.point_count, cp.sticker_count,
-       cp.sticker_type_id, cp.t_max, cp.t_excess, cp.is_deleted
+       cp.sticker_type_id, cp.is_deleted
 FROM lesiv.equipment_control_point cp
 JOIN lesiv.equipment e ON cp.equipment_id = e.id
 JOIN lesiv.facility f ON e.facility_id = f.id
@@ -56,7 +56,7 @@ WHERE id = :id;
 -- name: get_control_points(equipment_id)
 -- Get control points for equipment
 SELECT id, equipment_id, control_point_type, point_count, sticker_count,
-       sticker_type_id, t_max, t_excess, is_deleted
+       sticker_type_id, is_deleted
 FROM lesiv.equipment_control_point
 WHERE equipment_id = :equipment_id
 ORDER BY control_point_type;
@@ -129,22 +129,20 @@ ON CONFLICT (id) DO UPDATE SET
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
--- name: upsert_control_point(id, equipment_id, control_point_type, point_count, sticker_count, sticker_type_id, t_max, t_excess, is_deleted)!
+-- name: upsert_control_point(id, equipment_id, control_point_type, point_count, sticker_count, sticker_type_id, is_deleted)!
 -- Insert or update control point (match by ID, not by equipment_id + control_point_type)
 INSERT INTO lesiv.equipment_control_point (id, equipment_id, control_point_type,
                                            point_count, sticker_count, sticker_type_id,
-                                           t_max, t_excess, is_deleted)
+                                           is_deleted)
 VALUES (:id, :equipment_id, :control_point_type,
         :point_count, :sticker_count, :sticker_type_id,
-        :t_max, :t_excess, :is_deleted)
+        :is_deleted)
 ON CONFLICT (id) DO UPDATE SET
     equipment_id = EXCLUDED.equipment_id,
     control_point_type = EXCLUDED.control_point_type,
     point_count = EXCLUDED.point_count,
     sticker_count = EXCLUDED.sticker_count,
     sticker_type_id = EXCLUDED.sticker_type_id,
-    t_max = EXCLUDED.t_max,
-    t_excess = EXCLUDED.t_excess,
     is_deleted = EXCLUDED.is_deleted;
 
 -- name: upsert_defect(id, equipment_id, unit_name, t_max, t_excess, detected_at, resolved_at, status, is_deleted)!

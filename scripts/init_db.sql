@@ -100,54 +100,54 @@ SELECT setval('lesiv.sticker_type_id_seq', (SELECT MAX(id) FROM lesiv.sticker_ty
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
 VALUES (1, 'Система возбуждения', FALSE, CURRENT_TIMESTAMP);
 
-INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
-VALUES 
-    (1, 'Контакт рубильника', 'Контакт рубильника', 100, 60, 3, FALSE),
-    (1, 'Болтовое контактное соединение', 'БКС', 100, 60, 3, FALSE),
-    (1, 'Кабельный наконечник', 'Кабельный наконечник', 100, 60, 2, FALSE);
+INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, default_sticker_id, is_deleted)
+VALUES
+    (1, 'Контакт рубильника', 'Контакт рубильника', 3, FALSE),
+    (1, 'Болтовое контактное соединение', 'БКС', 3, FALSE),
+    (1, 'Кабельный наконечник', 'Кабельный наконечник', 2, FALSE);
  
 -- Equipment Type 2: Электродвигатель 0,4 кВ
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
 VALUES (2, 'Электродвигатель 0,4 кВ ', FALSE, CURRENT_TIMESTAMP);
 
-INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
-VALUES 
-    (2, 'Передний подшипник', 'ПП', 100, 60, 3, FALSE),
-    (2, 'Задний подшипник', 'ЗП', 100, 60, 3, FALSE),
-    (2, 'Корпус', 'Корпус', 100, 60, 2, FALSE),
-    (2, 'Блок распределения начала обмоток', 'БРНО', 100, 60, 2, FALSE);
+INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, default_sticker_id, is_deleted)
+VALUES
+    (2, 'Передний подшипник', 'ПП', 3, FALSE),
+    (2, 'Задний подшипник', 'ЗП', 3, FALSE),
+    (2, 'Корпус', 'Корпус', 2, FALSE),
+    (2, 'Блок распределения начала обмоток', 'БРНО', 2, FALSE);
 
 -- Equipment Type 3: Электродвигатель 6-10 кВ
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
 VALUES (3, 'Электродвигатель 6-10 кВ', FALSE, CURRENT_TIMESTAMP);
 
-INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
-VALUES 
-    (3, 'Передний подшипник', 'ПП', 100, 60, 3, FALSE),
-    (3, 'Задний подшипник', 'ЗП', 100, 60, 3, FALSE),
-    (3, 'Корпус', 'Корпус', 100, 60, 2, FALSE),
-    (3, 'Блок распределения начала обмоток', 'БРНО', 100, 60, 2, FALSE);
+INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, default_sticker_id, is_deleted)
+VALUES
+    (3, 'Передний подшипник', 'ПП', 3, FALSE),
+    (3, 'Задний подшипник', 'ЗП', 3, FALSE),
+    (3, 'Корпус', 'Корпус', 2, FALSE),
+    (3, 'Блок распределения начала обмоток', 'БРНО', 2, FALSE);
 
 -- Equipment Type 5: Ячейка КРУ 6-10 кВ
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
 VALUES (5, 'Ячейка КРУ 6-10 кВ', FALSE, CURRENT_TIMESTAMP);
 
-INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
-VALUES 
-    (5, 'Болтовое контактное соединение', 'БКС', 100, 60, 1, FALSE),
-    (5, 'Втычной контакт', 'Втычной контакт', 100, 60, 1, FALSE),
-    (5, 'Кабельный наконечник', 'Кабельный наконечник', 100, 60, 1, FALSE),
-    (5, 'Разделка кабельной муфты', 'Разделка кабельной муфты', 100, 60, 1, FALSE);
+INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, default_sticker_id, is_deleted)
+VALUES
+    (5, 'Болтовое контактное соединение', 'БКС', 1, FALSE),
+    (5, 'Втычной контакт', 'Втычной контакт', 1, FALSE),
+    (5, 'Кабельный наконечник', 'Кабельный наконечник', 1, FALSE),
+    (5, 'Разделка кабельной муфты', 'Разделка кабельной муфты', 1, FALSE);
 
 -- Equipment Type 6: Щит 0,4 кВ
 INSERT INTO lesiv.equipment_type (id, name, is_deleted, server_modified_at)
 VALUES (6, 'Щит 0,4 кВ', FALSE, CURRENT_TIMESTAMP);
 
-INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted)
-VALUES 
-    (6, 'Болтовое контактное соединение', 'БКС', 100, 60, 1, FALSE),
-    (6, 'Втычной контакт', 'Втычной контакт', 100, 60, 1, FALSE),
-    (6, 'Кабельный наконечник', 'Кабельный наконечник', 100, 60, 1, FALSE);
+INSERT INTO lesiv.equipment_control_point_template (equipment_type_id, name, short_name, default_sticker_id, is_deleted)
+VALUES
+    (6, 'Болтовое контактное соединение', 'БКС', 1, FALSE),
+    (6, 'Втычной контакт', 'Втычной контакт', 1, FALSE),
+    (6, 'Кабельный наконечник', 'Кабельный наконечник', 1, FALSE);
 
 -- Reset sequence for equipment_type
 SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipment_type));

@@ -23,8 +23,6 @@ class ControlPoint(BaseModel):
     point_count: int
     sticker_count: int
     sticker_type_id: Optional[int] = None
-    t_max: int
-    t_excess: int
     is_deleted: bool = False
 
 

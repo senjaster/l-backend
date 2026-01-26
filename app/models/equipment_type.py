@@ -12,8 +12,6 @@ class ControlPointTemplate(BaseModel):
     equipment_type_id: int
     name: str
     short_name: str
-    t_max: int
-    t_excess: int
     default_sticker_id: Optional[int] = None
     is_deleted: bool = False
 

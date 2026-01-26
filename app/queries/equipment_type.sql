@@ -8,6 +8,6 @@ ORDER BY name;
 
 -- name: get_all_control_point_templates()
 -- Get all control point templates
-SELECT id, equipment_type_id, name, short_name, t_max, t_excess, default_sticker_id, is_deleted
+SELECT id, equipment_type_id, name, short_name, default_sticker_id, is_deleted
 FROM lesiv.equipment_control_point_template
 ORDER BY equipment_type_id, name;

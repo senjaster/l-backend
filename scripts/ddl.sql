@@ -81,11 +81,9 @@ CREATE TABLE lesiv.equipment_control_point_template (
     equipment_type_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     short_name TEXT NOT NULL,  -- Abbreviation
-    t_max INTEGER NOT NULL,
-    t_excess INTEGER NOT NULL,
     default_sticker_id INTEGER,  -- Reference to sticker_type (no FK between aggregates)
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    CONSTRAINT fk_control_point_template_equipment_type 
+    CONSTRAINT fk_control_point_template_equipment_type
         FOREIGN KEY (equipment_type_id) REFERENCES lesiv.equipment_type(id)
 );
 
@@ -228,8 +226,6 @@ CREATE TABLE lesiv.equipment_control_point (
     point_count INTEGER NOT NULL,
     sticker_count INTEGER NOT NULL,  -- less than or equal to point_count
     sticker_type_id INTEGER,
-    t_max INTEGER NOT NULL,  -- Maximum temperature for this control point type, °C
-    t_excess INTEGER NOT NULL,  -- Maximum temperature excess over ambient, °C
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id),
     UNIQUE (equipment_id, control_point_type),
