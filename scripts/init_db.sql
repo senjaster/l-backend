@@ -4,8 +4,9 @@
 -- 2. Populates sticker types with 3 sample types
 -- 3. Populates defect types from scripts/defect_types.txt
 -- 4. Populates equipment types according to plans/eq-type.md
--- 5. Creates 10 plants (ТЭЦ-1 to ТЭЦ-10)
--- 6. Creates test inspectors with known credentials
+-- 5. Populates facility templates from scripts/Элеткрооборудование.txt
+-- 6. Creates 10 plants (ТЭЦ-1 to ТЭЦ-10)
+-- 7. Creates test inspectors with known credentials
 
 -- ============================================================================
 -- 1. Clear all tables including inspectors
@@ -180,7 +181,75 @@ VALUES
 SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipment_type));
 
 -- ============================================================================
--- 5. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
+-- 5. Populate facility templates
+-- ============================================================================
+
+-- Facility Template 1: Хозяйство резервного топлива
+INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
+VALUES (1, 'Хозяйство резервного топлива', FALSE, FALSE, CURRENT_TIMESTAMP);
+
+-- Equipment for Facility Template 1
+INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
+VALUES
+    (1, 1, 'Мазутное хозяйство', TRUE, NULL, NULL, FALSE),
+    (2, 1, 'МНС - может повторяться', TRUE, NULL, 1, FALSE),
+    (3, 1, 'Масло хозяйство', TRUE, NULL, NULL, FALSE),
+    (4, 1, 'Насосная хозяйства дизельного топлива', TRUE, NULL, NULL, FALSE),
+    (5, 1, 'Погружные насосы', TRUE, NULL, NULL, FALSE);
+
+-- Facility Template 2: Общестанционное оборудование
+INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
+VALUES (2, 'Общестанционное оборудование', FALSE, FALSE, CURRENT_TIMESTAMP);
+
+-- Equipment for Facility Template 2
+INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
+VALUES
+    (6, 2, 'Вентиляторная градирня', TRUE, NULL, NULL, FALSE),
+    (7, 2, 'Щит 0,4 кВ', TRUE, 6, 6, FALSE),
+    (8, 2, 'Двигатели 0,4 кВ', TRUE, 2, 6, FALSE),
+    (9, 2, 'Пожарно насосная', TRUE, NULL, NULL, FALSE),
+    (10, 2, 'Двигатели 6 кВ', TRUE, 3, 9, FALSE),
+    (11, 2, 'Двигатели 0,4 кВ', TRUE, 2, 9, FALSE),
+    (12, 2, 'РУ, ЗРУ 10-110 кВ', TRUE, NULL, NULL, FALSE),
+    (13, 2, 'ГРУ 6-10 кВ', TRUE, NULL, NULL, FALSE),
+    (14, 2, 'Дворовая пожарная', TRUE, NULL, NULL, FALSE),
+    (15, 2, 'АБК', TRUE, NULL, NULL, FALSE),
+    (16, 2, 'Компресорная', TRUE, NULL, NULL, FALSE),
+    (17, 2, 'ГЩУ', TRUE, NULL, NULL, FALSE),
+    (18, 2, 'Другое', TRUE, NULL, NULL, FALSE);
+
+-- Facility Template 3: ПГУ (может повторятся)
+INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
+VALUES (3, 'ПГУ (может повторятся)', TRUE, FALSE, CURRENT_TIMESTAMP);
+
+-- Equipment for Facility Template 3
+INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
+VALUES
+    (19, 3, 'Котельное отделение', TRUE, NULL, NULL, FALSE),
+    (20, 3, 'Турбинное отделение', TRUE, NULL, NULL, FALSE);
+
+-- Facility Template 4: ТГ (может повторятся)
+INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
+VALUES (4, 'ТГ (может повторятся)', TRUE, FALSE, CURRENT_TIMESTAMP);
+
+-- Equipment for Facility Template 4
+INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
+VALUES
+    (21, 4, 'Турбинное отделение', TRUE, NULL, NULL, FALSE),
+    (22, 4, 'Система возбуждения', TRUE, 1, 21, FALSE),
+    (23, 4, 'Панели', TRUE, NULL, 22, FALSE),
+    (24, 4, 'Сборки в помещении', TRUE, NULL, 22, FALSE),
+    (25, 4, 'Другое', TRUE, NULL, 22, FALSE),
+    (26, 4, 'Щит 0,4 кВ', TRUE, 6, 21, FALSE),
+    (27, 4, 'Секция А', TRUE, NULL, 26, FALSE),
+    (28, 4, 'Секция Б', TRUE, NULL, 26, FALSE);
+
+-- Reset sequences for facility templates
+SELECT setval('lesiv.facility_template_id_seq', (SELECT MAX(id) FROM lesiv.facility_template));
+SELECT setval('lesiv.facility_template_equipment_id_seq', (SELECT MAX(id) FROM lesiv.facility_template_equipment));
+
+-- ============================================================================
+-- 6. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
 -- ============================================================================
 
 INSERT INTO lesiv.plant (id, name, is_deleted, server_modified_at)
@@ -197,7 +266,7 @@ VALUES
     (gen_random_uuid(), 'ТЭЦ-10', FALSE, CURRENT_TIMESTAMP);
 
 -- ============================================================================
--- 6. Create test inspectors with known credentials
+-- 7. Create test inspectors with known credentials
 -- ============================================================================
 
 -- Insert test inspectors with bcrypt hashed passwords
@@ -225,6 +294,10 @@ UNION ALL
 SELECT 'Equipment Types Created:', COUNT(*) FROM lesiv.equipment_type
 UNION ALL
 SELECT 'Control Point Templates Created:', COUNT(*) FROM lesiv.equipment_control_point_template
+UNION ALL
+SELECT 'Facility Templates Created:', COUNT(*) FROM lesiv.facility_template
+UNION ALL
+SELECT 'Facility Template Equipment Created:', COUNT(*) FROM lesiv.facility_template_equipment
 UNION ALL
 SELECT 'Plants Created:', COUNT(*) FROM lesiv.plant
 UNION ALL
