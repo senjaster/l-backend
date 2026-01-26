@@ -33,6 +33,23 @@ GRANT DELETE, INSERT ON lesiv.equipment_type TO l_app_user;
 GRANT DELETE, INSERT ON lesiv.equipment_control_point_template TO l_app_user;
 
 -- ============================================================================
+-- Defect Type Aggregate - Test Seeding (init_db.sql)
+-- ============================================================================
+
+-- Allow DELETE and INSERT on defect_type for init_db.sql
+GRANT DELETE, INSERT ON lesiv.defect_type TO l_app_user;
+
+-- ============================================================================
+-- Facility Template Aggregate - Test Seeding (init_db.sql)
+-- ============================================================================
+
+-- Allow DELETE and INSERT on facility_template for init_db.sql
+GRANT DELETE, INSERT ON lesiv.facility_template TO l_app_user;
+
+-- Allow DELETE and INSERT on facility_template_equipment for init_db.sql
+GRANT DELETE, INSERT ON lesiv.facility_template_equipment TO l_app_user;
+
+-- ============================================================================
 -- Plant Aggregate - Test Seeding (init_db.sql)
 -- ============================================================================
 
@@ -87,8 +104,14 @@ GRANT DELETE ON lesiv.tokens TO l_app_user;
 
 -- Grant USAGE on sequences so init_db.sql can reset them with setval()
 GRANT USAGE, UPDATE ON SEQUENCE lesiv.sticker_type_id_seq TO l_app_user;
+GRANT USAGE, UPDATE ON SEQUENCE lesiv.sticker_temp_range_id_seq TO l_app_user;
 GRANT USAGE, UPDATE ON SEQUENCE lesiv.equipment_type_id_seq TO l_app_user;
+GRANT USAGE, UPDATE ON SEQUENCE lesiv.equipment_control_point_template_id_seq TO l_app_user;
+GRANT USAGE, UPDATE ON SEQUENCE lesiv.defect_type_id_seq TO l_app_user;
+GRANT USAGE, UPDATE ON SEQUENCE lesiv.facility_template_id_seq TO l_app_user;
+GRANT USAGE, UPDATE ON SEQUENCE lesiv.facility_template_equipment_id_seq TO l_app_user;
 GRANT USAGE, UPDATE ON SEQUENCE lesiv.inspector_id_seq TO l_app_user;
+GRANT USAGE, UPDATE ON SEQUENCE lesiv.log_id_seq TO l_app_user;
 
 -- ============================================================================
 -- Note on Test vs Production

@@ -13,6 +13,7 @@ GRANT USAGE ON TYPE lesiv.inspection_status TO l_app_user;
 GRANT USAGE ON TYPE lesiv.inspection_step_type TO l_app_user;
 GRANT USAGE ON TYPE lesiv.defect_severity TO l_app_user;
 GRANT USAGE ON TYPE lesiv.image_type TO l_app_user;
+GRANT USAGE ON TYPE lesiv.step_status TO l_app_user;
 
 -- ============================================================================
 -- Inspector Aggregate
@@ -43,6 +44,23 @@ GRANT SELECT ON lesiv.equipment_type TO l_app_user;
 
 -- equipment_control_point_template: SELECT only (read-only reference data)
 GRANT SELECT ON lesiv.equipment_control_point_template TO l_app_user;
+
+-- ============================================================================
+-- Defect Type Aggregate
+-- ============================================================================
+
+-- defect_type: SELECT only (read-only reference data)
+GRANT SELECT ON lesiv.defect_type TO l_app_user;
+
+-- ============================================================================
+-- Facility Template Aggregate
+-- ============================================================================
+
+-- facility_template: SELECT only (read-only reference data)
+GRANT SELECT ON lesiv.facility_template TO l_app_user;
+
+-- facility_template_equipment: SELECT only (read-only reference data)
+GRANT SELECT ON lesiv.facility_template_equipment TO l_app_user;
 
 -- ============================================================================
 -- Log
