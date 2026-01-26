@@ -1,10 +1,11 @@
 -- Database Initialization Script
 -- This script:
 -- 1. Clears all tables including inspectors
--- 2. Populates equipment types according to plans/eq-type.md
--- 3. Populates sticker types with 3 sample types
--- 4. Creates 10 plants (ТЭЦ-1 to ТЭЦ-10)
--- 5. Creates test inspectors with known credentials
+-- 2. Populates sticker types with 3 sample types
+-- 3. Populates defect types from scripts/defect_types.txt
+-- 4. Populates equipment types according to plans/eq-type.md
+-- 5. Creates 10 plants (ТЭЦ-1 to ТЭЦ-10)
+-- 6. Creates test inspectors with known credentials
 
 -- ============================================================================
 -- 1. Clear all tables including inspectors
@@ -43,6 +44,9 @@ DELETE FROM lesiv.equipment_type;
 -- Clear sticker type aggregate
 DELETE FROM lesiv.sticker_temp_range;
 DELETE FROM lesiv.sticker_type;
+
+-- Clear defect type aggregate
+DELETE FROM lesiv.defect_type;
 
 -- Clear tokens
 DELETE FROM lesiv.tokens;
@@ -93,7 +97,30 @@ VALUES
 SELECT setval('lesiv.sticker_type_id_seq', (SELECT MAX(id) FROM lesiv.sticker_type));
 
 -- ============================================================================
--- 3. Populate equipment types and control point templates
+-- 3. Populate defect types
+-- ============================================================================
+
+INSERT INTO lesiv.defect_type (id, name, short_name, t_max, t_excess, is_deleted, server_modified_at)
+VALUES
+    (1, 'Неизолированная и не соприкасающаяся с изоляционным материалом токоведущая часть', 'Ток.вед часть (Неизол)', 120, 80, FALSE, CURRENT_TIMESTAMP),
+    (2, 'Изолированная или соприкасающаяся с изоляционным материалом токоведущая часть классом нагревостойкости по ГОСТ 8865-93: Y', 'Ток.вед часть (Изол Y)', 90, 50, FALSE, CURRENT_TIMESTAMP),
+    (3, 'Изолированная или соприкасающаяся с изоляционным материалом токоведущая часть классом нагревостойкости по ГОСТ 8865-93: A', 'Ток.вед часть (Изол A)', 100, 60, FALSE, CURRENT_TIMESTAMP),
+    (4, 'Изолированная или соприкасающаяся с изоляционным материалом токоведущая часть классом нагревостойкости по ГОСТ 8865-93: E', 'Ток.вед часть (Изол E)', 120, 80, FALSE, CURRENT_TIMESTAMP),
+    (5, 'Контакт из меди или сплавов меди без покрытия, на воздухе', 'Контакт (Cu)', 75, 35, FALSE, CURRENT_TIMESTAMP),
+    (6, 'Аппаратный вывод из меди, алюминия и их сплавов без покрытия', 'Аппарат. Вывод', 90, 50, FALSE, CURRENT_TIMESTAMP),
+    (7, 'Болтовое контактное соединение из меди без покрытия, в воздухе', 'БКС (Cu)', 90, 50, FALSE, CURRENT_TIMESTAMP),
+    (8, 'Болтовое контактное соединение из алюминия без покрытия, в воздухе', 'БКС (Al)', 90, 50, FALSE, CURRENT_TIMESTAMP),
+    (9, 'Токоведущая жила силового кабеля из поливинилхлоридного пластика и полиэтилена', 'Каб. нак. (ПВХ)', 70, 30, FALSE, CURRENT_TIMESTAMP),
+    (10, 'Токоведущая жила силового кабеля из вулканизирующегося полиэтилена', 'Каб. нак. (ПЭ)', 90, 50, FALSE, CURRENT_TIMESTAMP),
+    (11, 'Токоведущая жила силового кабеля из резины', 'Каб. нак. (Резина)', 65, 25, FALSE, CURRENT_TIMESTAMP),
+    (12, 'Подшипник скольжения', 'Скольжение', 80, NULL, FALSE, CURRENT_TIMESTAMP),
+    (13, 'Подшипник качения', 'Качение', 100, NULL, FALSE, CURRENT_TIMESTAMP);
+
+-- Reset sequence for defect_type
+SELECT setval('lesiv.defect_type_id_seq', (SELECT MAX(id) FROM lesiv.defect_type));
+
+-- ============================================================================
+-- 4. Populate equipment types and control point templates
 -- ============================================================================
 
 -- Equipment Type 1: Электродвигатель 0,4 кВ - подшипник качения
@@ -153,7 +180,7 @@ VALUES
 SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipment_type));
 
 -- ============================================================================
--- 4. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
+-- 5. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
 -- ============================================================================
 
 INSERT INTO lesiv.plant (id, name, is_deleted, server_modified_at)
@@ -170,7 +197,7 @@ VALUES
     (gen_random_uuid(), 'ТЭЦ-10', FALSE, CURRENT_TIMESTAMP);
 
 -- ============================================================================
--- 5. Create test inspectors with known credentials
+-- 6. Create test inspectors with known credentials
 -- ============================================================================
 
 -- Insert test inspectors with bcrypt hashed passwords
@@ -189,13 +216,15 @@ SELECT setval('lesiv.inspector_id_seq', (SELECT MAX(id) FROM lesiv.inspector));
 -- ============================================================================
 
 -- Display summary
-SELECT 'Equipment Types Created:' as summary, COUNT(*) as count FROM lesiv.equipment_type
-UNION ALL
-SELECT 'Control Point Templates Created:', COUNT(*) FROM lesiv.equipment_control_point_template
-UNION ALL
-SELECT 'Sticker Types Created:', COUNT(*) FROM lesiv.sticker_type
+SELECT 'Sticker Types Created:' as summary, COUNT(*) as count FROM lesiv.sticker_type
 UNION ALL
 SELECT 'Sticker Temperature Ranges Created:', COUNT(*) FROM lesiv.sticker_temp_range
+UNION ALL
+SELECT 'Defect Types Created:', COUNT(*) FROM lesiv.defect_type
+UNION ALL
+SELECT 'Equipment Types Created:', COUNT(*) FROM lesiv.equipment_type
+UNION ALL
+SELECT 'Control Point Templates Created:', COUNT(*) FROM lesiv.equipment_control_point_template
 UNION ALL
 SELECT 'Plants Created:', COUNT(*) FROM lesiv.plant
 UNION ALL

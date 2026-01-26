@@ -1,6 +1,7 @@
 """DefectType aggregate models"""
 
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -11,7 +12,7 @@ class DefectType(BaseModel):
     name: str
     short_name: str
     t_max: int
-    t_excess: int
+    t_excess: Optional[int] = None
     is_deleted: bool = False
     server_modified_at: datetime
 

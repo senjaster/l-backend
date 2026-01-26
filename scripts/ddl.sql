@@ -128,7 +128,7 @@ CREATE TABLE lesiv.defect_type (
     name TEXT NOT NULL,
     short_name TEXT NOT NULL,
     t_max INTEGER NOT NULL,
-    t_excess INTEGER NOT NULL,
+    t_excess INTEGER,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
