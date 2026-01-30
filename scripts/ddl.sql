@@ -265,7 +265,7 @@ CREATE INDEX idx_equipment_defect_status ON lesiv.equipment_defect(status);
 -- ============================================================================
 
 CREATE TYPE lesiv.inspection_status AS ENUM ('PLANNED', 'IN_PROGRESS', 'COMPLETED');
-CREATE TYPE lesiv.inspection_step_type AS ENUM ('GENERAL_INSPECTION', 'DEFECT_REPORT', 'DEFECT_FOLLOW_UP');
+CREATE TYPE lesiv.inspection_step_type AS ENUM ('GENERAL_INSPECTION', 'DEFECT_REPORT', 'DEFECT_FOLLOW_UP', 'DEFECT_UNDECIDED');
 CREATE TYPE lesiv.defect_severity AS ENUM ('CRITICAL', 'EMERGENCY', 'DEVELOPING');
 CREATE TYPE lesiv.step_status AS ENUM ('IN_PROGRESS', 'COMPLETED', 'FORCE_COMPLETED');
 

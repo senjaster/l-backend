@@ -345,6 +345,7 @@ class InspectionStepType(str, Enum):
     GENERAL_INSPECTION = "GENERAL_INSPECTION"
     DEFECT_REPORT = "DEFECT_REPORT"
     DEFECT_FOLLOW_UP = "DEFECT_FOLLOW_UP"
+    DEFECT_UNDECIDED = "DEFECT_UNDECIDED"
 
 
 class DefectSeverity(str, Enum):

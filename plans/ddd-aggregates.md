@@ -618,7 +618,8 @@ enum class InspectionStatus {
 enum class StepType {
     GENERAL_INSPECTION,  // Общий осмотр оборудования
     DEFECT_REPORT,       // Заведение дефекта
-    DEFECT_FOLLOW_UP     // Контроль известного дефекта
+    DEFECT_FOLLOW_UP,    // Контроль известного дефекта
+    DEFECT_UNDECIDED     // Неопределенный дефект
 }
 
 enum class EmployeeRole {
