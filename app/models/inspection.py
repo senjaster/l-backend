@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from decimal import Decimal
 
 
@@ -25,14 +25,6 @@ class InspectionStepType(str, Enum):
     DEFECT_UNDECIDED = "DEFECT_UNDECIDED"
 
 
-class DefectSeverity(str, Enum):
-    """Defect severity enum"""
-
-    CRITICAL = "CRITICAL"
-    EMERGENCY = "EMERGENCY"
-    DEVELOPING = "DEVELOPING"
-
-
 class StepStatus(str, Enum):
     """Step status enum"""
 
@@ -51,6 +43,8 @@ class ImageLink(BaseModel):
 class InspectionStep(BaseModel):
     """Inspection step within inspection (child entity)"""
 
+    model_config = ConfigDict(extra='ignore')
+
     id: UUID
     started_at: datetime
     step_number: int
@@ -63,12 +57,11 @@ class InspectionStep(BaseModel):
     t_environment: Optional[Decimal] = None
     t_similar_unit: Optional[Decimal] = None
     epsilon: Decimal = Decimal("0.95")
-    t_max: Optional[int] = None
-    t_excess: Optional[int] = None
     t_observed: Optional[Decimal] = None
     measured_current: Optional[int] = None
     nominal_current: Optional[int] = None
-    severity: Optional[DefectSeverity] = None
+    defect_type_id: Optional[int] = None
+    is_sticker_present: Optional[bool] = None
     is_test_ready: Optional[bool] = None
     is_attention_required: bool = False
     step_status: Optional[StepStatus] = None

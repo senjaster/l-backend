@@ -21,8 +21,8 @@ ORDER BY i.started_at DESC;
 -- Get all inspection steps for inspections of a plant
 SELECT s.id, s.started_at, s.inspection_id, s.step_number, s.step_type, s.defect_id,
        s.description, s.is_resolved, s.sticker_type_id, s.t_sticker,
-       s.t_environment, s.t_similar_unit, s.epsilon, s.t_max, s.t_excess,
-       s.t_observed, s.measured_current, s.nominal_current, s.severity,
+       s.t_environment, s.t_similar_unit, s.epsilon,
+       s.t_observed, s.measured_current, s.nominal_current, s.defect_type_id, s.is_sticker_present,
        s.is_test_ready, s.is_attention_required, s.step_status, s.is_deleted
 FROM lesiv.inspection_step s
 JOIN lesiv.inspection i ON s.inspection_id = i.id
@@ -60,8 +60,8 @@ WHERE i.id = :id;
 -- Get steps for inspection
 SELECT id, started_at, inspection_id, step_number, step_type, defect_id,
        description, is_resolved, sticker_type_id, t_sticker,
-       t_environment, t_similar_unit, epsilon, t_max, t_excess,
-       t_observed, measured_current, nominal_current, severity,
+       t_environment, t_similar_unit, epsilon,
+       t_observed, measured_current, nominal_current, defect_type_id, is_sticker_present,
        is_test_ready, is_attention_required, step_status, is_deleted
 FROM lesiv.inspection_step
 WHERE inspection_id = :inspection_id
@@ -107,17 +107,17 @@ ON CONFLICT (id) DO UPDATE SET
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
--- name: upsert_step(id, started_at, inspection_id, step_number, step_type, defect_id, description, is_resolved, sticker_type_id, t_sticker, t_environment, t_similar_unit, epsilon, t_max, t_excess, t_observed, measured_current, nominal_current, severity, is_test_ready, is_attention_required, step_status, is_deleted)!
+-- name: upsert_step(id, started_at, inspection_id, step_number, step_type, defect_id, description, is_resolved, sticker_type_id, t_sticker, t_environment, t_similar_unit, epsilon, t_observed, measured_current, nominal_current, defect_type_id, is_sticker_present, is_test_ready, is_attention_required, step_status, is_deleted)!
 -- Insert or update inspection step
 INSERT INTO lesiv.inspection_step (id, started_at, inspection_id, step_number, step_type,
                                     defect_id, description, is_resolved, sticker_type_id,
-                                    t_sticker, t_environment, t_similar_unit, epsilon, t_max, t_excess,
-                                    t_observed, measured_current, nominal_current, severity,
+                                    t_sticker, t_environment, t_similar_unit, epsilon,
+                                    t_observed, measured_current, nominal_current, defect_type_id, is_sticker_present,
                                     is_test_ready, is_attention_required, step_status, is_deleted)
 VALUES (:id, :started_at, :inspection_id, :step_number, :step_type,
         :defect_id, :description, :is_resolved, :sticker_type_id,
-        :t_sticker, :t_environment, :t_similar_unit, :epsilon, :t_max, :t_excess,
-        :t_observed, :measured_current, :nominal_current, :severity,
+        :t_sticker, :t_environment, :t_similar_unit, :epsilon,
+        :t_observed, :measured_current, :nominal_current, :defect_type_id, :is_sticker_present,
         :is_test_ready, :is_attention_required, :step_status, :is_deleted)
 ON CONFLICT (id) DO UPDATE SET
     started_at = EXCLUDED.started_at,
@@ -132,12 +132,11 @@ ON CONFLICT (id) DO UPDATE SET
     t_environment = EXCLUDED.t_environment,
     t_similar_unit = EXCLUDED.t_similar_unit,
     epsilon = EXCLUDED.epsilon,
-    t_max = EXCLUDED.t_max,
-    t_excess = EXCLUDED.t_excess,
     t_observed = EXCLUDED.t_observed,
     measured_current = EXCLUDED.measured_current,
     nominal_current = EXCLUDED.nominal_current,
-    severity = EXCLUDED.severity,
+    defect_type_id = EXCLUDED.defect_type_id,
+    is_sticker_present = EXCLUDED.is_sticker_present,
     is_test_ready = EXCLUDED.is_test_ready,
     is_attention_required = EXCLUDED.is_attention_required,
     step_status = EXCLUDED.step_status,
