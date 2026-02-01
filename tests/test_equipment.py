@@ -21,17 +21,7 @@ PUT_BODY_TEMPLATE = {
             "is_deleted": False,
         },
     ],
-    "defects": [
-        {
-            "unit_name": "верхний БКС фаза В",
-            "t_max": 90,
-            "t_excess": 40,
-            "detected_at": "2024-01-01T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    ],
+    "defects": [],  # DEPRECATED: Defects are now managed via separate defect router
 }
 
 
@@ -74,14 +64,14 @@ def equipment_data(
     data["facility_id"] = str(facility_id)
     data["parent_id"] = str(facility_id)
     data["control_points"][0]["id"] = str(control_point_id_1)
-    data["defects"][0]["id"] = str(defect_id_1)
+    # defects are always empty now
     return data
 
 
 def test_create_equipment(
     client: TestClient, equipment_data, equipment_id, plant_id, facility_id
 ):
-    """Test creating a new equipment with control points and defects"""
+    """Test creating a new equipment with control points (defects always empty)"""
 
     response = client.put(f"/equipment", json=equipment_data)
     assert response.status_code == 200
@@ -92,7 +82,7 @@ def test_create_equipment(
     assert data["facility_id"] == str(facility_id)
     assert data["parent_id"] == str(facility_id)
     assert len(data["control_points"]) == 1
-    assert len(data["defects"]) == 1
+    assert len(data["defects"]) == 0  # Always empty now
 
 
 def test_get_equipment(client: TestClient, equipment_data, equipment_id):
@@ -127,7 +117,6 @@ def test_update_equipment(client: TestClient, equipment_data):
     equipment_data["name"] = "Updated Name"
     equipment_data["control_points"][0]["point_count"] = 15
     equipment_data["control_points"][0]["is_deleted"] = True
-    equipment_data["defects"][0]["is_deleted"] = True
 
     response = client.put(f"/equipment", json=equipment_data)
     assert response.status_code == 200
@@ -136,7 +125,7 @@ def test_update_equipment(client: TestClient, equipment_data):
     assert data["name"] == "Updated Name"
     assert data["control_points"][0]["point_count"] == 15
     assert data["control_points"][0]["is_deleted"] == True
-    assert data["defects"][0]["is_deleted"] == True
+    assert len(data["defects"]) == 0  # Always empty
 
 
 def test_sync_control_points_add_new(client: TestClient, equipment_data):
@@ -217,110 +206,8 @@ def test_sync_control_points_force_update(client: TestClient, equipment_data):
     assert data["control_points"][1]["is_deleted"] == False
 
 
-def test_sync_defects_add_new(client: TestClient, equipment_data):
-    """Test adding new defects"""
-    create_response = client.put(f"/equipment", json=equipment_data)
-    server_modified_at = create_response.json()["server_modified_at"]
-    equipment_data["server_modified_at"] = server_modified_at
-
-    # Update with additional defect
-    defect_id_2 = uuid4()
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "нижний БКС фаза А",
-            "t_max": 90,
-            "t_excess": 40,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-    response = client.put(f"/equipment", json=equipment_data)
-    assert response.status_code == 200
-
-    data = response.json()
-    assert len(data["defects"]) == 2
-
-
-def test_sync_defects_reject_missing_child(client: TestClient, equipment_data):
-    """Test adding new defects"""
-
-    # Update with additional defect
-    defect_id_2 = uuid4()
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "нижний БКС фаза А",
-            "t_max": 90,
-            "t_excess": 40,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-    create_response = client.put(f"/equipment", json=equipment_data)
-    server_modified_at = create_response.json()["server_modified_at"]
-    equipment_data["server_modified_at"] = server_modified_at
-
-    del equipment_data["defects"][0]
-
-    response = client.put(f"/equipment", json=equipment_data)
-    assert response.status_code == 409
-
-
-def test_sync_defects_force_update(client: TestClient, equipment_data, defect_id_1):
-    """Test adding new defects"""
-
-    # Update with additional defect
-    defect_id_2 = uuid4()
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "нижний БКС фаза А",
-            "t_max": 90,
-            "t_excess": 40,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-    create_response = client.put(f"/equipment", json=equipment_data)
-    server_modified_at = create_response.json()["server_modified_at"]
-    equipment_data["server_modified_at"] = server_modified_at
-
-    del equipment_data["defects"][0]
-
-    response = client.put(f"/equipment?force=true", json=equipment_data)
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["defects"]) == 2
-    for defect in data["defects"]:
-        is_deleted = defect["is_deleted"]
-        id = defect["id"]
-        assert (not is_deleted and id == str(defect_id_2)) or (
-            is_deleted and id == str(defect_id_1)
-        )
-
-
-def test_sync_defects_resolve(client: TestClient, equipment_data):
-    """Test resolving defects"""
-    create_response = client.put(f"/equipment", json=equipment_data)
-    server_modified_at = create_response.json()["server_modified_at"]
-    equipment_data["server_modified_at"] = server_modified_at
-    equipment_data["defects"][0]["resolved_at"] = "2024-01-03T10:00:00Z"
-    equipment_data["defects"][0]["status"] = "RESOLVED"
-
-    response = client.put(f"/equipment", json=equipment_data)
-    assert response.status_code == 200
-
-    data = response.json()
-    assert len(data["defects"]) == 1
-    assert data["defects"][0]["status"] == "RESOLVED"
-    assert data["defects"][0]["resolved_at"] is not None
+# DEPRECATED: Defect sync tests removed - defects are now managed via separate defect router
+# See tests/test_defect.py for defect-specific tests
 
 
 def test_delete_equipment(client: TestClient, equipment_data, equipment_id):
@@ -340,32 +227,7 @@ def test_delete_equipment(client: TestClient, equipment_data, equipment_id):
     assert data["is_deleted"] is True
 
 
-def test_defect_transfer_not_allowed(
-    client: TestClient, equipment_data, equipment_id, plant_id, facility_id
-):
-    """Test that transferring a defect from one equipment to another is not allowed"""
-    create_response = client.put(f"/equipment", json=equipment_data)
-    assert create_response.status_code == 200
-
-    equipment_id2 = uuid4()
-
-    equipment_data2 = {
-        "id": str(equipment_id2),
-        "facility_id": str(facility_id),
-        "parent_id": str(facility_id),
-        "name": "Test Motor 2",
-        "qr_code": None,
-        "is_container": False,
-        "equipment_type_id": None,
-        "estimated_point_count": 50,
-        "server_modified_at": "2024-01-01T10:00:00Z",
-        "control_points": [],
-        "defects": equipment_data["defects"],  # Transfer
-    }
-
-    response = client.put(f"/equipment", json=equipment_data2)
-    assert response.status_code == 400
-    assert "cannot transfer" in response.json()["detail"].lower()
+# DEPRECATED: Defect transfer test removed - defects are now managed via separate defect router
 
 
 def test_control_point_transfer_not_allowed(
@@ -459,64 +321,7 @@ def test_mismatched_control_point_ids_rejection(
     assert str(control_point_id_3) in error_data["extra_child_ids"]
 
 
-def test_mismatched_defect_ids_rejection(
-    client: TestClient, equipment_data, defect_id_1
-):
-    """Test #3: Reject when server and client have same count but different defect IDs"""
-    defect_id_2 = uuid4()
-    defect_id_3 = uuid4()
-
-    # Add two more defects [A, B, C]
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "средний БКС фаза А",
-            "t_max": 85,
-            "t_excess": 38,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_3),
-            "unit_name": "нижний БКС фаза С",
-            "t_max": 88,
-            "t_excess": 39,
-            "detected_at": "2024-01-03T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-
-    create_response = client.put(f"/equipment", json=equipment_data)
-    assert create_response.status_code == 200
-    server_modified_at = create_response.json()["server_modified_at"]
-
-    # Try to update with 3 defects [A, B, D] - D is new, C is missing
-    defect_id_d = uuid4()
-    equipment_data["server_modified_at"] = server_modified_at
-    equipment_data["defects"][2] = {
-        "id": str(defect_id_d),
-        "unit_name": "новый дефект",
-        "t_max": 92,
-        "t_excess": 42,
-        "detected_at": "2024-01-04T10:00:00Z",
-        "resolved_at": None,
-        "status": "DETECTED",
-        "is_deleted": False,
-    }
-
-    response = client.put(f"/equipment?force=false", json=equipment_data)
-    assert response.status_code == 409
-
-    error_data = response.json()["detail"]
-    assert error_data["type"] == "conflict"
-    assert "extra child" in error_data["message"].lower()
-    assert str(defect_id_3) in error_data["extra_child_ids"]
+# DEPRECATED: Defect mismatch test removed - defects are now managed via separate defect router
 
 
 def test_deleted_control_points_persist_through_updates(
@@ -570,56 +375,7 @@ def test_deleted_control_points_persist_through_updates(
     assert deleted_cp["is_deleted"] is True
 
 
-def test_deleted_defects_persist_through_updates(
-    client: TestClient, equipment_data, defect_id_1
-):
-    """Test #4b: Deleted defects remain in GET response after updates"""
-    defect_id_2 = uuid4()
-
-    # Add second defect
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "нижний БКС фаза А",
-            "t_max": 85,
-            "t_excess": 38,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-
-    create_response = client.put(f"/equipment", json=equipment_data)
-    server_modified_at = create_response.json()["server_modified_at"]
-
-    # Mark defect 2 as deleted
-    equipment_data["server_modified_at"] = server_modified_at
-    equipment_data["defects"][1]["is_deleted"] = True
-
-    update_response = client.put(f"/equipment", json=equipment_data)
-    assert update_response.status_code == 200
-    server_modified_at = update_response.json()["server_modified_at"]
-
-    # Do another update (just change equipment name)
-    equipment_data["server_modified_at"] = server_modified_at
-    equipment_data["name"] = "Updated Equipment Name"
-
-    final_response = client.put(f"/equipment", json=equipment_data)
-    assert final_response.status_code == 200
-
-    # Verify deleted defect is still returned
-    get_response = client.get(f"/equipment/by_id/{equipment_data['id']}")
-    assert get_response.status_code == 200
-
-    data = get_response.json()
-    assert len(data["defects"]) == 2
-
-    deleted_defect = next(
-        (d for d in data["defects"] if d["id"] == str(defect_id_2)), None
-    )
-    assert deleted_defect is not None
-    assert deleted_defect["is_deleted"] is True
+# DEPRECATED: Deleted defects test removed - defects are now managed via separate defect router
 
 
 def test_force_mode_with_control_point_stealing_attempt(
@@ -643,7 +399,6 @@ def test_force_mode_with_control_point_stealing_attempt(
     equipment_data_2["control_points"][0]["id"] = str(
         control_point_id_1
     )  # Steal control point
-    equipment_data_2["defects"] = []
 
     response = client.put(f"/equipment?force=true", json=equipment_data_2)
     assert response.status_code == 400
@@ -718,84 +473,16 @@ def test_empty_control_points_list_with_force(
         assert cp["is_deleted"] is True
 
 
-def test_empty_defects_list_without_force(
-    client: TestClient, equipment_data, defect_id_1
-):
-    """Test #6c: Updating from non-empty to empty defects with force=false should reject"""
-    defect_id_2 = uuid4()
-
-    # Add second defect
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "нижний БКС фаза А",
-            "t_max": 85,
-            "t_excess": 38,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-
-    create_response = client.put(f"/equipment", json=equipment_data)
-    assert create_response.status_code == 200
-    server_modified_at = create_response.json()["server_modified_at"]
-
-    # Try to update with empty defects list (force=false)
-    equipment_data["server_modified_at"] = server_modified_at
-    equipment_data["defects"] = []
-
-    response = client.put(f"/equipment?force=false", json=equipment_data)
-    assert response.status_code == 409
-
-    error_data = response.json()["detail"]
-    assert error_data["type"] == "conflict"
-    assert "extra child" in error_data["message"].lower()
-
-
-def test_empty_defects_list_with_force(client: TestClient, equipment_data, defect_id_1):
-    """Test #6d: Updating from non-empty to empty defects with force=true should mark all as deleted"""
-    defect_id_2 = uuid4()
-
-    # Add second defect
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "нижний БКС фаза А",
-            "t_max": 85,
-            "t_excess": 38,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-
-    client.put(f"/equipment", json=equipment_data)
-
-    # Update with empty defects list (force=true)
-    equipment_data["defects"] = []
-
-    response = client.put(f"/equipment?force=true", json=equipment_data)
-    assert response.status_code == 200
-
-    data = response.json()
-    assert len(data["defects"]) == 2
-
-    # Both defects should be marked as deleted
-    for defect in data["defects"]:
-        assert defect["is_deleted"] is True
+# DEPRECATED: Empty defects list tests removed - defects are now managed via separate defect router
 
 
 def test_multiple_operations_in_single_request(
-    client: TestClient, equipment_data, control_point_id_1, defect_id_1
+    client: TestClient, equipment_data, control_point_id_1
 ):
-    """Test #7: Simultaneously add, update, and delete control points and defects in one PUT"""
+    """Test #7: Simultaneously add, update, and delete control points in one PUT"""
     control_point_id_2 = uuid4()
-    defect_id_2 = uuid4()
 
-    # Start with 2 control points and 2 defects
+    # Start with 2 control points
     equipment_data["control_points"].append(
         {
             "id": str(control_point_id_2),
@@ -803,18 +490,6 @@ def test_multiple_operations_in_single_request(
             "point_count": 5,
             "sticker_count": 4,
             "sticker_type_id": None,
-            "is_deleted": False,
-        }
-    )
-    equipment_data["defects"].append(
-        {
-            "id": str(defect_id_2),
-            "unit_name": "нижний БКС фаза А",
-            "t_max": 85,
-            "t_excess": 38,
-            "detected_at": "2024-01-02T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
             "is_deleted": False,
         }
     )
@@ -827,11 +502,7 @@ def test_multiple_operations_in_single_request(
     # - Update control point 1 point_count
     # - Mark control point 2 as deleted
     # - Add new control point 3
-    # - Update defect 1 status to RESOLVED
-    # - Mark defect 2 as deleted
-    # - Add new defect 3
     control_point_id_3 = uuid4()
-    defect_id_3 = uuid4()
 
     equipment_data["server_modified_at"] = server_modified_at
     equipment_data["control_points"][0]["point_count"] = 35  # Update
@@ -847,28 +518,12 @@ def test_multiple_operations_in_single_request(
         }
     )
 
-    equipment_data["defects"][0]["status"] = "RESOLVED"  # Update
-    equipment_data["defects"][0]["resolved_at"] = "2024-01-05T10:00:00Z"
-    equipment_data["defects"][1]["is_deleted"] = True  # Delete
-    equipment_data["defects"].append(
-        {  # Add
-            "id": str(defect_id_3),
-            "unit_name": "новый дефект",
-            "t_max": 92,
-            "t_excess": 42,
-            "detected_at": "2024-01-06T10:00:00Z",
-            "resolved_at": None,
-            "status": "DETECTED",
-            "is_deleted": False,
-        }
-    )
-
     response = client.put(f"/equipment", json=equipment_data)
     assert response.status_code == 200
 
     data = response.json()
     assert len(data["control_points"]) == 3
-    assert len(data["defects"]) == 3
+    assert len(data["defects"]) == 0  # Always empty
 
     # Verify control point 1 was updated
     cp1 = next(
@@ -895,24 +550,6 @@ def test_multiple_operations_in_single_request(
     assert cp3 is not None
     assert cp3["control_point_type"] == "Контакт"
     assert cp3["is_deleted"] is False
-
-    # Verify defect 1 was updated
-    d1 = next((d for d in data["defects"] if d["id"] == str(defect_id_1)), None)
-    assert d1 is not None
-    assert d1["status"] == "RESOLVED"
-    assert d1["resolved_at"] is not None
-    assert d1["is_deleted"] is False
-
-    # Verify defect 2 was marked as deleted
-    d2 = next((d for d in data["defects"] if d["id"] == str(defect_id_2)), None)
-    assert d2 is not None
-    assert d2["is_deleted"] is True
-
-    # Verify defect 3 was added
-    d3 = next((d for d in data["defects"] if d["id"] == str(defect_id_3)), None)
-    assert d3 is not None
-    assert d3["unit_name"] == "новый дефект"
-    assert d3["is_deleted"] is False
 
 
 def test_get_all_equipment_includes_deleted(client: TestClient, equipment_data):
@@ -962,7 +599,7 @@ def test_get_equipment_by_plant_id(
     equipment_data_2["parent_id"] = str(facility_id_2)
     equipment_data_2["name"] = "Equipment for Plant 2"
     equipment_data_2["control_points"][0]["id"] = str(uuid4())
-    equipment_data_2["defects"][0]["id"] = str(uuid4())
+    # defects is already empty in template
 
     client.put(f"/equipment", json=equipment_data_2)
 
@@ -977,16 +614,16 @@ def test_get_equipment_by_plant_id(
     # Verify only equipment from first plant is returned (via facility)
     for equipment in data:
         assert equipment["facility_id"] == str(facility_id)
-        # Verify it's a full Equipment aggregate with control_points, defects, and inspection_ids
+        # Verify it's a full Equipment aggregate with control_points and inspection_ids
         assert "control_points" in equipment
-        assert "defects" in equipment
+        assert "defects" in equipment  # Present but always empty
         assert "inspection_ids" in equipment
 
     # Verify our equipment is in the list
     our_equipment = next((e for e in data if e["id"] == equipment_data["id"]), None)
     assert our_equipment is not None
     assert len(our_equipment["control_points"]) == 1
-    assert len(our_equipment["defects"]) == 1
+    assert len(our_equipment["defects"]) == 0  # Always empty
 
 
 def test_concurrent_modification_with_control_points(
@@ -1061,7 +698,6 @@ def test_get_all_equipment_with_modified_since_filter(
     equipment_data_2["parent_id"] = str(facility_id)
     equipment_data_2["name"] = "Equipment Two"
     equipment_data_2["control_points"][0]["id"] = str(uuid4())
-    equipment_data_2["defects"][0]["id"] = str(uuid4())
     response2 = client.put("/equipment", json=equipment_data_2)
     assert response2.status_code == 200
     timestamp2 = response2.json()["server_modified_at"]
@@ -1115,7 +751,6 @@ def test_get_equipment_by_plant_with_modified_since_filter(
     equipment_data_2["parent_id"] = str(facility_id)
     equipment_data_2["name"] = "Equipment Two"
     equipment_data_2["control_points"][0]["id"] = str(uuid4())
-    equipment_data_2["defects"][0]["id"] = str(uuid4())
     response2 = client.put("/equipment", json=equipment_data_2)
     assert response2.status_code == 200
     timestamp2 = response2.json()["server_modified_at"]

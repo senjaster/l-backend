@@ -247,13 +247,13 @@ CREATE TABLE lesiv.equipment_defect (
     id UUID PRIMARY KEY,
     equipment_id UUID NOT NULL,
     unit_name TEXT NOT NULL,  -- Specific unit name, e.g., "верхний БКС фаза В"
-    t_max INTEGER,
-    t_excess INTEGER,
+    defect_type_id INTEGER,  -- Reference to defect_type (no FK between aggregates)
     detected_at TIMESTAMPTZ NOT NULL,
     resolved_at TIMESTAMPTZ,
     status lesiv.defect_status NOT NULL DEFAULT 'DETECTED',
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    CONSTRAINT fk_defect_equipment 
+    server_modified_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_defect_equipment
         FOREIGN KEY (equipment_id) REFERENCES lesiv.equipment(id)
 );
 

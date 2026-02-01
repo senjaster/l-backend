@@ -39,7 +39,7 @@ class EquipmentRepository:
         Args:
             equipment_rows: List of equipment rows
             control_point_rows: List of control point rows (must have equipment_id)
-            defect_rows: List of defect rows (must have equipment_id)
+            defect_rows: List of defect rows (must have equipment_id) - IGNORED for backwards compatibility
             inspection_rows: List of inspection rows (must have equipment_id)
 
         Returns:
@@ -55,15 +55,9 @@ class EquipmentRepository:
                 ControlPoint(**{k: v for k, v in row.items() if k != "equipment_id"})
             )
 
-        # Group defects by equipment_id
-        defects_by_equipment = {}
-        for row in defect_rows:
-            equipment_id = row["equipment_id"]
-            if equipment_id not in defects_by_equipment:
-                defects_by_equipment[equipment_id] = []
-            defects_by_equipment[equipment_id].append(
-                Defect(**{k: v for k, v in row.items() if k != "equipment_id"})
-            )
+        # DEPRECATED: Defects are now managed via separate defect router
+        # Always return empty list for backwards compatibility
+        # defect_rows parameter is ignored
 
         # Group inspection IDs by equipment_id
         inspections_by_equipment = {}
@@ -80,7 +74,7 @@ class EquipmentRepository:
             equipment = Equipment(
                 **equipment_row,
                 control_points=control_points_by_equipment.get(equipment_id, []),
-                defects=defects_by_equipment.get(equipment_id, []),
+                defects=[],  # Always empty for backwards compatibility
                 inspection_ids=inspections_by_equipment.get(equipment_id, []),
             )
             equipment_list.append(equipment)
@@ -88,7 +82,7 @@ class EquipmentRepository:
         return equipment_list
 
     async def get_by_id(self, conn, equipment_id: UUID) -> Optional[Equipment]:
-        """Get equipment by ID with control points, defects, and inspection IDs"""
+        """Get equipment by ID with control points and inspection IDs (defects always empty)"""
         # Get equipment
         equipment_row = await queries.get_by_id(conn, id=equipment_id)
         if not equipment_row:
@@ -100,10 +94,9 @@ class EquipmentRepository:
             async for row in queries.get_control_points(conn, equipment_id=equipment_id)
         ]
 
-        # Get defects
-        defect_rows = [
-            row async for row in queries.get_defects(conn, equipment_id=equipment_id)
-        ]
+        # DEPRECATED: Defects are now managed via separate defect router
+        # Always return empty list for backwards compatibility
+        defect_rows = []
 
         # Get inspection IDs
         inspection_rows = [
@@ -134,7 +127,7 @@ class EquipmentRepository:
     async def get_by_plant_id(
         self, conn, plant_id: UUID, modified_since: datetime = DEFAULT_MODIFIED_SINCE
     ) -> list[Equipment]:
-        """Get all equipment for a plant (full aggregates) - uses batch queries for efficiency"""
+        """Get all equipment for a plant (full aggregates, defects always empty) - uses batch queries for efficiency"""
         # Fetch all data in parallel using batch queries
         equipment_rows = [
             row
@@ -153,9 +146,10 @@ class EquipmentRepository:
                 conn, plant_id=plant_id
             )
         ]
-        defect_rows = [
-            row async for row in queries.get_defects_by_plant(conn, plant_id=plant_id)
-        ]
+        # DEPRECATED: Defects are now managed via separate defect router
+        # Always return empty list for backwards compatibility
+        defect_rows = []
+        
         inspection_rows = [
             row
             async for row in queries.get_inspections_by_plant(conn, plant_id=plant_id)
@@ -230,37 +224,22 @@ class EquipmentRepository:
             incoming_cp_ids = {cp.id for cp in equipment.control_points}
             extra_cp_ids = current_cp_ids - incoming_cp_ids
 
-            # Check for extra defects on server
-            current_defect_ids = {d.id for d in current.defects if not d.is_deleted}
-            incoming_defect_ids = {d.id for d in equipment.defects}
-            extra_defect_ids = current_defect_ids - incoming_defect_ids
+            # DEPRECATED: Defects are now managed via separate defect router
+            # Ignore defects in validation for backwards compatibility
 
-            extra_child_ids = list(extra_cp_ids | extra_defect_ids)
-
-            if extra_child_ids:
-                conflicts = []
-                if extra_cp_ids:
-                    conflicts.append(
-                        ConflictDetail(
-                            field="control_points",
-                            message=f"Server has {len(extra_cp_ids)} extra control points not in client request",
-                        )
-                    )
-                if extra_defect_ids:
-                    conflicts.append(
-                        ConflictDetail(
-                            field="defects",
-                            message=f"Server has {len(extra_defect_ids)} extra defects not in client request",
-                        )
-                    )
-
+            if extra_cp_ids:
                 raise ConcurrentModificationError(
                     ConflictError(
                         message="Extra child entities exist on server",
                         server_modified_at=current.server_modified_at,
                         client_modified_at=equipment.server_modified_at,
-                        extra_child_ids=extra_child_ids,
-                        conflicts=conflicts,
+                        extra_child_ids=list(extra_cp_ids),
+                        conflicts=[
+                            ConflictDetail(
+                                field="control_points",
+                                message=f"Server has {len(extra_cp_ids)} extra control points not in client request",
+                            )
+                        ],
                     )
                 )
 
@@ -285,8 +264,9 @@ class EquipmentRepository:
             conn, equipment_id, equipment.control_points, force
         )
 
-        # Synchronize defects
-        await self._sync_defects(conn, equipment_id, equipment.defects, force)
+        # DEPRECATED: Defects are now managed via separate defect router
+        # Ignore defects in save for backwards compatibility
+        # await self._sync_defects(conn, equipment_id, equipment.defects, force)
 
         # Return updated aggregate
         result = await self.get_by_id(conn, equipment_id)
@@ -362,60 +342,6 @@ class EquipmentRepository:
             for cp_id in to_delete:
                 await queries.mark_control_point_deleted(conn, id=cp_id)
 
-    async def _sync_defects(
-        self, conn, equipment_id: UUID, defects: Sequence[Defect], force: bool
-    ):
-        """
-        Synchronize defects: match by ID, add new, mark removed as deleted.
-
-        Args:
-            conn: Database connection
-            equipment_id: Equipment ID
-            defects: List of defects to sync
-            force: If True, mark extra defects as deleted; if False, extras already validated
-        """
-        # Get existing defect IDs for this equipment
-        existing_rows = [
-            row async for row in queries.get_defect_ids(conn, equipment_id=equipment_id)
-        ]
-        existing_ids = {row["id"] for row in existing_rows}
-
-        incoming_ids = {d.id for d in defects}
-
-        # Validate that defects being added/updated don't belong to another equipment (never allow stealing)
-        for defect in defects:
-            if defect.id not in existing_ids:
-                # This is a new defect or existing defect from another equipment
-                # Check if it exists in another equipment
-                existing_equipment_row = await queries.get_defect_equipment_id(
-                    conn, defect_id=defect.id
-                )
-                if (
-                    existing_equipment_row
-                    and existing_equipment_row["equipment_id"] != equipment_id
-                ):
-                    raise ValueError(
-                        f"Cannot transfer defect {defect.id} from another equipment "
-                        f"({existing_equipment_row['equipment_id']}). Child entities cannot be stolen."
-                    )
-
-        # Update or insert (is_deleted is always False for incoming defects)
-        for defect in defects:
-            await queries.upsert_defect(
-                conn,
-                id=defect.id,
-                equipment_id=equipment_id,
-                unit_name=defect.unit_name,
-                t_max=defect.t_max,
-                t_excess=defect.t_excess,
-                detected_at=defect.detected_at,
-                resolved_at=defect.resolved_at,
-                status=defect.status.value,
-                is_deleted=defect.is_deleted,
-            )
-
-        if force:
-            # Mark removed defects as deleted (logical deletion)
-            to_delete = existing_ids - incoming_ids
-            for defect_id in to_delete:
-                await queries.mark_defect_deleted(conn, id=defect_id)
+    # DEPRECATED: _sync_defects method removed
+    # Defects are now managed via separate defect router
+    # This method is no longer called from save()

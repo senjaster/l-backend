@@ -117,6 +117,7 @@ from app.routers import (
     plant,
     equipment,
     inspection,
+    defect,
 )
 
 app.include_router(auth.router)
@@ -130,3 +131,4 @@ app.include_router(defect_type.router)
 app.include_router(plant.router)
 app.include_router(equipment.router)
 app.include_router(inspection.router)
+app.include_router(defect.router)
