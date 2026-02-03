@@ -1,7 +1,7 @@
 -- Database Initialization Script
 -- This script:
 -- 1. Clears all tables including inspectors
--- 2. Populates sticker types with 3 sample types
+-- 2. Populates sticker types with 10 LESIV L-Mark sticker types
 -- 3. Populates defect types from scripts/defect_types.txt
 -- 4. Populates equipment types according to plans/eq-type.md
 -- 5. Populates facility templates from scripts/Элеткрооборудование.txt
@@ -31,10 +31,6 @@ DELETE FROM lesiv.equipment;
 DELETE FROM lesiv.facility;
 DELETE FROM lesiv.plant;
 
--- Clear facility templates
-DELETE FROM lesiv.facility_template_equipment;
-DELETE FROM lesiv.facility_template;
-
 -- Clear logs
 DELETE FROM lesiv.log;
 
@@ -56,43 +52,115 @@ DELETE FROM lesiv.tokens;
 DELETE FROM lesiv.inspector;
 
 -- ============================================================================
--- 2. Populate sticker types with 3 types
+-- 2. Populate sticker types with all LESIV L-Mark stickers
 -- ============================================================================
 
--- Sticker Type 1: ТИН 60-80-100
+-- Sticker Type 1: LESIV L-Mark 3T 50-60-70°С
 INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
-VALUES (1, 'ТИН 60-80-100', FALSE, CURRENT_TIMESTAMP);
+VALUES (1, 'LESIV L-Mark 3T 50-60-70°С', FALSE, CURRENT_TIMESTAMP);
 
 INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
 VALUES
-    (1, '< 60', 0, 60, FALSE),
-    (1, '60-80', 60, 80, FALSE),
-    (1, '80-100', 80, 100, FALSE),
-    (1, '> 100', 100, 999, FALSE);
+    (1, '50-60', 50, 60, FALSE),
+    (1, '60-70', 60, 70, FALSE),
+    (1, '> 70', 70, 999, FALSE);
 
--- Sticker Type 2: ТИН 60-70-80-100
+-- Sticker Type 2: LESIV L-Mark 3T 60-80-100°С
 INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
-VALUES (2, 'ТИН 60-70-80-100', FALSE, CURRENT_TIMESTAMP);
+VALUES (2, 'LESIV L-Mark 3T 60-80-100°С', FALSE, CURRENT_TIMESTAMP);
 
 INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
 VALUES
-    (2, '< 60', 0, 60, FALSE),
-    (2, '60-70', 60, 70, FALSE),
-    (2, '70-80', 70, 80, FALSE),
+    (2, '60-80', 60, 80, FALSE),
     (2, '80-100', 80, 100, FALSE),
     (2, '> 100', 100, 999, FALSE);
 
--- Sticker Type 3: ТИН 60-80-100-120
+-- Sticker Type 3: LESIV L-Mark 3T 70-80-90°С
 INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
-VALUES (3, 'ТИН 60-80-100-120', FALSE, CURRENT_TIMESTAMP);
+VALUES (3, 'LESIV L-Mark 3T 70-80-90°С', FALSE, CURRENT_TIMESTAMP);
 
 INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
 VALUES
-    (3, '< 60', 0, 60, FALSE),
-    (3, '60-80', 60, 80, FALSE),
-    (3, '80-100', 80, 100, FALSE),
-    (3, '100-120', 100, 120, FALSE),
-    (3, '> 120', 120, 999, FALSE);
+    (3, '70-80', 70, 80, FALSE),
+    (3, '80-90', 80, 90, FALSE),
+    (3, '> 90', 90, 999, FALSE);
+
+-- Sticker Type 4: LESIV L-Mark 4T 50-55-60-70°С
+INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
+VALUES (4, 'LESIV L-Mark 4T 50-55-60-70°С', FALSE, CURRENT_TIMESTAMP);
+
+INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
+VALUES
+    (4, '50-55', 50, 55, FALSE),
+    (4, '55-60', 55, 60, FALSE),
+    (4, '60-70', 60, 70, FALSE),
+    (4, '> 70', 70, 999, FALSE);
+
+-- Sticker Type 5: LESIV L-Mark 4T 50-60-70-80°С
+INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
+VALUES (5, 'LESIV L-Mark 4T 50-60-70-80°С', FALSE, CURRENT_TIMESTAMP);
+
+INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
+VALUES
+    (5, '50-60', 50, 60, FALSE),
+    (5, '60-70', 60, 70, FALSE),
+    (5, '70-80', 70, 80, FALSE),
+    (5, '> 80', 80, 999, FALSE);
+
+-- Sticker Type 6: LESIV L-Mark 4T 60-70-80-90°С
+INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
+VALUES (6, 'LESIV L-Mark 4T 60-70-80-90°С', FALSE, CURRENT_TIMESTAMP);
+
+INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
+VALUES
+    (6, '60-70', 60, 70, FALSE),
+    (6, '70-80', 70, 80, FALSE),
+    (6, '80-90', 80, 90, FALSE),
+    (6, '> 90', 90, 999, FALSE);
+
+-- Sticker Type 7: LESIV L-Mark 4T 60-70-75-80°С
+INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
+VALUES (7, 'LESIV L-Mark 4T 60-70-75-80°С', FALSE, CURRENT_TIMESTAMP);
+
+INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
+VALUES
+    (7, '60-70', 60, 70, FALSE),
+    (7, '70-75', 70, 75, FALSE),
+    (7, '75-80', 75, 80, FALSE),
+    (7, '> 80', 80, 999, FALSE);
+
+-- Sticker Type 8: LESIV L-Mark 4T 60-90-100-120°С
+INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
+VALUES (8, 'LESIV L-Mark 4T 60-90-100-120°С', FALSE, CURRENT_TIMESTAMP);
+
+INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
+VALUES
+    (8, '60-90', 60, 90, FALSE),
+    (8, '90-100', 90, 100, FALSE),
+    (8, '100-120', 100, 120, FALSE),
+    (8, '> 120', 120, 999, FALSE);
+
+-- Sticker Type 9: LESIV L-Mark 4T 60-80-100-120°С
+INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
+VALUES (9, 'LESIV L-Mark 4T 60-80-100-120°С', FALSE, CURRENT_TIMESTAMP);
+
+INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
+VALUES
+    (9, '60-80', 60, 80, FALSE),
+    (9, '80-100', 80, 100, FALSE),
+    (9, '100-120', 100, 120, FALSE),
+    (9, '> 120', 120, 999, FALSE);
+
+-- Sticker Type 10: LESIV L-Mark 4T 90-100-110-120°С
+INSERT INTO lesiv.sticker_type (id, name, is_deleted, server_modified_at)
+VALUES (10, 'LESIV L-Mark 4T 90-100-110-120°С', FALSE, CURRENT_TIMESTAMP);
+
+INSERT INTO lesiv.sticker_temp_range (sticker_id, name, t_min, t_max, is_deleted)
+VALUES
+    (10, '90-100', 90, 100, FALSE),
+    (10, '100-110', 100, 110, FALSE),
+    (10, '110-120', 110, 120, FALSE),
+    (10, '> 120', 120, 999, FALSE);
 
 -- Reset sequence for sticker_type
 SELECT setval('lesiv.sticker_type_id_seq', (SELECT MAX(id) FROM lesiv.sticker_type));
@@ -184,69 +252,12 @@ SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipmen
 -- 5. Populate facility templates
 -- ============================================================================
 
--- Facility Template 1: Хозяйство резервного топлива
-INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
-VALUES (1, 'Хозяйство резервного топлива', FALSE, FALSE, CURRENT_TIMESTAMP);
-
--- Equipment for Facility Template 1
-INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
-VALUES
-    (1, 1, 'Мазутное хозяйство', TRUE, NULL, NULL, FALSE),
-    (2, 1, 'МНС - может повторяться', TRUE, NULL, 1, FALSE),
-    (3, 1, 'Масло хозяйство', TRUE, NULL, NULL, FALSE),
-    (4, 1, 'Насосная хозяйства дизельного топлива', TRUE, NULL, NULL, FALSE),
-    (5, 1, 'Погружные насосы', TRUE, NULL, NULL, FALSE);
-
--- Facility Template 2: Общестанционное оборудование
-INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
-VALUES (2, 'Общестанционное оборудование', FALSE, FALSE, CURRENT_TIMESTAMP);
-
--- Equipment for Facility Template 2
-INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
-VALUES
-    (6, 2, 'Вентиляторная градирня', TRUE, NULL, NULL, FALSE),
-    (7, 2, 'Щит 0,4 кВ', TRUE, 6, 6, FALSE),
-    (8, 2, 'Двигатели 0,4 кВ', TRUE, 2, 6, FALSE),
-    (9, 2, 'Пожарно насосная', TRUE, NULL, NULL, FALSE),
-    (10, 2, 'Двигатели 6 кВ', TRUE, 3, 9, FALSE),
-    (11, 2, 'Двигатели 0,4 кВ', TRUE, 2, 9, FALSE),
-    (12, 2, 'РУ, ЗРУ 10-110 кВ', TRUE, NULL, NULL, FALSE),
-    (13, 2, 'ГРУ 6-10 кВ', TRUE, NULL, NULL, FALSE),
-    (14, 2, 'Дворовая пожарная', TRUE, NULL, NULL, FALSE),
-    (15, 2, 'АБК', TRUE, NULL, NULL, FALSE),
-    (16, 2, 'Компресорная', TRUE, NULL, NULL, FALSE),
-    (17, 2, 'ГЩУ', TRUE, NULL, NULL, FALSE),
-    (18, 2, 'Другое', TRUE, NULL, NULL, FALSE);
-
--- Facility Template 3: ПГУ (может повторятся)
-INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
-VALUES (3, 'ПГУ (может повторятся)', TRUE, FALSE, CURRENT_TIMESTAMP);
-
--- Equipment for Facility Template 3
-INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
-VALUES
-    (19, 3, 'Котельное отделение', TRUE, NULL, NULL, FALSE),
-    (20, 3, 'Турбинное отделение', TRUE, NULL, NULL, FALSE);
-
--- Facility Template 4: ТГ (может повторятся)
-INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
-VALUES (4, 'ТГ (может повторятся)', TRUE, FALSE, CURRENT_TIMESTAMP);
-
--- Equipment for Facility Template 4
-INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
-VALUES
-    (21, 4, 'Турбинное отделение', TRUE, NULL, NULL, FALSE),
-    (22, 4, 'Система возбуждения', TRUE, 1, 21, FALSE),
-    (23, 4, 'Панели', TRUE, NULL, 22, FALSE),
-    (24, 4, 'Сборки в помещении', TRUE, NULL, 22, FALSE),
-    (25, 4, 'Другое', TRUE, NULL, 22, FALSE),
-    (26, 4, 'Щит 0,4 кВ', TRUE, 6, 21, FALSE),
-    (27, 4, 'Секция А', TRUE, NULL, 26, FALSE),
-    (28, 4, 'Секция Б', TRUE, NULL, 26, FALSE);
+-- Facility templates are loaded from facility_templates_complete.sql
+-- This file should be executed separately before this script or included in drop_create_all.sh
 
 -- Reset sequences for facility templates
-SELECT setval('lesiv.facility_template_id_seq', (SELECT MAX(id) FROM lesiv.facility_template));
-SELECT setval('lesiv.facility_template_equipment_id_seq', (SELECT MAX(id) FROM lesiv.facility_template_equipment));
+SELECT setval('lesiv.facility_template_id_seq', (SELECT COALESCE(MAX(id), 0) FROM lesiv.facility_template));
+SELECT setval('lesiv.facility_template_equipment_id_seq', (SELECT COALESCE(MAX(id), 0) FROM lesiv.facility_template_equipment));
 
 -- ============================================================================
 -- 6. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
