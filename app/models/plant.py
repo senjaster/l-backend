@@ -24,7 +24,7 @@ class Plant(BaseModel):
 
     id: UUID
     name: str
-    claimed_by_device_id: Optional[UUID] = None
+    claimed_by_device_id: Optional[str] = None
     claimed_by_user_id: Optional[int] = None
     claimed_at: Optional[datetime] = None
     is_deleted: bool = False
@@ -47,7 +47,7 @@ class PlantListItem(BaseModel):
 
     id: UUID
     name: str
-    claimed_by_device_id: Optional[UUID] = None
+    claimed_by_device_id: Optional[str] = None
     claimed_by_user_id: Optional[int] = None
     claimed_at: Optional[datetime] = None
     is_deleted: bool = False

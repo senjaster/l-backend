@@ -10,7 +10,7 @@ class Token(BaseModel):
 
     id: UUID
     inspector_id: int
-    device_id: UUID
+    device_id: str
     token_hash: str
     expires_at: datetime
     revoked: bool
@@ -24,7 +24,7 @@ class LoginRequest(BaseModel):
 
     username: str = Field(..., min_length=1)
     password: str = Field(..., min_length=1)
-    device_id: UUID
+    device_id: str
 
 
 class TokenResponse(BaseModel):
@@ -45,7 +45,7 @@ class TokenPayload(BaseModel):
     """JWT token payload"""
 
     sub: int  # inspector_id
-    dev: UUID  # device id
+    dev: str  # device id
     exp: int  # expiration time
     iat: int  # issued at time
     iss: str  # issuer
@@ -67,4 +67,4 @@ class PasswordChangeRequest(BaseModel):
 
     old_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=1)
-    device_id: UUID
+    device_id: str

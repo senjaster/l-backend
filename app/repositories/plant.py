@@ -165,7 +165,7 @@ class PlantRepository:
             return result > 0
         return result is not None and "0" not in result
 
-    async def claim(self, conn, plant_id: UUID, device_id: UUID, user_id: int) -> Optional[bool]:
+    async def claim(self, conn, plant_id: UUID, device_id: str, user_id: int) -> Optional[bool]:
         """
         Claim plant for editing (must be called within transaction).
         Updates server_modified_at for sync purposes.

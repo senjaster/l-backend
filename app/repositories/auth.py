@@ -20,7 +20,7 @@ class AuthRepository:
         conn,
         token_id: UUID,
         inspector_id: int,
-        device_id: UUID,
+        device_id: str,
         token_hash: str,
         expires_at,
     ) -> Token:

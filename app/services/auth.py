@@ -64,7 +64,7 @@ class AuthService:
         """Hash a refresh token using SHA-256"""
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def create_access_token(self, inspector_id: int, device_id: UUID) -> str:
+    def create_access_token(self, inspector_id: int, device_id: str) -> str:
         """Create a JWT access token"""
         self._load_keys()
 
@@ -101,9 +101,8 @@ class AuthService:
                 issuer=settings.jwt_issuer,
                 audience=settings.jwt_audience,
             )
-            # Convert sub back to int and dev back to UUID
+            # Convert sub back to int, dev stays as string
             payload["sub"] = int(payload["sub"])
-            payload["dev"] = UUID(payload["dev"])
             return TokenPayload(**payload)
         except jwt.InvalidTokenError as e:
             logger.warning(
@@ -113,7 +112,7 @@ class AuthService:
             return None
 
     async def login(
-        self, conn, username: str, password: str, device_id: UUID
+        self, conn, username: str, password: str, device_id: str
     ) -> Optional[TokenResponse]:
         """
         Authenticate user and create tokens.
@@ -233,7 +232,7 @@ class AuthService:
         inspector_id: int,
         old_password: str,
         new_password: str,
-        device_id: UUID,
+        device_id: str,
     ) -> Optional[TokenResponse]:
         """
         Change password for an inspector.
