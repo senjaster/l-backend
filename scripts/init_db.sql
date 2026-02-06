@@ -255,26 +255,27 @@ SELECT setval('lesiv.equipment_type_id_seq', (SELECT MAX(id) FROM lesiv.equipmen
 -- Facility templates are loaded from facility_templates_complete.sql
 -- This file should be executed separately before this script or included in drop_create_all.sh
 
--- Reset sequences for facility templates
-SELECT setval('lesiv.facility_template_id_seq', (SELECT COALESCE(MAX(id), 0) FROM lesiv.facility_template));
-SELECT setval('lesiv.facility_template_equipment_id_seq', (SELECT COALESCE(MAX(id), 0) FROM lesiv.facility_template_equipment));
 
 -- ============================================================================
--- 6. Create 10 plants (ТЭЦ-1 to ТЭЦ-10)
+-- 6. Create plants
 -- ============================================================================
 
 INSERT INTO lesiv.plant (id, name, is_deleted, server_modified_at)
 VALUES
-    (gen_random_uuid(), 'ТЭЦ-1', FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-2', FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-3', FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-4', FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-5', FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-6', FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-7', FALSE, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'ТЭЦ-8', FALSE, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'ТЭЦ-9', FALSE, CURRENT_TIMESTAMP),
-    (gen_random_uuid(), 'ТЭЦ-10', FALSE, CURRENT_TIMESTAMP);
+    (gen_random_uuid(), 'ТЭЦ-11', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-12', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-16', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-20', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-22', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-23', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'ТЭЦ-27', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'Правобережная ТЭЦ', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'Южная ТЭЦ', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'НчГРЭС', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'КГРЭС', FALSE, CURRENT_TIMESTAMP),
+    (gen_random_uuid(), 'РГРЭС', FALSE, CURRENT_TIMESTAMP);
 
 -- ============================================================================
 -- 7. Create test inspectors with known credentials

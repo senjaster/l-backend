@@ -1,5 +1,5 @@
 -- ============================================================================
--- Complete Facility Templates from Шаблон.txt
+-- Complete Facility Templates 
 -- ============================================================================
 
 -- Clear existing facility templates
@@ -13,7 +13,7 @@ VALUES (1, 'Хозяйство резервного топлива', FALSE, FALS
 -- Equipment for Facility Template 1
 INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
 VALUES
-    (1, 1, 'Мазутноехозяйство', TRUE, NULL, NULL, FALSE),
+    (1, 1, 'Мазутное хозяйство', TRUE, NULL, NULL, FALSE),
     (2, 1, 'МНС', TRUE, NULL, 1, FALSE),
     (3, 1, 'КРУ 6 кВ', TRUE, NULL, 2, FALSE),
     (4, 1, 'Щит 0,4 кВ', TRUE, NULL, 2, FALSE),
@@ -38,7 +38,7 @@ VALUES
     (23, 1, 'Погружные насосы', TRUE, NULL, NULL, FALSE),
     (24, 1, 'Щит 0,4 кВ', TRUE, NULL, 23, FALSE),
     (25, 1, 'Электродвигатели 6 кВ', TRUE, NULL, 23, FALSE),
-    (26, 1, 'Электродвигатель 0,4 кВ', TRUE, NULL, 23, FALSE),
+    (26, 1, 'Электродвигатели 0,4 кВ', TRUE, NULL, 23, FALSE),
     (27, 1, 'Другое', TRUE, NULL, 23, FALSE),
     (28, 1, 'Флотаторная', TRUE, NULL, NULL, FALSE),
     (29, 1, 'Щит 0,4 кВ', TRUE, NULL, 28, FALSE),
@@ -116,18 +116,27 @@ VALUES
     (85, 3, 'Электродвигатели 0,4 кВ', TRUE, NULL, 75, FALSE),
     (86, 3, 'КРУ 6 кВ', TRUE, NULL, NULL, FALSE),
     (87, 3, 'Секция А', TRUE, NULL, 86, FALSE),
-    (88, 3, 'Секция Б', TRUE, NULL, 86, FALSE),
-    (89, 3, 'Котельное отделение', TRUE, NULL, NULL, FALSE),
-    (90, 3, 'Щит 0,4 кВ', TRUE, NULL, 89, FALSE),
-    (91, 3, 'Секция А', TRUE, NULL, 90, FALSE),
-    (92, 3, 'Секция Б', TRUE, NULL, 90, FALSE),
-    (93, 3, 'Другое', TRUE, NULL, 90, FALSE),
-    (94, 3, 'Электродвигатели 6 кВ', TRUE, NULL, 89, FALSE),
-    (95, 3, 'Электродвигатели 0,4 кВ', TRUE, NULL, 89, FALSE),
-    (96, 3, 'Тягодутьевые механизмы', TRUE, NULL, 89, FALSE),
-    (97, 3, 'Двигатели 6 кВ', TRUE, NULL, 96, FALSE),
-    (98, 3, 'Двигатели 0,4 кВ', TRUE, NULL, 96, FALSE),
-    (99, 3, 'Другое', TRUE, NULL, 89, FALSE);
+    (88, 3, 'Секция Б', TRUE, NULL, 86, FALSE);
+
+
+-- Facility Template 10: Котел    
+INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
+VALUES (10, 'Котел', TRUE, FALSE, CURRENT_TIMESTAMP);
+
+-- Это оборудование вынесено из ТГ поэтому нумерация сбивается
+INSERT INTO lesiv.facility_template_equipment (id, facility_template_id, name, is_container, equipment_type_id, parent_id, is_deleted)
+VALUES
+    (90, 10, 'Щит 0,4 кВ', TRUE, NULL, NULL, FALSE),
+    (91, 10, 'Секция А', TRUE, NULL, 90, FALSE),
+    (92, 10, 'Секция Б', TRUE, NULL, 90, FALSE),
+    (93, 10, 'Другое', TRUE, NULL, 90, FALSE),
+    (94, 10, 'Электродвигатели 6 кВ', TRUE, NULL, NULL, FALSE),
+    (95, 10, 'Электродвигатели 0,4 кВ', TRUE, NULL, NULL, FALSE),
+    (96, 10, 'Тягодутьевые механизмы', TRUE, NULL, NULL, FALSE),
+    (97, 10, 'Электродвигатели 6 кВ', TRUE, NULL, 96, FALSE),
+    (98, 10, 'Электродвигатели 0,4 кВ', TRUE, NULL, 96, FALSE),
+    (99, 10, 'Другое', TRUE, NULL, NULL, FALSE);
+
 
 -- Facility Template 4: ПГУ
 INSERT INTO lesiv.facility_template (id, name, is_multiple_allowed, is_deleted, server_modified_at)
@@ -306,7 +315,7 @@ VALUES
     (227, 9, 'Другое', TRUE, NULL, 223, FALSE),
     (228, 9, 'ОСН', TRUE, NULL, NULL, FALSE),
     (229, 9, 'Щит 0,4 кВ', TRUE, NULL, 228, FALSE),
-    (230, 9, 'Электродвигатели 4 кВ', TRUE, NULL, 228, FALSE),
+    (230, 9, 'Электродвигатели 6 кВ', TRUE, NULL, 228, FALSE),
     (231, 9, 'Другое', TRUE, NULL, 228, FALSE),
     (232, 9, 'Водогрейная котельная', TRUE, NULL, NULL, FALSE),
     (233, 9, 'КРУ 6 кВ', TRUE, NULL, 232, FALSE),
@@ -324,5 +333,59 @@ VALUES
     (245, 9, 'Насосная станция дождевых стоков', TRUE, NULL, NULL, FALSE),
     (246, 9, 'Щит 0,4 кВ', TRUE, NULL, 245, FALSE),
 	(247, 9, 'Электродвигатели 0,4 кВ', TRUE, NULL, 245, FALSE),
-	(248, 9, 'Другое', TRUE, NULL, 245, FALSE)
-    
+	(248, 9, 'Другое', TRUE, NULL, 245, FALSE);
+
+-- Reset sequences for facility templates
+SELECT setval('lesiv.facility_template_id_seq', (SELECT COALESCE(MAX(id), 0) FROM lesiv.facility_template));
+SELECT setval('lesiv.facility_template_equipment_id_seq', (SELECT COALESCE(MAX(id), 0) FROM lesiv.facility_template_equipment));
+
+---------------------------------------------------------------------------------------------------------
+
+update lesiv.facility_template_equipment
+set 
+	equipment_type_id = 3
+where
+	name = 'Электродвигатели 6 кВ';
+	
+
+update lesiv.facility_template_equipment
+set 
+	equipment_type_id = 2
+where
+	name = 'Электродвигатели 0,4 кВ';
+
+update lesiv.facility_template_equipment
+set 
+	equipment_type_id = 5
+where
+	name = 'КРУ 6 кВ';	
+	
+update lesiv.facility_template_equipment
+set 
+	equipment_type_id = 6
+where
+	name = 'Щит 0,4 кВ';
+
+update lesiv.facility_template_equipment
+set 
+	equipment_type_id = 1
+where
+	name = 'Система возбуждения';
+            
+update lesiv.facility_template_equipment as fte
+set 
+	equipment_type_id = fte_p.equipment_type_id
+from
+	lesiv.facility_template_equipment fte_p
+where
+	fte_p.id = fte.parent_id
+	and fte.equipment_type_id is null;
+
+
+update lesiv.facility_template_equipment
+set 
+	equipment_type_id = 6
+where
+	name = 'Сборки';
+
+
