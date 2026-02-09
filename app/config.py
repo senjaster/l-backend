@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
     log_json: bool = True  # Enable structured JSON logging
 
+    # Optimistic locking settings
+    disable_optimistic_locking: bool = False  # Set to True to disable optimistic locking (for testing only)
+
     class Config:
         env_file = ".env"
 

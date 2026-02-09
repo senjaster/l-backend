@@ -71,7 +71,7 @@ class DefectRepository:
         # New server_modified_at timestamp
         new_server_modified_at = datetime.now(timezone.utc)
 
-        if current and not force:
+        if current and not (force or settings.disable_optimistic_locking):
             # Validate server_modified_at for existing defect
             if defect.server_modified_at is None:
                 raise ConcurrentModificationError(
