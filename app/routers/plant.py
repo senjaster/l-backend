@@ -137,7 +137,7 @@ async def claim_plant(
     # Return the updated plant state
     plant = await plant_repo.get_by_id(conn, plant_id)
     if not plant:
-        raise HTTPException(status_code=404, detail="Plant not found after claim")
+        raise HTTPException(status_code=400, detail="Plant not found after claim")
     return plant
 
 
@@ -157,5 +157,5 @@ async def release_plant(plant_id: UUID, conn=Depends(get_db_connection)):
     # Return the updated plant state
     plant = await plant_repo.get_by_id(conn, plant_id)
     if not plant:
-        raise HTTPException(status_code=404, detail="Plant not found after release")
+        raise HTTPException(status_code=400, detail="Plant not found after release")
     return plant

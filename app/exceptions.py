@@ -54,7 +54,7 @@ async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
         )
         error = BaseError(type="unique_violation", message=error_msg)
         return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT, content=error.model_dump()
+            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
         )
 
     # Not null violation
@@ -144,7 +144,7 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
         )
         error = BaseError(type="unique_violation", message=error_msg)
         return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT, content=error.model_dump()
+            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
         )
 
     # Not null violation

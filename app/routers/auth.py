@@ -112,7 +112,7 @@ async def change_password(
         TokenResponse with new access_token and refresh_token
 
     Raises:
-        HTTPException: 400 if old password is invalid
+        HTTPException: 409 if old password is invalid
         HTTPException: 401 if not authenticated
     """
     result = await auth_service.change_password(
@@ -125,7 +125,7 @@ async def change_password(
 
     if result is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail="Invalid old password",
             headers={"WWW-Authenticate": "Bearer"},
         )
