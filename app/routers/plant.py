@@ -87,7 +87,7 @@ async def upsert_plant(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/by_id/{plant_id}/claim", status_code=204)
+@router.post("/by_id/{plant_id}/claim", response_model=Plant)
 async def claim_plant(
     plant_id: UUID,
     token_payload: TokenPayload = Depends(get_token_payload),
@@ -102,6 +102,7 @@ async def claim_plant(
     - Claim is stale (expired at 3:00 AM Moscow time)
     
     Returns 409 if plant is claimed by another user and claim is not stale.
+    Returns the updated plant state with claim information.
     """
     async with conn.transaction():
         success = await plant_repo.claim(
@@ -132,12 +133,29 @@ async def claim_plant(
                 ],
             ).model_dump(mode="json"),
         )
+    
+    # Return the updated plant state
+    plant = await plant_repo.get_by_id(conn, plant_id)
+    if not plant:
+        raise HTTPException(status_code=404, detail="Plant not found after claim")
+    return plant
 
 
-@router.post("/by_id/{plant_id}/release", status_code=204)
+@router.post("/by_id/{plant_id}/release", response_model=Plant)
 async def release_plant(plant_id: UUID, conn=Depends(get_db_connection)):
-    """Release plant"""
+    """
+    Release plant claim.
+    
+    Returns the updated plant state with cleared claim information.
+    """
     async with conn.transaction():
         success = await plant_repo.release(conn, plant_id)
+    
     if not success:
         raise HTTPException(status_code=404, detail="Plant not found")
+    
+    # Return the updated plant state
+    plant = await plant_repo.get_by_id(conn, plant_id)
+    if not plant:
+        raise HTTPException(status_code=404, detail="Plant not found after release")
+    return plant
