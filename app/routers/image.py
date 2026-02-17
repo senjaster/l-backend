@@ -8,6 +8,7 @@ from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image
 from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
+from app.services.s3_service import s3_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/image", tags=["image"])
@@ -20,6 +21,12 @@ async def get_image_by_id(image_id: UUID, conn=Depends(get_db_connection)):
     image = await image_repo.get_by_id(conn, image_id)
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Generate presigned URL for the image
+    url_result = s3_service.generate_presigned_url(image.id)
+    if url_result:
+        image.presigned_url, image.presigned_url_expires_at = url_result
+    
     return image
 
 
@@ -33,9 +40,17 @@ async def get_images_by_plant_id(
     conn=Depends(get_db_connection),
 ):
     """Get all images for a plant, optionally filtered by modification date"""
-    return await image_repo.get_by_plant_id(
+    images = await image_repo.get_by_plant_id(
         conn, plant_id, modified_since=modified_since
     )
+    
+    # Generate presigned URLs for all images
+    for image in images:
+        url_result = s3_service.generate_presigned_url(image.id)
+        if url_result:
+            image.presigned_url, image.presigned_url_expires_at = url_result
+    
+    return images
 
 
 @router.put("", response_model=Image)
@@ -60,6 +75,12 @@ async def upsert_image(
     try:
         async with conn.transaction():
             result = await image_repo.save(conn, image, force=force)
+        
+        # Generate presigned URL for the saved image
+        url_result = s3_service.generate_presigned_url(result.id)
+        if url_result:
+            result.presigned_url, result.presigned_url_expires_at = url_result
+        
         return result
     except ConcurrentModificationError as e:
         logger.warning(
