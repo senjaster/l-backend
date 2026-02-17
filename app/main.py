@@ -60,13 +60,19 @@ def custom_openapi():
         routes=app.routes,
     )
 
-    # Add security scheme
+    # Add security schemes - support both Authorization header and X-Auth-Token
     openapi_schema["components"]["securitySchemes"] = {
         "HTTPBearer": {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "Enter your JWT token",
+            "description": "Enter your JWT token (standard Authorization header - may not work in Yandex Cloud)",
+        },
+        "X-Auth-Token": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-Auth-Token",
+            "description": "Enter 'Bearer <token>' or just '<token>' (works in Yandex Cloud where Authorization header is stripped)",
         }
     }
 
@@ -78,9 +84,13 @@ def custom_openapi():
             continue
 
         # Apply security to all methods in this path
+        # Allow either HTTPBearer OR X-Auth-Token
         for method in path_item.values():
             if isinstance(method, dict) and "security" not in method:
-                method["security"] = [{"HTTPBearer": []}]
+                method["security"] = [
+                    {"HTTPBearer": []},
+                    {"X-Auth-Token": []}
+                ]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

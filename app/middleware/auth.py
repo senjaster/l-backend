@@ -8,6 +8,30 @@ from app.config import settings
 from app.database import get_db_connection
 
 
+def extract_token_from_header(header_value: str) -> str:
+    """
+    Extract JWT token from Authorization or X-Auth-Token header.
+    Supports both formats:
+    - "Bearer <token>" (with Bearer prefix)
+    - "<token>" (without Bearer prefix)
+    
+    Returns the token string.
+    Raises ValueError if format is invalid.
+    """
+    parts = header_value.split()
+    
+    # Format: "Bearer <token>"
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1]
+    
+    # Format: "<token>" (no Bearer prefix)
+    if len(parts) == 1:
+        return parts[0]
+    
+    # Invalid format
+    raise ValueError("Invalid token format")
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware to enforce authentication on all routes except /auth"""
 
@@ -39,7 +63,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # All other routes require authentication
+        # Try Authorization header first, then X-Auth-Token
         auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            auth_header = request.headers.get("X-Auth-Token")
 
         if not auth_header:
             return JSONResponse(
@@ -48,16 +75,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # Check Bearer token format
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
+        # Extract token (supports both "Bearer <token>" and "<token>" formats)
+        try:
+            token = extract_token_from_header(auth_header)
+        except ValueError:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid authentication credentials"},
+                content={"detail": "Invalid authentication credentials format"},
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-        token = parts[1]
 
         # Verify token and get inspector using unified connection dependency
         inspector = None

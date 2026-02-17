@@ -1,8 +1,8 @@
 """Authentication dependencies for FastAPI"""
 
 from typing import Annotated, Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 import asyncpg
 from app.models.inspector import Inspector
 from app.models.auth import TokenPayload
@@ -11,16 +11,45 @@ from app.database import get_db_connection
 from app.config import settings
 from datetime import datetime, timezone
 
+# Support both Authorization header and X-Auth-Token header
 security = HTTPBearer(auto_error=False)
+x_auth_token_header = APIKeyHeader(name="X-Auth-Token", auto_error=False)
 auth_service = AuthService()
+
+
+def extract_token_from_x_auth_header(x_auth_token: Optional[str]) -> Optional[str]:
+    """
+    Extract JWT token from X-Auth-Token header.
+    Supports both formats:
+    - "Bearer <token>" (with Bearer prefix)
+    - "<token>" (without Bearer prefix)
+    
+    Returns the token string or None if invalid.
+    """
+    if not x_auth_token:
+        return None
+    
+    # Try to parse as "Bearer <token>"
+    parts = x_auth_token.split()
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1]
+    
+    # Otherwise, treat the entire value as the token
+    return x_auth_token
 
 
 async def get_current_user(
     credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)],
+    x_auth_token: Annotated[Optional[str], Depends(x_auth_token_header)],
     conn: Annotated[asyncpg.Connection, Depends(get_db_connection)],
 ) -> Inspector:
     """
     Dependency to get current authenticated user from JWT token.
+    
+    Supports both Authorization: Bearer <token> and X-Auth-Token headers.
+    X-Auth-Token can be in either format:
+    - "Bearer <token>" (with Bearer prefix)
+    - "<token>" (without Bearer prefix)
 
     When auth is disabled (require_auth=False):
     - If a valid token is provided, returns the authenticated user
@@ -32,10 +61,15 @@ async def get_current_user(
     Raises:
         HTTPException: 401 if token is invalid or user not found (when auth is enabled)
     """
-    # If credentials are provided, always try to validate them
+    # Try to get token from either Authorization header or X-Auth-Token header
+    token = None
     if credentials:
         token = credentials.credentials
-
+    else:
+        token = extract_token_from_x_auth_header(x_auth_token)
+    
+    # If token is provided, always try to validate it
+    if token:
         # Verify and decode token
         inspector_with_password = await auth_service.get_current_inspector(conn, token)
 
@@ -82,22 +116,34 @@ async def get_current_user(
 
 async def get_token_payload(
     credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)],
+    x_auth_token: Annotated[Optional[str], Depends(x_auth_token_header)],
 ) -> TokenPayload:
     """
     Dependency to extract and validate token payload from JWT token.
     This provides access to both user_id (sub) and device_id (dev).
+    
+    Supports both Authorization: Bearer <token> and X-Auth-Token headers.
+    X-Auth-Token can be in either format:
+    - "Bearer <token>" (with Bearer prefix)
+    - "<token>" (without Bearer prefix)
 
     Raises:
         HTTPException: 401 if token is missing or invalid
     """
-    if not credentials:
+    # Try to get token from either Authorization header or X-Auth-Token header
+    token = None
+    if credentials:
+        token = credentials.credentials
+    else:
+        token = extract_token_from_x_auth_header(x_auth_token)
+    
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = credentials.credentials
     payload = auth_service.verify_access_token(token)
 
     if payload is None:
