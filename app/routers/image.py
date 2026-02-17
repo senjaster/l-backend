@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.image import Image
+from app.models.image import Image, PresignedUploadUrlResponse
 from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.services.s3_service import s3_service
@@ -76,8 +76,8 @@ async def upsert_image(
         async with conn.transaction():
             result = await image_repo.save(conn, image, force=force)
         
-        # Generate presigned URL for the saved image
-        url_result = s3_service.generate_presigned_url(result.id)
+        # Generate upload presigned URL 
+        url_result = s3_service.generate_upload_presigned_url(result.id)    
         if url_result:
             result.presigned_url, result.presigned_url_expires_at = url_result
         
@@ -98,3 +98,35 @@ async def upsert_image(
             "Invalid image data", extra={"image_id": str(image.id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{image_id}/upload_url", response_model=PresignedUploadUrlResponse)
+async def get_upload_url(image_id: UUID):
+    """
+    Get a presigned URL for uploading an image to S3.
+    
+    This endpoint generates a PUT presigned URL that allows clients to upload
+    an image directly to S3. The URL is valid for a limited time as configured
+    in the S3 service settings.
+    
+    Args:
+        image_id: UUID of the image to upload
+        
+    Returns:
+        PresignedUploadUrlResponse with the presigned URL and expiration time
+        
+    Raises:
+        HTTPException: 500 if URL generation fails
+    """
+    url_result = s3_service.generate_upload_presigned_url(image_id)
+    if not url_result:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate upload URL"
+        )
+    
+    presigned_url, expires_at = url_result
+    return PresignedUploadUrlResponse(
+        presigned_url=presigned_url,
+        presigned_url_expires_at=expires_at
+    )

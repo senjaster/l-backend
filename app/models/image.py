@@ -14,6 +14,12 @@ class ImageType(str, Enum):
     THERMAL = "THERMAL"
 
 
+class PresignedUploadUrlResponse(BaseModel):
+    """Response model for presigned upload URL"""
+    presigned_url: str
+    presigned_url_expires_at: datetime
+
+
 class Image(BaseModel):
     """Image aggregate"""
 
