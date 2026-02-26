@@ -3,12 +3,15 @@
 from fastapi import Depends
 from app.database import get_db_connection
 from app.services.ownership_validator import OwnershipValidator
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_token_payload
 from app.models.inspector import Inspector
+from app.models.auth import TokenPayload
 
 
 def get_ownership_validator(
-    conn=Depends(get_db_connection), current_user: Inspector = Depends(get_current_user)
+    conn=Depends(get_db_connection),
+    current_user: Inspector = Depends(get_current_user),
+    token_payload: TokenPayload = Depends(get_token_payload),
 ) -> OwnershipValidator:
-    """Dependency to provide OwnershipValidator instance with current user"""
-    return OwnershipValidator(conn, current_user)
+    """Dependency to provide OwnershipValidator instance with current user and device_id"""
+    return OwnershipValidator(conn, current_user, token_payload.dev)

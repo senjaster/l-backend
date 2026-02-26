@@ -25,30 +25,32 @@ class OwnershipValidator:
     Checks if a user has the right to modify an aggregate based on claim ownership or creator ownership.
     """
 
-    def __init__(self, conn, current_user: Inspector):
+    def __init__(self, conn, current_user: Inspector, device_id: str):
         """
-        Initialize the ownership validator with a database connection and current user.
+        Initialize the ownership validator with a database connection, current user, and device ID.
 
         Args:
             conn: Database connection to use for validation queries
             current_user: Current authenticated user
+            device_id: Device ID from the authentication token
         """
         self.conn = conn
         self.current_user = current_user
+        self.device_id = device_id
         self.plant_repo = PlantRepository()
         self.equipment_repo = EquipmentRepository()
         self.inspection_repo = InspectionRepository()
 
     async def validate_plant_ownership(self, plant: Plant) -> None:
         """
-        Validate that the plant is claimed by the current user.
+        Validate that the plant is claimed by the current device.
         Pessimistic locks are never bypassed, only by anonymous user (when auth is disabled).
 
         Args:
             plant: Plant to validate
 
         Raises:
-            ConcurrentModificationError: If plant is not claimed by current user
+            ConcurrentModificationError: If plant is not claimed by current device
         """
         # Skip validation only for anonymous user (when auth is disabled)
         if self.current_user.id == -1:
@@ -58,40 +60,30 @@ class OwnershipValidator:
         if not current:
             return  # New plant, no validation needed
 
-        # Check claim ownership
-        if current.claimed_by_user_id is None:
+        # Check claim ownership by device_id
+        if current.claimed_by_device_id is None:
             raise ConcurrentModificationError(
                 ConflictError(
                     message="Plant must be claimed before modification",
                     server_modified_at=current.server_modified_at,
                     conflicts=[
                         ConflictDetail(
-                            field="claimed_by_user_id",
-                            message="Plant is not claimed by any user",
+                            field="claimed_by_device_id",
+                            message="Plant is not claimed by any device",
                         )
                     ],
                 )
             )
 
-        if current.claimed_by_user_id != self.current_user.id:
-            # Get username for better error message
-            plant_with_username = await plant_queries.get_by_id_with_username(
-                self.conn, id=plant.id
-            )
-            claimed_by_username = (
-                plant_with_username["claimed_by_username"]
-                if plant_with_username
-                else f"user ID {current.claimed_by_user_id}"
-            )
-
+        if current.claimed_by_device_id != self.device_id:
             raise ConcurrentModificationError(
                 ConflictError(
-                    message="Plant is claimed by another user",
+                    message="Plant is claimed by another device",
                     server_modified_at=current.server_modified_at,
                     conflicts=[
                         ConflictDetail(
-                            field="claimed_by_user_id",
-                            message=f"Plant is claimed by {claimed_by_username}, not by {self.current_user.username}",
+                            field="claimed_by_device_id",
+                            message=f"Plant is claimed by device {current.claimed_by_device_id}, not by device {self.device_id}",
                         )
                     ],
                 )
@@ -99,14 +91,14 @@ class OwnershipValidator:
 
     async def validate_equipment_ownership(self, equipment: Equipment) -> None:
         """
-        Validate that the plant (parent of equipment) is claimed by the current user.
+        Validate that the plant (parent of equipment) is claimed by the current device.
         Pessimistic locks are never bypassed, only by anonymous user (when auth is disabled).
 
         Args:
             equipment: Equipment to validate
 
         Raises:
-            ConcurrentModificationError: If plant is not claimed by current user
+            ConcurrentModificationError: If plant is not claimed by current device
         """
         # Skip validation only for anonymous user (when auth is disabled)
         if self.current_user.id == -1:
@@ -125,8 +117,8 @@ class OwnershipValidator:
         if not plant_claim_info_row:
             return  # No plant found (shouldn't happen in normal flow)
 
-        # Check claim ownership
-        if plant_claim_info_row["claimed_by_user_id"] is None:
+        # Check claim ownership by device_id
+        if plant_claim_info_row["claimed_by_device_id"] is None:
             raise ConcurrentModificationError(
                 ConflictError(
                     message="Plant must be claimed before modifying equipment",
@@ -134,26 +126,21 @@ class OwnershipValidator:
                     conflicts=[
                         ConflictDetail(
                             field="plant_claim",
-                            message=f"Plant {plant_claim_info_row['plant_id']} is not claimed by any user",
+                            message=f"Plant {plant_claim_info_row['plant_id']} is not claimed by any device",
                         )
                     ],
                 )
             )
 
-        if plant_claim_info_row["claimed_by_user_id"] != self.current_user.id:
-            claimed_by_username = (
-                plant_claim_info_row.get("claimed_by_username")
-                or f"user ID {plant_claim_info_row['claimed_by_user_id']}"
-            )
-
+        if plant_claim_info_row["claimed_by_device_id"] != self.device_id:
             raise ConcurrentModificationError(
                 ConflictError(
-                    message="Plant is claimed by another user",
+                    message="Plant is claimed by another device",
                     server_modified_at=current.server_modified_at,
                     conflicts=[
                         ConflictDetail(
                             field="plant_claim",
-                            message=f"Plant {plant_claim_info_row['plant_id']} is claimed by {claimed_by_username}, not by {self.current_user.username}",
+                            message=f"Plant {plant_claim_info_row['plant_id']} is claimed by device {plant_claim_info_row['claimed_by_device_id']}, not by device {self.device_id}",
                         )
                     ],
                 )
@@ -161,14 +148,14 @@ class OwnershipValidator:
 
     async def validate_inspection_ownership(self, inspection: Inspection) -> None:
         """
-        Validate that the inspection was created by the current user.
+        Validate inspection ownership.
         Pessimistic locks are never bypassed, only by anonymous user (when auth is disabled).
 
         Args:
             inspection: Inspection to validate
 
         Raises:
-            ConcurrentModificationError: If inspection was not created by current user or has extra steps
+            ConcurrentModificationError: If inspection has extra steps
         """
         # Skip validation only for anonymous user (when auth is disabled)
         if self.current_user.id == -1:
@@ -178,30 +165,7 @@ class OwnershipValidator:
         if not current:
             return  # New inspection, no validation needed
 
-        # Check if user is the creator of this inspection
-        if current.inspector_id != self.current_user.id:
-            # Get username for better error message
-            inspection_with_username = await inspection_queries.get_by_id_with_username(
-                self.conn, id=inspection.id
-            )
-            inspector_username = (
-                inspection_with_username["inspector_username"]
-                if inspection_with_username
-                else f"inspector ID {current.inspector_id}"
-            )
-
-            raise ConcurrentModificationError(
-                ConflictError(
-                    message="Only the creator can modify this inspection",
-                    server_modified_at=current.server_modified_at,
-                    conflicts=[
-                        ConflictDetail(
-                            field="inspector_id",
-                            message=f"Inspection was created by {inspector_username}, not by {self.current_user.username}",
-                        )
-                    ],
-                )
-            )
+        # Creator ownership check is disabled - any inspector can modify inspections
 
         # Check for extra steps on server
         current_step_ids = {step.id for step in current.steps if not step.is_deleted}
