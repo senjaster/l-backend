@@ -50,6 +50,7 @@ class InspectionStep(BaseModel):
     step_number: int
     step_type: InspectionStepType
     defect_id: Optional[UUID] = None
+    unit_name: Optional[str] = None
     description: Optional[str] = None
     is_resolved: Optional[bool] = None
     sticker_type_id: Optional[int] = None

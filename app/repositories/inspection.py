@@ -311,6 +311,7 @@ class InspectionRepository:
                 step_number=step.step_number,
                 step_type=step.step_type.value,
                 defect_id=step.defect_id,
+                unit_name=step.unit_name,
                 description=step.description,
                 is_resolved=step.is_resolved,
                 sticker_type_id=step.sticker_type_id,

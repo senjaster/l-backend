@@ -20,7 +20,7 @@ ORDER BY i.started_at DESC;
 -- name: get_steps_by_plant(plant_id)
 -- Get all inspection steps for inspections of a plant
 SELECT s.id, s.started_at, s.inspection_id, s.step_number, s.step_type, s.defect_id,
-       s.description, s.is_resolved, s.sticker_type_id, s.t_sticker,
+       s.unit_name, s.description, s.is_resolved, s.sticker_type_id, s.t_sticker,
        s.t_environment, s.t_similar_unit, s.epsilon,
        s.t_observed, s.measured_current, s.nominal_current, s.defect_type_id, s.is_sticker_present,
        s.is_test_ready, s.is_attention_required, s.step_status, s.is_deleted
@@ -59,7 +59,7 @@ WHERE i.id = :id;
 -- name: get_steps(inspection_id)
 -- Get steps for inspection
 SELECT id, started_at, inspection_id, step_number, step_type, defect_id,
-       description, is_resolved, sticker_type_id, t_sticker,
+       unit_name, description, is_resolved, sticker_type_id, t_sticker,
        t_environment, t_similar_unit, epsilon,
        t_observed, measured_current, nominal_current, defect_type_id, is_sticker_present,
        is_test_ready, is_attention_required, step_status, is_deleted
@@ -107,15 +107,15 @@ ON CONFLICT (id) DO UPDATE SET
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
--- name: upsert_step(id, started_at, inspection_id, step_number, step_type, defect_id, description, is_resolved, sticker_type_id, t_sticker, t_environment, t_similar_unit, epsilon, t_observed, measured_current, nominal_current, defect_type_id, is_sticker_present, is_test_ready, is_attention_required, step_status, is_deleted)!
+-- name: upsert_step(id, started_at, inspection_id, step_number, step_type, defect_id, unit_name, description, is_resolved, sticker_type_id, t_sticker, t_environment, t_similar_unit, epsilon, t_observed, measured_current, nominal_current, defect_type_id, is_sticker_present, is_test_ready, is_attention_required, step_status, is_deleted)!
 -- Insert or update inspection step
 INSERT INTO lesiv.inspection_step (id, started_at, inspection_id, step_number, step_type,
-                                    defect_id, description, is_resolved, sticker_type_id,
+                                    defect_id, unit_name, description, is_resolved, sticker_type_id,
                                     t_sticker, t_environment, t_similar_unit, epsilon,
                                     t_observed, measured_current, nominal_current, defect_type_id, is_sticker_present,
                                     is_test_ready, is_attention_required, step_status, is_deleted)
 VALUES (:id, :started_at, :inspection_id, :step_number, :step_type,
-        :defect_id, :description, :is_resolved, :sticker_type_id,
+        :defect_id, :unit_name, :description, :is_resolved, :sticker_type_id,
         :t_sticker, :t_environment, :t_similar_unit, :epsilon,
         :t_observed, :measured_current, :nominal_current, :defect_type_id, :is_sticker_present,
         :is_test_ready, :is_attention_required, :step_status, :is_deleted)
@@ -125,6 +125,7 @@ ON CONFLICT (id) DO UPDATE SET
     step_number = EXCLUDED.step_number,
     step_type = EXCLUDED.step_type,
     defect_id = EXCLUDED.defect_id,
+    unit_name = EXCLUDED.unit_name,
     description = EXCLUDED.description,
     is_resolved = EXCLUDED.is_resolved,
     sticker_type_id = EXCLUDED.sticker_type_id,
