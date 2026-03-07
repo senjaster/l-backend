@@ -130,3 +130,21 @@ async def get_upload_url(image_id: UUID):
         presigned_url=presigned_url,
         presigned_url_expires_at=expires_at
     )
+
+
+@router.get("/{image_id}/exists", response_model=dict)
+async def check_image_exists(image_id: UUID):
+    """
+    Check if an image file exists in S3 storage.
+    
+    This endpoint issues a HEAD request to S3 to verify if the image file
+    exists without downloading the actual file content.
+    
+    Args:
+        image_id: UUID of the image to check
+        
+    Returns:
+        Dictionary with 'exists' boolean field
+    """
+    exists = s3_service.check_exists(image_id)
+    return {"exists": exists}

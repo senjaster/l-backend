@@ -99,6 +99,40 @@ class S3Service:
         """
         return self.generate_presigned_url(image_id, operation="put_object")
 
+    def check_exists(self, image_id: UUID) -> bool:
+        """
+        Check if an image exists in S3 using HEAD request.
+
+        Args:
+            image_id: UUID of the image (used as S3 object key)
+
+        Returns:
+            True if the object exists, False otherwise
+        """
+        try:
+            # Use image_id as the S3 object key
+            object_key = f"{image_id}.jpg"
+
+            # Issue HEAD request to check existence
+            self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            return True
+
+        except ClientError as e:
+            # If a 404 error is returned, the object does not exist
+            error_code = e.response.get('Error', {}).get('Code', '')
+            if error_code == '404':
+                return False
+            # For other errors, log and return False
+            logger.error(
+                f"Error checking existence for image {image_id}: {str(e)}"
+            )
+            return False
+        except Exception as e:
+            logger.error(
+                f"Unexpected error checking existence for image {image_id}: {str(e)}"
+            )
+            return False
+
 
 # Singleton instance
 s3_service = S3Service()
