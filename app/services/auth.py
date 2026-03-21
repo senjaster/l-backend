@@ -64,16 +64,19 @@ class AuthService:
         """Hash a refresh token using SHA-256"""
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def create_access_token(self, inspector_id: int, device_id: str) -> str:
+    def create_access_token(self, inspector_id: int, device_id: UUID | str) -> str:
         """Create a JWT access token"""
         self._load_keys()
 
         now = datetime.now(timezone.utc)
         exp = now + timedelta(minutes=settings.access_token_lifetime_min)
 
+        # Ensure device_id is a string
+        device_id_str = str(device_id) if isinstance(device_id, UUID) else device_id
+
         payload = TokenPayload(
             sub=inspector_id,
-            dev=device_id,
+            dev=device_id_str,
             exp=int(exp.timestamp()),
             iat=int(now.timestamp()),
             iss=settings.jwt_issuer,

@@ -22,7 +22,7 @@ settings.require_auth = False
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def seed_test_data():
-    """Seed test data once per test session using Flyway migrations."""
+    """Seed test data once per test session using Flyway migrations and test data script."""
     # Verify Flyway credentials are set in environment variables
     # These should be set to a user with schema management permissions
     if not all([os.getenv('FLYWAY_URL'), os.getenv('FLYWAY_USER'), os.getenv('FLYWAY_PASSWORD')]):
@@ -45,6 +45,24 @@ async def seed_test_data():
     except subprocess.CalledProcessError as e:
         print(f"Flyway migration failed: {e.stderr}")
         raise
+    
+    # Load test-specific data (test inspectors)
+    # This is separate from migrations as it's test-only data
+    test_data_script = Path(__file__).parent.parent / "scripts" / "init_test_data.sql"
+    if test_data_script.exists():
+        conn = await asyncpg.connect(settings.get_database_url())
+        try:
+            with open(test_data_script, 'r') as f:
+                sql = f.read()
+            await conn.execute(sql)
+            print("Test data loaded successfully")
+        except Exception as e:
+            print(f"Failed to load test data: {e}")
+            raise
+        finally:
+            await conn.close()
+    else:
+        print(f"Warning: Test data script not found at {test_data_script}")
 
     yield
 

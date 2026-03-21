@@ -247,8 +247,11 @@ def test_defect_update_with_stale_timestamp_when_enabled(
     response = client.put("/defect", json=defect_data)
     assert response.status_code == 409  # Conflict
     error_data = response.json()
-    assert "server_modified_at" in error_data
-    assert error_data["message"] == "Defect was modified by another client"
+    # Error data is nested under 'detail' key
+    assert "detail" in error_data
+    detail = error_data["detail"]
+    assert "server_modified_at" in detail
+    assert detail["message"] == "Defect was modified by another client"
 
 
 def test_force_parameter_still_works_when_locking_enabled(

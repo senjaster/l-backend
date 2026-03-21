@@ -190,12 +190,10 @@ def test_reclaim_stale_plant_by_different_user(client: TestClient, plant_data, p
         f"/plant/by_id/{plant_id}/claim",
         headers={"Authorization": f"Bearer {access_token_2}"},
     )
-    assert response.status_code == 204
+    assert response.status_code == 200
 
-    # Verify the claim was updated
-    get_response = client.get(f"/plant/by_id/{plant_id}")
-    assert get_response.status_code == 200
-    data = get_response.json()
+    # Verify the claim was updated in response
+    data = response.json()
     assert data["claimed_by_device_id"] == str(device_id_2)
     assert data["claimed_by_user_id"] == user_id_2
     assert data["is_stale"] is False
@@ -263,12 +261,10 @@ def test_same_user_can_reclaim_own_plant(client: TestClient, plant_data, plant_i
         f"/plant/by_id/{plant_id}/claim",
         headers={"Authorization": f"Bearer {access_token_2}"},
     )
-    assert response.status_code == 204
+    assert response.status_code == 200
 
-    # Verify the device was updated
-    get_response = client.get(f"/plant/by_id/{plant_id}")
-    assert get_response.status_code == 200
-    data = get_response.json()
+    # Verify the device was updated in response
+    data = response.json()
     assert data["claimed_by_device_id"] == str(device_id_2)
     assert data["claimed_by_user_id"] == user_id
 
@@ -365,11 +361,10 @@ def test_can_modify_after_reclaiming_stale_plant(
         f"/plant/by_id/{plant_id}/claim",
         headers={"Authorization": f"Bearer {access_token_2}"},
     )
-    assert claim_response.status_code == 204
+    assert claim_response.status_code == 200
 
-    # Now user 2 can modify it
-    get_response = client.get(f"/plant/by_id/{plant_id}")
-    server_modified_at = get_response.json()["server_modified_at"]
+    # Now user 2 can modify it - get server_modified_at from claim response
+    server_modified_at = claim_response.json()["server_modified_at"]
 
     plant_data["server_modified_at"] = server_modified_at
     plant_data["name"] = "Updated Name"
@@ -558,12 +553,10 @@ def test_release_plant_clears_claim(client: TestClient, plant_data, plant_id):
 
     # Release plant
     response = client.post(f"/plant/by_id/{plant_id}/release")
-    assert response.status_code == 204
+    assert response.status_code == 200
 
-    # Verify claim is cleared
-    get_response = client.get(f"/plant/by_id/{plant_id}")
-    assert get_response.status_code == 200
-    data = get_response.json()
+    # Verify claim is cleared in response
+    data = response.json()
     assert data["claimed_by_device_id"] is None
     assert data["claimed_by_user_id"] is None
     assert data["claimed_at"] is None
@@ -593,12 +586,10 @@ def test_claim_updates_server_modified_at(client: TestClient, plant_data, plant_
         f"/plant/by_id/{plant_id}/claim",
         headers={"Authorization": f"Bearer {access_token}"},
     )
-    assert claim_response.status_code == 204
+    assert claim_response.status_code == 200
 
-    # Get plant and verify server_modified_at was updated
-    get_response = client.get(f"/plant/by_id/{plant_id}")
-    assert get_response.status_code == 200
-    data = get_response.json()
+    # Verify server_modified_at was updated in response
+    data = claim_response.json()
     
     # server_modified_at should be updated (newer than initial)
     assert data["server_modified_at"] != initial_modified_at
@@ -632,12 +623,10 @@ def test_release_updates_server_modified_at(client: TestClient, plant_data, plan
 
     # Release plant
     release_response = client.post(f"/plant/by_id/{plant_id}/release")
-    assert release_response.status_code == 204
+    assert release_response.status_code == 200
 
-    # Get plant and verify server_modified_at was updated
-    get_response = client.get(f"/plant/by_id/{plant_id}")
-    assert get_response.status_code == 200
-    data = get_response.json()
+    # Verify server_modified_at was updated in response
+    data = release_response.json()
     
     # server_modified_at should be updated (newer than when claimed)
     assert data["server_modified_at"] != claimed_modified_at
