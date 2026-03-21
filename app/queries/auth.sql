@@ -62,12 +62,12 @@ SET revoked = TRUE
 WHERE id IN (SELECT id FROM forward_chain);
 
 -- name: get_inspector_by_username(username)^
-SELECT id, full_name, username, password_hash, server_modified_at
+SELECT id, full_name, username, password_hash, access_level, server_modified_at
 FROM lesiv.inspector
 WHERE username = :username;
 
 -- name: get_inspector_by_id(id)^
-SELECT id, full_name, username, password_hash, server_modified_at
+SELECT id, full_name, username, password_hash, access_level, server_modified_at
 FROM lesiv.inspector
 WHERE id = :id;
 

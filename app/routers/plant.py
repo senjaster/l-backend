@@ -11,7 +11,10 @@ from app.repositories.plant import PlantRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.ownership import get_ownership_validator
 from app.dependencies.auth import get_token_payload
+from app.dependencies.permissions import get_permission_service
 from app.services.ownership_validator import OwnershipValidator
+from app.services.permission_service import PermissionService
+from app.models.inspector import AccessLevel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plant", tags=["plant"])
@@ -25,14 +28,30 @@ async def get_all_plants(
         description="Only return plants modified after this timestamp",
     ),
     conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
 ):
-    """Get all plant IDs (lightweight list), optionally filtered by modification date"""
-    return await plant_repo.get_all(conn, modified_since=modified_since)
+    """Get all plant IDs (lightweight list), optionally filtered by modification date and accessible to current user"""
+    all_plants = await plant_repo.get_all(conn, modified_since=modified_since)
+    
+    # Filter to only plants accessible to current user
+    accessible_ids = await permission_service.filter_accessible_plants(
+        [p.id for p in all_plants.items]
+    )
+    accessible_plants = [p for p in all_plants.items if p.id in accessible_ids]
+    
+    return PlantListResponse(items=accessible_plants)
 
 
 @router.get("/by_id/{plant_id}", response_model=Plant)
-async def get_plant_by_id(plant_id: UUID, conn=Depends(get_db_connection)):
+async def get_plant_by_id(
+    plant_id: UUID,
+    conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
+):
     """Get specific plant with facilities and equipment IDs"""
+    # Check plant access
+    await permission_service.require_plant_access(plant_id)
+    
     plant = await plant_repo.get_by_id(conn, plant_id)
     if not plant:
         raise HTTPException(status_code=404, detail="Plant not found")
@@ -47,6 +66,7 @@ async def upsert_plant(
         description="If true, ignore server_modified_at and mark extra children as deleted",
     ),
     conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
     ownership_validator: OwnershipValidator = Depends(get_ownership_validator),
 ):
     """
@@ -62,9 +82,16 @@ async def upsert_plant(
       - Marks extra child facilities as deleted
     - Never allows "stealing" facilities from other plants
     - Pessimistic lock: Only the user who claimed the plant can modify it
+    - Permission: User must have access to the plant
     """
     try:
         async with conn.transaction():
+            # Check access level (MODIFY required)
+            permission_service.require_access_level(AccessLevel.MODIFY)
+            
+            # Check plant access
+            await permission_service.require_plant_access(plant.id)
+            
             # Validate ownership before saving
             await ownership_validator.validate_plant_ownership(plant)
             result = await plant_repo.save(conn, plant, force=force)
@@ -92,6 +119,7 @@ async def claim_plant(
     plant_id: UUID,
     token_payload: TokenPayload = Depends(get_token_payload),
     conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
 ):
     """
     Claim plant for editing (user_id and device_id extracted from auth token).
@@ -103,7 +131,14 @@ async def claim_plant(
     
     Returns 409 if plant is claimed by another user and claim is not stale.
     Returns the updated plant state with claim information.
+    Permission: User must have access to the plant.
     """
+    # Check access level (MODIFY required)
+    permission_service.require_access_level(AccessLevel.MODIFY)
+    
+    # Check plant access
+    await permission_service.require_plant_access(plant_id)
+    
     async with conn.transaction():
         success = await plant_repo.claim(
             conn,
@@ -142,12 +177,23 @@ async def claim_plant(
 
 
 @router.post("/by_id/{plant_id}/release", response_model=Plant)
-async def release_plant(plant_id: UUID, conn=Depends(get_db_connection)):
+async def release_plant(
+    plant_id: UUID,
+    conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
+):
     """
     Release plant claim.
     
     Returns the updated plant state with cleared claim information.
+    Permission: User must have access to the plant.
     """
+    # Check access level (MODIFY required)
+    permission_service.require_access_level(AccessLevel.MODIFY)
+    
+    # Check plant access
+    await permission_service.require_plant_access(plant_id)
+    
     async with conn.transaction():
         success = await plant_repo.release(conn, plant_id)
     

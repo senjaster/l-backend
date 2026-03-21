@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
+from uuid import UUID
 
 # Load test-specific environment variables from .env.test
 test_env_file = Path(__file__).parent.parent / ".env.test"
@@ -93,6 +94,16 @@ async def seed_test_plant_and_facility(request):
             """,
                 plant_id,
             )
+            
+            # Grant plant access to test inspector (-1)
+            await conn.execute(
+                """
+                INSERT INTO lesiv.inspector_plant_access (inspector_id, plant_id)
+                VALUES (-1, $1)
+                ON CONFLICT (inspector_id, plant_id) DO NOTHING
+                """,
+                plant_id,
+            )
 
             # Insert test facility if not exists (only if facility_id is provided)
             if facility_id:
@@ -134,6 +145,16 @@ async def seed_test_equipment(request):
                 VALUES ($1, 'Test Plant', CURRENT_TIMESTAMP)
                 ON CONFLICT (id) DO NOTHING
             """,
+                plant_id,
+            )
+            
+            # Grant plant access to test inspector (-1)
+            await conn.execute(
+                """
+                INSERT INTO lesiv.inspector_plant_access (inspector_id, plant_id)
+                VALUES (-1, $1)
+                ON CONFLICT (inspector_id, plant_id) DO NOTHING
+                """,
                 plant_id,
             )
 

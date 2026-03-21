@@ -10,7 +10,10 @@ from app.repositories.inspection import InspectionRepository
 from app.exceptions import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.ownership import get_ownership_validator
+from app.dependencies.permissions import get_permission_service
 from app.services.ownership_validator import OwnershipValidator
+from app.services.permission_service import PermissionService
+from app.models.inspector import AccessLevel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/inspection", tags=["inspection"])
@@ -24,14 +27,34 @@ async def get_all_inspections(
         description="Only return inspections modified after this timestamp",
     ),
     conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
 ):
-    """Get all inspection IDs (lightweight list), optionally filtered by modification date"""
-    return await inspection_repo.get_all(conn, modified_since=modified_since)
+    """Get all inspection IDs (lightweight list), optionally filtered by modification date and accessible plants"""
+    all_inspections = await inspection_repo.get_all(conn, modified_since=modified_since)
+    
+    # Filter to only inspections from accessible plants
+    accessible_inspections = []
+    for insp in all_inspections.items:
+        plant_id = await permission_service.get_plant_id_from_inspection(insp.id)
+        if plant_id and await permission_service.check_plant_access(plant_id):
+            accessible_inspections.append(insp)
+    
+    return InspectionListResponse(items=accessible_inspections)
 
 
 @router.get("/by_id/{inspection_id}", response_model=Inspection)
-async def get_inspection_by_id(inspection_id: UUID, conn=Depends(get_db_connection)):
+async def get_inspection_by_id(
+    inspection_id: UUID,
+    conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
+):
     """Get specific inspection with steps and image links"""
+    # Check plant access via inspection
+    plant_id = await permission_service.get_plant_id_from_inspection(inspection_id)
+    if not plant_id:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+    await permission_service.require_plant_access(plant_id)
+    
     inspection = await inspection_repo.get_by_id(conn, inspection_id)
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
@@ -46,8 +69,12 @@ async def get_inspections_by_plant_id(
         description="Only return inspections modified after this timestamp",
     ),
     conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
 ):
     """Get all inspections for plant (full aggregates with steps and image links), optionally filtered by modification date"""
+    # Check plant access
+    await permission_service.require_plant_access(plant_id)
+    
     return await inspection_repo.get_by_plant_id(
         conn, plant_id, modified_since=modified_since
     )
@@ -61,6 +88,7 @@ async def upsert_inspection(
         description="If true, ignore server_modified_at and mark extra children as deleted",
     ),
     conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
     ownership_validator: OwnershipValidator = Depends(get_ownership_validator),
 ):
     """
@@ -76,9 +104,18 @@ async def upsert_inspection(
       - Marks extra child entities as deleted
     - Never allows "stealing" child entities from other inspections
     - Pessimistic lock: Only the user who created the inspection can modify it
+    - Permission: User must have access to the plant
     """
     try:
         async with conn.transaction():
+            # Check access level (INSPECT required)
+            permission_service.require_access_level(AccessLevel.INSPECT)
+            
+            # Check plant access via inspection
+            plant_id = await permission_service.get_plant_id_from_inspection(inspection.id)
+            if plant_id:
+                await permission_service.require_plant_access(plant_id)
+            
             # Validate ownership before saving
             await ownership_validator.validate_inspection_ownership(inspection)
             result = await inspection_repo.save(conn, inspection, force=force)
