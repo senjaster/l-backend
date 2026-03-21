@@ -3,9 +3,18 @@
 import pytest
 import pytest_asyncio
 import asyncpg
+import subprocess
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
+
+# Load test-specific environment variables from .env.test
+test_env_file = Path(__file__).parent.parent / ".env.test"
+if test_env_file.exists():
+    load_dotenv(test_env_file, override=True)
 
 # Disable authentication for all tests
 settings.require_auth = False
@@ -13,16 +22,29 @@ settings.require_auth = False
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def seed_test_data():
-    """Seed test data once per test session using direct database connection."""
-    # Create a direct connection to seed data (independent of app pool)
-    conn = await asyncpg.connect(settings.get_database_url())
+    """Seed test data once per test session using Flyway migrations."""
+    # Verify Flyway credentials are set in environment variables
+    # These should be set to a user with schema management permissions
+    if not all([os.getenv('FLYWAY_URL'), os.getenv('FLYWAY_USER'), os.getenv('FLYWAY_PASSWORD')]):
+        raise ValueError(
+            "Flyway credentials not found in environment variables. "
+            "Please set FLYWAY_URL, FLYWAY_USER, and FLYWAY_PASSWORD in .env.test file"
+        )
+    
+    # Run Flyway migrate from the db directory
+    # Flyway will read credentials from environment variables
     try:
-        # Run init_db.sql to set up the complete data structure
-        with open("scripts/init_db.sql", "r") as f:
-            init_sql = f.read()
-        await conn.execute(init_sql)
-    finally:
-        await conn.close()
+        result = subprocess.run(
+            ['flyway', 'migrate'],
+            cwd='db',
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        print(f"Flyway migration output: {result.stdout}")
+    except subprocess.CalledProcessError as e:
+        print(f"Flyway migration failed: {e.stderr}")
+        raise
 
     yield
 

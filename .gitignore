@@ -60,3 +60,4 @@ htmlcov/
 *.bak
 
 backend.zip
+.env.test

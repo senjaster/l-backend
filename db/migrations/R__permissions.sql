@@ -2,6 +2,16 @@
 -- Grants minimal required permissions to l_app_user for the lesiv schema
 -- Based on queries in app/queries folder
 
+-- Create l_app_user if it doesn't exist (regular application user)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'l_app_user') THEN
+        CREATE ROLE l_app_user WITH LOGIN;
+        RAISE NOTICE 'Created role l_app_user';
+    END IF;
+END
+$$;
+
 -- Grant usage on schema
 GRANT USAGE ON SCHEMA lesiv TO l_app_user;
 
@@ -22,8 +32,11 @@ GRANT USAGE ON TYPE lesiv.step_status TO l_app_user;
 -- inspector: SELECT (auth queries), UPDATE (password change)
 GRANT SELECT, UPDATE ON lesiv.inspector TO l_app_user;
 
--- tokens: SELECT, INSERT, UPDATE (auth operations)
-GRANT SELECT, INSERT, UPDATE ON lesiv.tokens TO l_app_user;
+-- tokens: SELECT, INSERT, UPDATE, DELETE (auth operations and cleanup)
+GRANT SELECT, INSERT, UPDATE, DELETE ON lesiv.tokens TO l_app_user;
+
+-- Grant EXECUTE on stored procedures for inspector management
+GRANT EXECUTE ON FUNCTION lesiv.create_inspector(TEXT, TEXT, TEXT) TO l_app_user;
 
 -- ============================================================================
 -- StickerType Aggregate

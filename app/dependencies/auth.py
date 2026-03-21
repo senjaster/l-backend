@@ -127,8 +127,15 @@ async def get_token_payload(
     - "Bearer <token>" (with Bearer prefix)
     - "<token>" (without Bearer prefix)
 
+    When auth is disabled (require_auth=False):
+    - If a valid token is provided, returns the token payload
+    - If no token is provided, returns anonymous token payload (sub=-1, dev="anonymous")
+
+    When auth is enabled (require_auth=True):
+    - Requires a valid token, raises 401 if missing or invalid
+
     Raises:
-        HTTPException: 401 if token is missing or invalid
+        HTTPException: 401 if token is missing or invalid (when auth is enabled)
     """
     # Try to get token from either Authorization header or X-Auth-Token header
     token = None
@@ -137,20 +144,41 @@ async def get_token_payload(
     else:
         token = extract_token_from_x_auth_header(x_auth_token)
     
-    if not token:
+    # If token is provided, always try to validate it
+    if token:
+        payload = auth_service.verify_access_token(token)
+
+        if payload is None:
+            # Token is invalid
+            if settings.require_auth:
+                # Auth is enabled, reject invalid token
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            else:
+                # Auth is disabled, fall through to return anonymous payload
+                pass
+        else:
+            # Token is valid, return the payload
+            return payload
+    
+    # No token provided or invalid token with auth disabled
+    if settings.require_auth:
+        # Auth is enabled, token is required
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = auth_service.verify_access_token(token)
-
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return payload
+    # Auth is disabled, return anonymous token payload
+    return TokenPayload(
+        sub=-1,
+        dev="anonymous",
+        iat=int(datetime.now(timezone.utc).timestamp()),
+        exp=int(datetime.now(timezone.utc).timestamp()) + 3600,
+        iss=settings.jwt_issuer,
+        aud=settings.jwt_audience,
+    )
