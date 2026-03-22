@@ -92,9 +92,11 @@ class PermissionService:
         if self.current_user.id == -1:
             return set()  # Empty set means "all plants" for anonymous user
 
-        rows = await queries.get_accessible_plants(
+        rows = []
+        async for row in queries.get_accessible_plants(
             self.conn, inspector_id=self.current_user.id
-        )
+        ):
+            rows.append(row)
         return {row["plant_id"] for row in rows}
 
     async def filter_accessible_plants(self, plant_ids: list[UUID]) -> list[UUID]:
@@ -213,3 +215,25 @@ class PermissionService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access level {required_level.value} required. Your level: {self.current_user.access_level.value}",
             )
+
+    async def grant_plant_access(self, plant_id: UUID) -> None:
+        """
+        Grant the current user access to a plant.
+        This is typically called when a user creates a new plant.
+
+        Args:
+            plant_id: UUID of the plant to grant access to
+
+        Note:
+            Does nothing for anonymous users (id=-1)
+        """
+        # Skip for anonymous user
+        if self.current_user.id == -1:
+            return
+
+        await queries.grant_plant_access(
+            self.conn, inspector_id=self.current_user.id, plant_id=plant_id
+        )
+        logger.info(
+            f"Granted plant access: inspector {self.current_user.id} -> plant {plant_id}"
+        )

@@ -41,7 +41,7 @@ def test_is_stale_field_in_response(client: TestClient, plant_data, plant_id):
     auth_service = AuthService()
     device_id = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id)
+    access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
 
     client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -66,7 +66,7 @@ def test_is_stale_field_in_list_response(client: TestClient, plant_data, plant_i
     auth_service = AuthService()
     device_id = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id)
+    access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
 
     client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -95,7 +95,7 @@ def test_fresh_claim_is_not_stale(client: TestClient, plant_data, plant_id):
     auth_service = AuthService()
     device_id = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id)
+    access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
 
     client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -128,7 +128,7 @@ def test_claim_from_yesterday_is_stale(client: TestClient, plant_data, plant_id)
         auth_service = AuthService()
         device_id = uuid4()
         user_id = 1
-        access_token = auth_service.create_access_token(user_id, device_id)
+        access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
         
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -173,7 +173,7 @@ def test_reclaim_stale_plant_by_different_user(client: TestClient, plant_data, p
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1)
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
         
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -184,7 +184,7 @@ def test_reclaim_stale_plant_by_different_user(client: TestClient, plant_data, p
     auth_service = AuthService()
     device_id_2 = uuid4()
     user_id_2 = 2
-    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2)
+    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2, "MODIFY")
 
     response = client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -212,7 +212,7 @@ def test_cannot_reclaim_fresh_plant_by_different_user(
     auth_service = AuthService()
     device_id_1 = uuid4()
     user_id_1 = 1
-    access_token_1 = auth_service.create_access_token(user_id_1, device_id_1)
+    access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
 
     client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -222,7 +222,7 @@ def test_cannot_reclaim_fresh_plant_by_different_user(
     # User 2 tries to claim it (should fail - claim is fresh)
     device_id_2 = uuid4()
     user_id_2 = 2
-    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2)
+    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2, "MODIFY")
 
     response = client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -246,7 +246,7 @@ def test_same_user_can_reclaim_own_plant(client: TestClient, plant_data, plant_i
     auth_service = AuthService()
     device_id_1 = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id_1)
+    access_token = auth_service.create_access_token(user_id, device_id_1, "MODIFY")
 
     client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -255,7 +255,7 @@ def test_same_user_can_reclaim_own_plant(client: TestClient, plant_data, plant_i
 
     # Same user claims it again with different device
     device_id_2 = uuid4()
-    access_token_2 = auth_service.create_access_token(user_id, device_id_2)
+    access_token_2 = auth_service.create_access_token(user_id, device_id_2, "MODIFY")
 
     response = client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -269,7 +269,7 @@ def test_same_user_can_reclaim_own_plant(client: TestClient, plant_data, plant_i
     assert data["claimed_by_user_id"] == user_id
 
 
-def test_can_modify_plant_with_stale_claim(client: TestClient, plant_data, plant_id):
+async def test_can_modify_plant_with_stale_claim(client: TestClient, plant_data, plant_id, grant_plant_access):
     """Test that modifying a plant with a stale claim requires re-claiming"""
     from app.services.auth import AuthService
     from datetime import datetime, timezone, timedelta
@@ -289,7 +289,7 @@ def test_can_modify_plant_with_stale_claim(client: TestClient, plant_data, plant
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1)
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
         
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -300,11 +300,14 @@ def test_can_modify_plant_with_stale_claim(client: TestClient, plant_data, plant
     get_response = client.get(f"/plant/by_id/{plant_id}")
     server_modified_at = get_response.json()["server_modified_at"]
 
+    # Grant access to user 2 so they can attempt to modify the plant
+    user_id_2 = 2
+    await grant_plant_access(plant_id, user_id_2)
+
     # Different user tries to modify without claiming
     auth_service = AuthService()
     device_id_2 = uuid4()
-    user_id_2 = 2
-    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2)
+    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2, "MODIFY")
 
     plant_data["server_modified_at"] = server_modified_at
     plant_data["name"] = "Updated Name"
@@ -344,7 +347,7 @@ def test_can_modify_after_reclaiming_stale_plant(
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1)
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
         
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -355,7 +358,7 @@ def test_can_modify_after_reclaiming_stale_plant(
     auth_service = AuthService()
     device_id_2 = uuid4()
     user_id_2 = 2
-    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2)
+    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2, "MODIFY")
 
     claim_response = client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -399,7 +402,7 @@ def test_stale_claim_persists_in_database(client: TestClient, plant_data, plant_
         
         auth_service = AuthService()
         user_id = 1
-        access_token = auth_service.create_access_token(user_id, device_id)
+        access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
         
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -420,8 +423,8 @@ def test_stale_claim_persists_in_database(client: TestClient, plant_data, plant_
     assert data["is_stale"] is True
 
 
-def test_equipment_modification_with_stale_plant_claim(
-    client: TestClient, plant_data, plant_id
+async def test_equipment_modification_with_stale_plant_claim(
+    client: TestClient, plant_data, plant_id, grant_plant_access
 ):
     """Test that equipment cannot be modified if parent plant has stale claim"""
     from app.services.auth import AuthService
@@ -446,7 +449,7 @@ def test_equipment_modification_with_stale_plant_claim(
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1)
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
         
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -474,11 +477,14 @@ def test_equipment_modification_with_stale_plant_claim(
     assert create_response.status_code == 200
     server_modified_at = create_response.json()["server_modified_at"]
 
+    # Grant access to user 2 so they can attempt to modify equipment
+    user_id_2 = 2
+    await grant_plant_access(plant_id, user_id_2)
+
     # Different user tries to modify equipment
     auth_service = AuthService()
     device_id_2 = uuid4()
-    user_id_2 = 2
-    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2)
+    access_token_2 = auth_service.create_access_token(user_id_2, device_id_2, "MODIFY")
 
     equipment_data["server_modified_at"] = server_modified_at
     equipment_data["name"] = "Updated Motor"
@@ -520,7 +526,7 @@ def test_claim_expiration_at_3am_moscow_time(client: TestClient, plant_data, pla
         
         auth_service = AuthService()
         user_id = 1
-        access_token = auth_service.create_access_token(user_id, device_id)
+        access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
         
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -544,7 +550,7 @@ def test_release_plant_clears_claim(client: TestClient, plant_data, plant_id):
     auth_service = AuthService()
     device_id = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id)
+    access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
 
     client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -580,7 +586,7 @@ def test_claim_updates_server_modified_at(client: TestClient, plant_data, plant_
     auth_service = AuthService()
     device_id = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id)
+    access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
 
     claim_response = client.post(
         f"/plant/by_id/{plant_id}/claim",
@@ -607,7 +613,7 @@ def test_release_updates_server_modified_at(client: TestClient, plant_data, plan
     auth_service = AuthService()
     device_id = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id)
+    access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
 
     client.post(
         f"/plant/by_id/{plant_id}/claim",

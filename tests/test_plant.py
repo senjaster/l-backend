@@ -235,7 +235,7 @@ def test_claim_plant(client: TestClient, plant_data, plant_id):
     auth_service = AuthService()
     device_id = uuid4()
     user_id = 1
-    access_token = auth_service.create_access_token(user_id, device_id)
+    access_token = auth_service.create_access_token(user_id, device_id, "MODIFY")
 
     # Claim plant (no body needed, user_id and device_id extracted from token)
     response = client.post(

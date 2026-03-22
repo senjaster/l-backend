@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
-from uuid import UUID
 
 # Load test-specific environment variables from .env.test
 test_env_file = Path(__file__).parent.parent / ".env.test"
@@ -94,14 +93,16 @@ async def seed_test_plant_and_facility(request):
             """,
                 plant_id,
             )
-            
-            # Grant plant access to test inspector (-1)
+
+            # Grant access to test inspectors for this plant
             await conn.execute(
                 """
                 INSERT INTO lesiv.inspector_plant_access (inspector_id, plant_id)
-                VALUES (-1, $1)
+                SELECT id, $1
+                FROM lesiv.inspector
+                WHERE id IN (1, 2, 3)
                 ON CONFLICT (inspector_id, plant_id) DO NOTHING
-                """,
+            """,
                 plant_id,
             )
 
@@ -147,14 +148,16 @@ async def seed_test_equipment(request):
             """,
                 plant_id,
             )
-            
-            # Grant plant access to test inspector (-1)
+
+            # Grant access to test inspectors for this plant
             await conn.execute(
                 """
                 INSERT INTO lesiv.inspector_plant_access (inspector_id, plant_id)
-                VALUES (-1, $1)
+                SELECT id, $1
+                FROM lesiv.inspector
+                WHERE id IN (1, 2, 3)
                 ON CONFLICT (inspector_id, plant_id) DO NOTHING
-                """,
+            """,
                 plant_id,
             )
 
@@ -183,6 +186,28 @@ async def seed_test_equipment(request):
             await conn.close()
 
     yield
+
+
+@pytest_asyncio.fixture(scope="function")
+async def grant_plant_access():
+    """Helper fixture to grant plant access to inspectors during tests."""
+    async def _grant_access(plant_id, inspector_id):
+        """Grant access to a plant for an inspector."""
+        conn = await asyncpg.connect(settings.get_database_url())
+        try:
+            await conn.execute(
+                """
+                INSERT INTO lesiv.inspector_plant_access (inspector_id, plant_id)
+                VALUES ($1, $2)
+                ON CONFLICT (inspector_id, plant_id) DO NOTHING
+                """,
+                inspector_id,
+                plant_id,
+            )
+        finally:
+            await conn.close()
+    
+    return _grant_access
 
 
 @pytest.fixture(scope="function")

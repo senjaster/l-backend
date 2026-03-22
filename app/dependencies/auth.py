@@ -86,11 +86,12 @@ async def get_current_user(
                 # Auth is disabled, fall through to return anonymous user
                 pass
         else:
-            # Token is valid, return the authenticated user
+            # Token is valid, return the authenticated user with access_level from database
             return Inspector(
                 id=inspector_with_password.id,
                 username=inspector_with_password.username,
                 full_name=inspector_with_password.full_name,
+                access_level=inspector_with_password.access_level,  # Use access_level from database
                 is_deleted=False,  # Default value since it's not in the auth query
                 server_modified_at=inspector_with_password.server_modified_at,
             )
@@ -177,6 +178,7 @@ async def get_token_payload(
     return TokenPayload(
         sub=-1,
         dev="anonymous",
+        scope="MODIFY",
         iat=int(datetime.now(timezone.utc).timestamp()),
         exp=int(datetime.now(timezone.utc).timestamp()) + 3600,
         iss=settings.jwt_issuer,

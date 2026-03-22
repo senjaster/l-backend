@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AccessLevel(str, Enum):
@@ -25,7 +25,8 @@ class Inspector(BaseModel):
     id: int
     full_name: str
     username: str
-    access_level: AccessLevel = AccessLevel.READ
+    # Internal only - excluded from API responses to prevent disclosure
+    access_level: AccessLevel = Field(default=AccessLevel.READ, exclude=True)
     is_deleted: bool = False
     server_modified_at: datetime
 

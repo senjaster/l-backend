@@ -64,8 +64,8 @@ class AuthService:
         """Hash a refresh token using SHA-256"""
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def create_access_token(self, inspector_id: int, device_id: UUID | str) -> str:
-        """Create a JWT access token"""
+    def create_access_token(self, inspector_id: int, device_id: UUID | str, access_level: str) -> str:
+        """Create a JWT access token with access level as scope"""
         self._load_keys()
 
         now = datetime.now(timezone.utc)
@@ -77,6 +77,7 @@ class AuthService:
         payload = TokenPayload(
             sub=inspector_id,
             dev=device_id_str,
+            scope=access_level,
             exp=int(exp.timestamp()),
             iat=int(now.timestamp()),
             iss=settings.jwt_issuer,
@@ -130,8 +131,8 @@ class AuthService:
         if not self.verify_password(password, inspector.password_hash):
             return None
 
-        # Generate tokens
-        access_token = self.create_access_token(inspector.id, device_id)
+        # Generate tokens with access level as scope
+        access_token = self.create_access_token(inspector.id, device_id, inspector.access_level.value)
         refresh_token_string = self.generate_refresh_token()
 
         # Store refresh token in database
@@ -177,13 +178,18 @@ class AuthService:
             await self.repository.revoke_token_chain(conn, token.id)
             return None
 
+        # Get inspector to retrieve current access level
+        inspector = await self.repository.get_inspector_by_id(conn, token.inspector_id)
+        if not inspector:
+            return None
+
         # Check if token was recently used (within reuse window)
         if token.used_at:
             reuse_window = timedelta(minutes=settings.reuse_lifetime_min)
             if datetime.now(timezone.utc) - token.used_at < reuse_window:
                 # Within reuse window - allow it but don't rotate
                 access_token = self.create_access_token(
-                    token.inspector_id, token.device_id
+                    token.inspector_id, token.device_id, inspector.access_level.value
                 )
                 return TokenResponse(
                     access_token=access_token, refresh_token=refresh_token_string
@@ -193,7 +199,7 @@ class AuthService:
         await self.repository.mark_token_used(conn, token.id)
 
         # Generate new tokens (rotation)
-        new_access_token = self.create_access_token(token.inspector_id, token.device_id)
+        new_access_token = self.create_access_token(token.inspector_id, token.device_id, inspector.access_level.value)
         new_refresh_token_string = self.generate_refresh_token()
 
         # Create new refresh token in database
@@ -275,8 +281,8 @@ class AuthService:
         # Revoke all existing tokens for this inspector
         await self.repository.revoke_all_tokens_for_inspector(conn, inspector_id)
 
-        # Generate new token pair
-        access_token = self.create_access_token(inspector_id, device_id)
+        # Generate new token pair with access level
+        access_token = self.create_access_token(inspector_id, device_id, inspector.access_level.value)
         refresh_token_string = self.generate_refresh_token()
 
         # Store new refresh token in database

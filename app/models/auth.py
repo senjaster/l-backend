@@ -3,6 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field
+from app.models.inspector import AccessLevel
 
 
 class Token(BaseModel):
@@ -46,6 +47,7 @@ class TokenPayload(BaseModel):
 
     sub: int  # inspector_id
     dev: str  # device id
+    scope: str  # access level (READ, INSPECT, MODIFY)
     exp: int  # expiration time
     iat: int  # issued at time
     iss: str  # issuer
@@ -59,6 +61,7 @@ class InspectorWithPassword(BaseModel):
     full_name: str
     username: str
     password_hash: str
+    access_level: AccessLevel = AccessLevel.READ
     server_modified_at: datetime
 
 

@@ -403,7 +403,7 @@ def test_token_validation_with_auth_service(test_inspector):
     device_id = uuid4()
 
     # Create a token
-    access_token = auth_service.create_access_token(test_inspector["id"], device_id)
+    access_token = auth_service.create_access_token(test_inspector["id"], device_id, "MODIFY")
 
     # Verify the token
     payload = auth_service.verify_access_token(access_token)

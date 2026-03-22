@@ -89,12 +89,23 @@ async def upsert_plant(
             # Check access level (MODIFY required)
             permission_service.require_access_level(AccessLevel.MODIFY)
             
-            # Check plant access
-            await permission_service.require_plant_access(plant.id)
+            # Check if plant exists
+            existing_plant = await plant_repo.get_by_id(conn, plant.id)
+            is_new_plant = existing_plant is None
+            
+            # For existing plants, check plant access
+            # For new plants, we'll grant access after creation
+            if not is_new_plant:
+                await permission_service.require_plant_access(plant.id)
             
             # Validate ownership before saving
             await ownership_validator.validate_plant_ownership(plant)
             result = await plant_repo.save(conn, plant, force=force)
+            
+            # Grant access to creator for new plants
+            if is_new_plant:
+                await permission_service.grant_plant_access(plant.id)
+        
         return result
     except ConcurrentModificationError as e:
         logger.warning(
@@ -136,10 +147,15 @@ async def claim_plant(
     # Check access level (MODIFY required)
     permission_service.require_access_level(AccessLevel.MODIFY)
     
-    # Check plant access
-    await permission_service.require_plant_access(plant_id)
+    # Check if user has plant access, if not grant it
+    # Claiming a plant should grant access to the claimer
+    has_access = await permission_service.check_plant_access(plant_id)
     
     async with conn.transaction():
+        # Grant access if user doesn't have it yet
+        if not has_access:
+            await permission_service.grant_plant_access(plant_id)
+        
         success = await plant_repo.claim(
             conn,
             plant_id,
@@ -191,10 +207,15 @@ async def release_plant(
     # Check access level (MODIFY required)
     permission_service.require_access_level(AccessLevel.MODIFY)
     
-    # Check plant access
-    await permission_service.require_plant_access(plant_id)
+    # Check if user has plant access, if not grant it
+    # Releasing a plant should grant access to the releaser
+    has_access = await permission_service.check_plant_access(plant_id)
     
     async with conn.transaction():
+        # Grant access if user doesn't have it yet
+        if not has_access:
+            await permission_service.grant_plant_access(plant_id)
+        
         success = await plant_repo.release(conn, plant_id)
     
     if not success:
