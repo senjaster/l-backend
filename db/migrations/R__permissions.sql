@@ -26,6 +26,13 @@ GRANT USAGE ON TYPE lesiv.image_type TO l_app_user;
 GRANT USAGE ON TYPE lesiv.step_status TO l_app_user;
 
 -- ============================================================================
+-- Plant permissions
+-- ============================================================================
+
+-- inspector_plant_access: SELECT
+GRANT SELECT ON lesiv.inspector_plant_access TO l_app_user;
+
+-- ============================================================================
 -- Inspector Aggregate
 -- ============================================================================
 
@@ -34,9 +41,6 @@ GRANT SELECT, UPDATE ON lesiv.inspector TO l_app_user;
 
 -- tokens: SELECT, INSERT, UPDATE, DELETE (auth operations and cleanup)
 GRANT SELECT, INSERT, UPDATE, DELETE ON lesiv.tokens TO l_app_user;
-
--- Grant EXECUTE on stored procedures for inspector management
-GRANT EXECUTE ON FUNCTION lesiv.create_inspector(TEXT, TEXT, TEXT) TO l_app_user;
 
 -- ============================================================================
 -- StickerType Aggregate
