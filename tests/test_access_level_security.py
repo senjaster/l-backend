@@ -2,16 +2,11 @@
 
 import jwt
 from uuid import uuid4
-from fastapi.testclient import TestClient
-from app.main import app
 from app.services.auth import AuthService
 from app.config import settings
 
-client = TestClient(app)
-auth_service = AuthService()
 
-
-def test_inspector_api_does_not_expose_access_level():
+def test_inspector_api_does_not_expose_access_level(client):
     """Verify that /inspector/all endpoint does not expose access_level field"""
     response = client.get("/inspector/all")
     assert response.status_code == 200
@@ -33,6 +28,8 @@ def test_inspector_api_does_not_expose_access_level():
 
 def test_jwt_token_contains_scope():
     """Verify that JWT access token contains scope field with access level"""
+    auth_service = AuthService()
+    
     # Create a token with MODIFY access level
     device_id = str(uuid4())
     access_token = auth_service.create_access_token(
@@ -66,6 +63,7 @@ def test_jwt_token_contains_scope():
 
 def test_jwt_token_scope_variations():
     """Verify JWT tokens can be created with different access levels"""
+    auth_service = AuthService()
     device_id = str(uuid4())
     
     for access_level in ["READ", "INSPECT", "MODIFY"]:

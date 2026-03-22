@@ -34,6 +34,7 @@ async def test_inspector(test_inspector_data):
     password_hash = auth_service.hash_password(test_inspector_data["password"])
 
     # Insert test inspector directly into database
+    # Use a fresh connection to avoid pool closure issues
     conn = await asyncpg.connect(settings.get_database_url())
     try:
         # Delete existing tokens and inspector to avoid conflicts
@@ -61,7 +62,17 @@ async def test_inspector(test_inspector_data):
     finally:
         await conn.close()
 
-    return {"id": inspector_id, **test_inspector_data}
+    yield {"id": inspector_id, **test_inspector_data}
+    
+    # Cleanup after test - use a fresh connection
+    conn = await asyncpg.connect(settings.get_database_url())
+    try:
+        await conn.execute(
+            "DELETE FROM lesiv.tokens WHERE inspector_id = $1", inspector_id
+        )
+        await conn.execute("DELETE FROM lesiv.inspector WHERE id = $1", inspector_id)
+    finally:
+        await conn.close()
 
 
 def test_login_success(client, test_inspector):
@@ -620,10 +631,8 @@ def test_change_password_revokes_all_tokens(client, test_inspector):
     assert new_refresh_response.status_code == 200
 
 
-def test_change_password_updates_database(client, test_inspector):
+async def test_change_password_updates_database(client, test_inspector):
     """Test that password change actually updates the password hash in database"""
-    import asyncpg
-    from app.config import settings
     from app.services.auth import AuthService
 
     device_id = str(uuid4())
@@ -641,9 +650,7 @@ def test_change_password_updates_database(client, test_inspector):
         finally:
             await conn.close()
 
-    import asyncio
-
-    original_hash = asyncio.run(get_password_hash())
+    original_hash = await get_password_hash()
 
     # Login and change password
     login_response = client.post(
@@ -670,7 +677,7 @@ def test_change_password_updates_database(client, test_inspector):
     assert change_response.status_code == 200
 
     # Get new password hash
-    new_hash = asyncio.run(get_password_hash())
+    new_hash = await get_password_hash()
 
     # Verify hash changed
     assert new_hash != original_hash
