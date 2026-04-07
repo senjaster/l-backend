@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     # Authentication settings
     require_auth: bool = True  # Set to False to disable authentication
+    trust_invalid_tokens: bool = False  # Set to True to accept expired or revoked tokens (for development/testing)
     access_token_lifetime_min: int = 15
     refresh_token_lifetime_days: int = 7
     reuse_lifetime_min: int = 1

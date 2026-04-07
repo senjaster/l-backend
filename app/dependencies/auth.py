@@ -74,7 +74,28 @@ async def get_current_user(
         inspector_with_password = await auth_service.get_current_inspector(conn, token)
 
         if inspector_with_password is None:
-            # Token is invalid
+            # Token is invalid - check if we should trust it anyway
+            if settings.trust_invalid_tokens:
+                # TRUST_INVALID_TOKENS is enabled, try to decode without validation
+                payload = auth_service.decode_token_without_validation(token)
+                if payload:
+                    # Get inspector from database using the token's sub claim
+                    from app.repositories.auth import AuthRepository
+                    auth_repo = AuthRepository()
+                    inspector_with_password = await auth_repo.get_inspector_by_id(conn, payload.sub)
+                    
+                    if inspector_with_password:
+                        # Return the user from database (trusting expired/revoked token)
+                        return Inspector(
+                            id=inspector_with_password.id,
+                            username=inspector_with_password.username,
+                            full_name=inspector_with_password.full_name,
+                            access_level=inspector_with_password.access_level,
+                            is_deleted=False,
+                            server_modified_at=inspector_with_password.server_modified_at,
+                        )
+            
+            # Token is invalid and we're not trusting invalid tokens
             if settings.require_auth:
                 # Auth is enabled, reject invalid token
                 raise HTTPException(
@@ -150,7 +171,15 @@ async def get_token_payload(
         payload = auth_service.verify_access_token(token)
 
         if payload is None:
-            # Token is invalid
+            # Token is invalid - check if we should trust it anyway
+            if settings.trust_invalid_tokens:
+                # TRUST_INVALID_TOKENS is enabled, try to decode without validation
+                payload = auth_service.decode_token_without_validation(token)
+                if payload:
+                    # Return the payload from the invalid token
+                    return payload
+            
+            # Token is invalid and we're not trusting invalid tokens
             if settings.require_auth:
                 # Auth is enabled, reject invalid token
                 raise HTTPException(

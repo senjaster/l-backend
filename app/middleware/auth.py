@@ -90,6 +90,27 @@ class AuthMiddleware(BaseHTTPMiddleware):
         try:
             async for conn in get_db_connection():
                 inspector = await self.auth_service.get_current_inspector(conn, token)
+                
+                # If token is invalid but TRUST_INVALID_TOKENS is enabled, try to decode without validation
+                if not inspector and settings.trust_invalid_tokens:
+                    payload = self.auth_service.decode_token_without_validation(token)
+                    if payload:
+                        # Get inspector from database using the token's sub claim
+                        from app.repositories.auth import AuthRepository
+                        auth_repo = AuthRepository()
+                        inspector_with_password = await auth_repo.get_inspector_by_id(conn, payload.sub)
+                        
+                        if inspector_with_password:
+                            # Use the inspector from database (trusting expired/revoked token)
+                            from app.models.inspector import Inspector
+                            inspector = Inspector(
+                                id=inspector_with_password.id,
+                                username=inspector_with_password.username,
+                                full_name=inspector_with_password.full_name,
+                                access_level=inspector_with_password.access_level,
+                                is_deleted=False,
+                                server_modified_at=inspector_with_password.server_modified_at,
+                            )
                 break
         except Exception as e:
             return JSONResponse(

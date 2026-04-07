@@ -115,6 +115,32 @@ class AuthService:
             )
             return None
 
+    def decode_token_without_validation(self, token: str) -> Optional[TokenPayload]:
+        """
+        Decode a JWT token without validation (for TRUST_INVALID_TOKENS mode).
+        This will accept expired or revoked tokens.
+        WARNING: Only use when TRUST_INVALID_TOKENS is enabled for development/testing.
+        """
+        self._load_keys()
+
+        try:
+            # Decode without verification - accepts expired tokens
+            payload = jwt.decode(
+                token,
+                self._public_key,
+                algorithms=["RS256"],
+                options={"verify_exp": False, "verify_aud": False, "verify_iss": False},
+            )
+            # Convert sub back to int, dev stays as string
+            payload["sub"] = int(payload["sub"])
+            return TokenPayload(**payload)
+        except jwt.InvalidTokenError as e:
+            logger.warning(
+                "Failed to decode JWT token even without validation",
+                extra={"error_type": type(e).__name__, "error": str(e)},
+            )
+            return None
+
     async def login(
         self, conn, username: str, password: str, device_id: str
     ) -> Optional[TokenResponse]:
