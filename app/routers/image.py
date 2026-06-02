@@ -1,12 +1,13 @@
 """Image router - implements API design principles"""
 
+import asyncio
 import logging
 
 from uuid import UUID
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image, PresignedUploadUrlResponse, ImageListResponse, ImageUploadStatus
@@ -14,7 +15,7 @@ from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
-from app.services.s3_service import s3_service
+from app.services.s3_service import AsyncS3Service, get_s3_service
 from app.models.inspector import AccessLevel
 from app.utils.images_routines import update_image_upload_status, fetch_images_background
 
@@ -42,6 +43,7 @@ async def get_image_by_id(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
+    s3_service: AsyncS3Service = Depends(get_s3_service)
 ) -> Image:
     """Get specific image by ID"""
     # Check plant access via image
@@ -55,7 +57,7 @@ async def get_image_by_id(
         raise HTTPException(status_code=404, detail="Image not found")
     
     # Generate presigned URL for the image
-    url_result = s3_service.generate_presigned_url(image.id)
+    url_result = await s3_service.generate_presigned_url(image.id)
     if url_result:
         image.presigned_url, image.presigned_url_expires_at = url_result
     
@@ -71,6 +73,7 @@ async def get_images_by_plant_id(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
+    s3_service: AsyncS3Service = Depends(get_s3_service)
 ) -> list[Image]:
     """Get all images for a plant, optionally filtered by modification date"""
     # Check plant access
@@ -82,7 +85,7 @@ async def get_images_by_plant_id(
     
     # Generate presigned URLs for all images
     for image in images:
-        url_result = s3_service.generate_presigned_url(image.id)
+        url_result = await s3_service.generate_presigned_url(image.id)
         if url_result:
             image.presigned_url, image.presigned_url_expires_at = url_result
     
@@ -97,6 +100,7 @@ async def get_images_by_file_name(
         description="Only return images modified after this timestamp",
     ),
     conn=Depends(get_db_connection),
+    s3_service: AsyncS3Service = Depends(get_s3_service)
 ) -> list[Image]:
     """Get all images with a specific file name"""
     images = await image_repo.get_by_file_name(
@@ -105,7 +109,7 @@ async def get_images_by_file_name(
     
     # Generate presigned URLs for all images
     for image in images:
-        url_result = s3_service.generate_presigned_url(image.id)
+        url_result = await s3_service.generate_presigned_url(image.id)
         if url_result:
             image.presigned_url, image.presigned_url_expires_at = url_result
     
@@ -120,6 +124,7 @@ async def upsert_image(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
+    s3_service: AsyncS3Service = Depends(get_s3_service)
 ) -> Image:
     """
     Create or replace image.
@@ -144,7 +149,7 @@ async def upsert_image(
             result = await image_repo.save(conn, image, force=force)
         
         # Generate upload presigned URL
-        url_result = s3_service.generate_upload_presigned_url(result.id)
+        url_result = await s3_service.generate_upload_presigned_url(result.id)
         if url_result:
             result.presigned_url, result.presigned_url_expires_at = url_result
         
@@ -172,6 +177,7 @@ async def get_upload_url(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
+    s3_service: AsyncS3Service = Depends(get_s3_service)
 ) -> PresignedUploadUrlResponse:
     """
     Get a presigned URL for uploading an image to S3.
@@ -196,7 +202,7 @@ async def get_upload_url(
         raise HTTPException(status_code=404, detail="Image not found")
     await permission_service.require_plant_access(plant_id)
     
-    url_result = s3_service.generate_upload_presigned_url(image_id)
+    url_result = await s3_service.generate_upload_presigned_url(image_id)
     if not url_result:
         raise HTTPException(
             status_code=500,
@@ -215,6 +221,7 @@ async def check_image_exists(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
+    s3_service: AsyncS3Service = Depends(get_s3_service)
 ) -> dict[str, bool]:
     """
     Check if an image file exists in S3 storage.
@@ -237,7 +244,7 @@ async def check_image_exists(
         raise HTTPException(status_code=404, detail="Image not found")
     await permission_service.require_plant_access(plant_id)
     
-    exists = s3_service.check_exists(image_id)
+    exists = await s3_service.check_exists(image_id)
     return {"exists": exists}
 
 
@@ -245,6 +252,7 @@ async def check_image_exists(
 async def check_image_exists_by_name(
     file_name: str,
     conn=Depends(get_db_connection),
+    s3_service: AsyncS3Service = Depends(get_s3_service)
 ) -> dict[str, bool]:
     """
     Check if an image file exists in S3 storage.
@@ -270,7 +278,7 @@ async def check_image_exists_by_name(
     
     # Check if any of the images with the given file name exist in S3
     for image in images:
-        exists = s3_service.check_exists(image.id)
+        exists = await s3_service.check_exists(image.id)
         if exists:
             return {"exists": True}
     
@@ -316,22 +324,20 @@ async def update_image_upload_status_endpoint(
 @router.post("/trigger-images-background-fetch")
 async def trigger_images_background_fetch(
     request: Request,
-    background_tasks: BackgroundTasks,
     modified_since: Optional[datetime] = datetime.now() - timedelta(days=2),
-    batch_size: int = 100,
+    batch_size: int = 500,
     timeout_seconds: int = 30,
-    conn=Depends(get_db_connection),
 ) -> dict[str, str]:
     """Запуск фоновой загрузки изображений"""
     base_url = f"{request.url.scheme}://{request.url.hostname}:{request.url.port}"
     
-    background_tasks.add_task(
-        fetch_images_background,
-        conn=conn,
-        base_url=base_url,
-        modified_since=modified_since,
-        batch_size=batch_size,
-        timeout_seconds=timeout_seconds
+    asyncio.create_task(
+        fetch_images_background(
+            base_url=base_url,
+            modified_since=modified_since,
+            batch_size=batch_size,
+            timeout_seconds=timeout_seconds
+        )
     )
     
     return {

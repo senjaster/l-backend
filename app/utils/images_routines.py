@@ -7,28 +7,117 @@ from fastapi import HTTPException
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 
+from app.database import get_db_connection
 from app.models.image import Image, ImageUploadStatus
-from app.services.s3_service import s3_service
+from app.services.s3_service import async_s3_service
 from app.repositories.image import ImageRepository
 
+
+logging.getLogger('httpcore').setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 image_repo = ImageRepository()
 
 
 class ImageBackgroundFetcher:
-    def __init__(self, base_url: str, batch_size: int = 20):
+    def __init__(self, base_url: str, batch_size: int = 20, s3_service=None):
         self.base_url = base_url.rstrip('/')
         self.batch_size = batch_size
         self.timeout_seconds = 30  # Таймаут ожидания следующей порции (секунд)
         self.request_timeout = httpx.Timeout(10.0, connect=5.0)  # Таймаут для HTTP запроса
+        self.s3_service = async_s3_service
+    
+    def _log_section_header(self, title: str, **kwargs):
+        """Логирование заголовка секции"""
+        logger.debug("=" * 80)
+        logger.debug(f"🔍 {title}")
+        for key, value in kwargs.items():
+            logger.debug(f"   {key}: {value}")
+        logger.debug("=" * 80)
+    
+    def _log_batch_success(self, batch_number: int, items_count: int, total_count: int, 
+                          date_range: str, duration: float, cursor: Optional[str]):
+        """Логирование успешной загрузки порции"""
+        logger.debug(f"✅ [ПОРЦИЯ {batch_number}] УСПЕШНО ЗАГРУЖЕНО")
+        logger.debug(f"   📸 Изображений в порции: {items_count}")
+        logger.debug(f"   📊 Всего загружено: {total_count}")
+        logger.debug(f"   📅 Диапазон дат: {date_range}")
+        logger.debug(f"   ⏱️  Время запроса: {duration:.2f} сек")
+        logger.debug(f"   🔄 Курсор: {cursor[:30] if cursor else 'None'}")
+    
+    def _log_progress(self, current: int, total: int, elapsed: float):
+        """Логирование прогресса"""
+        progress_percent = current * 100 // total
+        logger.debug(f"   🔄 Прогресс проверки: {current}/{total} изображений "
+                   f"({progress_percent}%) | Время: {elapsed:.1f} сек")
+    
+    def _log_batch_check_results(self, batch_number: int, batch_size: int, 
+                                uploaded: int, missing: int, duration: float,
+                                processed: int, total: int):
+        """Логирование результатов проверки порции"""
+        logger.debug(f"✅ [ПОРЦИЯ {batch_number}] ПРОВЕРКА ЗАВЕРШЕНА")
+        logger.debug(f"   📊 Результаты порции:")
+        logger.debug(f"   - Проверено изображений: {batch_size}")
+        logger.debug(f"   💾 Загружено в S3 (UPLOADED): {uploaded}")
+        logger.debug(f"   ❌ Отсутствует в S3 (MISSING): {missing}")
+        logger.debug(f"   ⏱️  Время обработки порции: {duration:.2f} сек")
+        logger.debug(f"   📈 Общий прогресс: {processed}/{total} "
+                   f"({processed * 100 // total}%)")
+    
+    def _log_final_stats(self, total_images: int, total_batches: int, 
+                        total_duration: float, batch_size: int):
+        """Логирование финальной статистики загрузки"""
+        logger.debug("=" * 80)
+        logger.debug(f"🏁 ЗАВЕРШЕНИЕ ЗАГРУЗКИ ИЗОБРАЖЕНИЙ")
+        logger.debug(f"📊 ИТОГОВАЯ СТАТИСТИКА:")
+        logger.debug(f"   ✅ Всего загружено: {total_images} изображений")
+        logger.debug(f"   📦 Всего порций: {total_batches}")
+        logger.debug(f"   ⏱️  Общее время: {total_duration:.2f} сек")
+        logger.debug(f"   📈 Средняя скорость: {total_images / total_duration:.2f} изображений/сек")
+        logger.debug(f"   🎯 Целевой размер порции: {batch_size}")
+        logger.debug("=" * 80)
+    
+    def _log_check_final_stats(self, total_checked: int, total_batches: int,
+                              uploaded: int, missing: int, duration: float,
+                              errors: int = 0):
+        """Логирование финальной статистики проверки"""
+        logger.debug("=" * 80)
+        logger.debug(f"🏁 ЗАВЕРШЕНИЕ ПРОВЕРКИ СТАТУСОВ")
+        logger.debug(f"📊 ИТОГОВАЯ СТАТИСТИКА ПРОВЕРКИ:")
+        logger.debug(f"   ✅ Всего проверено: {total_checked} изображений")
+        logger.debug(f"   📦 Всего порций: {total_batches}")
+        logger.debug(f"   💾 Загружено в S3 (UPLOADED): {uploaded}")
+        logger.debug(f"   ❌ Отсутствует в S3 (MISSING): {missing}")
+        logger.debug(f"   ⏱️  Общее время проверки: {duration:.2f} сек")
+        logger.debug(f"   📈 Средняя скорость: {total_checked / duration:.2f} изображений/сек")
+        
+        if errors > 0:
+            logger.warning(f"   ⚠️ Всего ошибок в процессе: {errors}")
+        
+        logger.debug("=" * 80)
+    
+    def _log_error(self, error_type: str, batch_number: int, error: Exception, 
+                  loaded_count: int = None, status_code: int = None):
+        """Логирование ошибок"""
+        logger.error(f"❌ [ПОРЦИЯ {batch_number}] {error_type}")
+        
+        if status_code:
+            logger.error(f"   Статус: {status_code}")
+        
+        logger.error(f"   Ошибка: {error}")
+        
+        if loaded_count is not None:
+            logger.error(f"   Загружено только {loaded_count} изображений из {batch_number} порций")
+        
+        if error_type == "НЕПРЕДВИДЕННАЯ ОШИБКА":
+            logger.error(f"   Ошибка: {error}", exc_info=True)
     
     async def fetch_images_batch(
         self,
         client: httpx.AsyncClient,
         modified_since: datetime,
         offset: int = 0,
-        sort_order: str = "asc"  # asc - по возрастанию даты, desc - по убыванию
+        sort_order: str = "asc"
     ) -> Dict[str, Any]:
         """Получение одной порции изображений"""
         params = {
@@ -53,27 +142,21 @@ class ImageBackgroundFetcher:
         modified_since: Optional[datetime] = None,
         callback: Optional[callable] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Получение всех изображений порциями с контролем таймаута
+        """Получение всех изображений порциями с контролем таймаута"""
         
-        Args:
-            modified_since: Начальная дата для фильтрации
-            callback: Функция обратного вызова для каждой порции
-            
-        Returns:
-            Список всех полученных изображений
-        """
         if modified_since is None:
             modified_since = datetime(2020, 1, 1)
-
+        
         # Логируем начало загрузки
-        logger.info("=" * 80)
-        logger.info(f"🚀 НАЧАЛО ЗАГРУЗКИ ИЗОБРАЖЕНИЙ")
-        logger.info(f"📅 Дата фильтрации: {modified_since.isoformat()}")
-        logger.info(f"📦 Размер порции: {self.batch_size}")
-        logger.info(f"⏱️  Таймаут ожидания: {self.timeout_seconds} сек")
-        logger.info(f"🌐 URL сервера: {self.base_url}")
-        logger.info("=" * 80)
+        self._log_section_header(
+            "НАЧАЛО ЗАГРУЗКИ ИЗОБРАЖЕНИЙ",
+            **{
+                "📅 Дата фильтрации": modified_since.isoformat(),
+                "📦 Размер порции": self.batch_size,
+                "⏱️  Таймаут ожидания": f"{self.timeout_seconds} сек",
+                "🌐 URL сервера": self.base_url
+            }
+        )
         
         images = []
         cursor = None
@@ -111,10 +194,9 @@ class ImageBackgroundFetcher:
                     data = response.json()
                     
                     items = data.get('items', [])
-                    cursor = data.get('next_cursor')  # Получаем курсор для следующей страницы
+                    cursor = data.get('next_cursor')
                     has_more = cursor is not None and len(items) == self.batch_size
-
-                    # Время выполнения запроса
+                    
                     batch_duration = (datetime.now() - batch_start_time).total_seconds()
                     
                     if items:
@@ -123,181 +205,134 @@ class ImageBackgroundFetcher:
                         
                         date_range = self._get_date_range(items)
                         
-                        # Логируем успешную загрузку порции
-                        logger.info(f"✅ [ПОРЦИЯ {batch_number}] УСПЕШНО ЗАГРУЖЕНО")
-                        logger.info(f"   📸 Изображений в порции: {len(items)}")
-                        logger.info(f"   📊 Всего загружено: {len(images)}")
-                        logger.info(f"   📅 Диапазон дат: {date_range}")
-                        logger.info(f"   ⏱️  Время запроса: {batch_duration:.2f} сек")
-                        logger.info(f"   🔄 Курсор: {cursor[:30] if cursor else 'None'}")
-                        logger.info(f"   📈 Прогресс: {len(images)} изображений за "
-                                f"{(datetime.now() - start_time).total_seconds():.1f} сек")
-                            
+                        self._log_batch_success(
+                            batch_number, len(items), len(images),
+                            date_range, batch_duration, cursor
+                        )
+                        
+                        elapsed = (datetime.now() - start_time).total_seconds()
+                        logger.debug(f"   📈 Прогресс: {len(images)} изображений за {elapsed:.1f} сек")
+                        
                         if callback:
                             await callback(items, len(images), cursor)
                     else:
-                        logger.info(f"📭 [ПОРЦИЯ {batch_number}] Нет изображений в этой порции")
+                        logger.debug(f"📭 [ПОРЦИЯ {batch_number}] Нет изображений в этой порции")
                         break
                     
                     await asyncio.sleep(0.5)
                     
                 except httpx.TimeoutException as e:
-                    logger.error(f"❌ [ПОРЦИЯ {batch_number}] ТАЙМАУТ HTTP ЗАПРОСА")
-                    logger.error(f"   Ошибка: {e}")
-                    logger.error(f"   Загружено только {len(images)} изображений из {batch_number} порций")
+                    self._log_error("ТАЙМАУТ HTTP ЗАПРОСА", batch_number, e, len(images))
                     break
                 except httpx.HTTPStatusError as e:
-                    logger.error(f"❌ [ПОРЦИЯ {batch_number}] HTTP ОШИБКА")
-                    logger.error(f"   Статус: {e.response.status_code}")
-                    logger.error(f"   Ошибка: {e}")
+                    self._log_error("HTTP ОШИБКА", batch_number, e, status_code=e.response.status_code)
                     break
                 except Exception as e:
-                    logger.error(f"❌ [ПОРЦИЯ {batch_number}] НЕПРЕДВИДЕННАЯ ОШИБКА")
-                    logger.error(f"   Ошибка: {e}", exc_info=True)
+                    self._log_error("НЕПРЕДВИДЕННАЯ ОШИБКА", batch_number, e, len(images))
                     break
         
-        # Общая статистика загрузки
+        # Финальная статистика загрузки
         total_duration = (datetime.now() - start_time).total_seconds()
-        logger.info("=" * 80)
-        logger.info(f"🏁 ЗАВЕРШЕНИЕ ЗАГРУЗКИ ИЗОБРАЖЕНИЙ")
-        logger.info(f"📊 ИТОГОВАЯ СТАТИСТИКА:")
-        logger.info(f"   ✅ Всего загружено: {len(images)} изображений")
-        logger.info(f"   📦 Всего порций: {batch_number}")
-        logger.info(f"   ⏱️  Общее время: {total_duration:.2f} сек")
-        logger.info(f"   📈 Средняя скорость: {len(images) / total_duration:.2f} изображений/сек")
-        logger.info(f"   🎯 Целевой размер порции: {self.batch_size}")
-        logger.info("=" * 80)
+        self._log_final_stats(len(images), batch_number, total_duration, self.batch_size)
         
-        # Начинаем проверку статусов изображений
+        # Проверка статусов изображений
         if images:
-            logger.info("=" * 80)
-            logger.info(f"🔍 НАЧАЛО ПРОВЕРКИ СТАТУСОВ ИЗОБРАЖЕНИЙ")
-            logger.info(f"   Всего проверяемых изображений: {len(images)}")
-            logger.info(f"   Размер порции для проверки: {self.batch_size}")
-            logger.info(f"   Таймаут ожидания: {self.timeout_seconds} сек")
-            logger.info("=" * 80)
-            
-            check_start_time = datetime.now()
-            missing_count = 0
-            uploaded_count = 0
-            processed_count = 0
-            last_successful_check = datetime.now()
-            consecutive_errors = 0
-            batch_number = 0
-            
-            # Разбиваем изображения на порции для проверки
-            for i in range(0, len(images), self.batch_size):
-                batch_number += 1
-                batch_start_time = datetime.now()
-                batch_images = images[i:i + self.batch_size]
-                
-                try:
-                    # Проверяем таймаут - если долго не было успешных проверок
-                    time_since_last_check = (datetime.now() - last_successful_check).total_seconds()
-                    if time_since_last_check > self.timeout_seconds:
-                        break
-                    
-                    batch_missing_count = 0
-                    batch_uploaded_count = 0
-                    
-                    # Проверяем каждое изображение в порции
-                    for idx, image in enumerate(batch_images, 1):
-                        global_idx = i + idx
-                        
-                        try:
-                            # Логируем прогресс проверки каждые self.batch_size изображений
-                            if global_idx % self.batch_size == 0:
-                                progress_percent = global_idx * self.batch_size // len(images)
-                                elapsed = (datetime.now() - check_start_time).total_seconds()
-                                logger.info(f"   🔄 Прогресс проверки: {global_idx}/{len(images)} изображений "
-                                        f"({progress_percent}%) | Время: {elapsed:.1f} сек")
-                            
-                            if image.get('upload_status') == ImageUploadStatus.UNKNOWN:
-                                # Проверяем существование в S3
-                                check_item_start = datetime.now()
-                                exists = s3_service.check_exists(image['id'])
-                                check_item_duration = (datetime.now() - check_item_start).total_seconds()
-                                
-                                upload_status = ImageUploadStatus.UPLOADED if exists else ImageUploadStatus.MISSING
-                                
-                                # Обновляем статус в БД
-                                update_start = datetime.now()
-                                await update_image_upload_status(
-                                    conn,
-                                    image_id=image['id'],
-                                    upload_status=upload_status,
-                                    force=True
-                                )
-                                update_duration = (datetime.now() - update_start).total_seconds()
-                                
-                                if upload_status == ImageUploadStatus.UPLOADED:
-                                    uploaded_count += 1
-                                    batch_uploaded_count += 1
-                                    logger.debug(f"   📸 Изображение {image['id']}: статус обновлен на UPLOADED "
-                                            f"(S3 check: {check_item_duration:.2f}с, DB update: {update_duration:.2f}с)")
-                                else:
-                                    missing_count += 1
-                                    batch_missing_count += 1
-                                    logger.debug(f"   ⚠️ Изображение {image['id']}: не найдено в S3 "
-                                            f"(проверка заняла {check_item_duration:.2f}с)")
-                                
-                                # Сбрасываем счетчик ошибок при успешной операции
-                                consecutive_errors = 0
-                                last_successful_check = datetime.now()
-                                
-                        except Exception as e:
-                            consecutive_errors += 1
-                            logger.error(f"   ❌ [ПОРЦИЯ {batch_number}] Ошибка при проверке изображения {image.get('id', 'unknown')}: {e}")
-                            
-                            # Если слишком много ошибок подряд, прерываем проверку
-                            if consecutive_errors >= 5:
-                                logger.error(f"   🛑 Слишком много ошибок подряд ({consecutive_errors}), прерываем проверку")
-                                break
-                            
-                            continue
-                    
-                    # Время выполнения порции
-                    batch_duration = (datetime.now() - batch_start_time).total_seconds()
-                    
-                    # Логируем результаты порции
-                    logger.info(f"✅ [ПОРЦИЯ {batch_number}] ПРОВЕРКА ЗАВЕРШЕНА")
-                    logger.info(f"   📊 Результаты порции:")
-                    logger.info(f"   - Проверено изображений: {len(batch_images)}")
-                    logger.info(f"   💾 Загружено в S3 (UPLOADED): {batch_uploaded_count}")
-                    logger.info(f"   ❌ Отсутствует в S3 (MISSING): {batch_missing_count}")
-                    logger.info(f"   ⏱️  Время обработки порции: {batch_duration:.2f} сек")
-                    logger.info(f"   📈 Общий прогресс: {i + len(batch_images)}/{len(images)} "
-                            f"({(i + len(batch_images)) * 100 // len(images)}%)")
-                    
-                except Exception as e:
-                    logger.error(f"❌ [ПОРЦИЯ {batch_number}] КРИТИЧЕСКАЯ ОШИБКА: {e}", exc_info=True)
-                    break
-            
-            # Финальная статистика проверки
-            check_duration = (datetime.now() - check_start_time).total_seconds()
-            
-            logger.info("=" * 80)
-            logger.info(f"🏁 ЗАВЕРШЕНИЕ ПРОВЕРКИ СТАТУСОВ")
-            logger.info(f"📊 ИТОГОВАЯ СТАТИСТИКА ПРОВЕРКИ:")
-            logger.info(f"   ✅ Всего проверено: {processed_count if processed_count else len(images)} изображений")
-            logger.info(f"   📦 Всего порций: {batch_number}")
-            logger.info(f"   💾 Загружено в S3 (UPLOADED): {uploaded_count}")
-            logger.info(f"   ❌ Отсутствует в S3 (MISSING): {missing_count}")
-            logger.info(f"   ⏱️  Общее время проверки: {check_duration:.2f} сек")
-            logger.info(f"   📈 Средняя скорость: {len(images) / check_duration:.2f} изображений/сек")
-            
-            # Проверка на наличие ошибок
-            if consecutive_errors > 0:
-                logger.warning(f"   ⚠️ Всего ошибок в процессе: {consecutive_errors}")
-            
-            logger.info("=" * 80)
-            
+            await self._check_images_statuses(conn, images, start_time)
         else:
             logger.warning("⚠️ Нет изображений для проверки статусов")
-    
+        
         return images
 
-    
+    async def _check_images_statuses(self, conn, images: List[Dict[str, Any]], start_time: datetime):
+        """Проверка статусов изображений (вынесенная логика)"""
+        
+        self._log_section_header(
+            "НАЧАЛО ПРОВЕРКИ СТАТУСОВ ИЗОБРАЖЕНИЙ",
+            **{
+                "Всего проверяемых изображений": len(images),
+                "Размер порции для проверки": self.batch_size,
+                "Таймаут ожидания": f"{self.timeout_seconds} сек"
+            }
+        )
+        
+        check_start_time = datetime.now()
+        missing_count = 0
+        uploaded_count = 0
+        last_successful_check = datetime.now()
+        consecutive_errors = 0
+        batch_number = 0
+        
+        for i in range(0, len(images), self.batch_size):
+            batch_number += 1
+            batch_start_time = datetime.now()
+            batch_images = images[i:i + self.batch_size]
+            
+            try:
+                time_since_last_check = (datetime.now() - last_successful_check).total_seconds()
+                if time_since_last_check > self.timeout_seconds:
+                    break
+                
+                batch_missing_count = 0
+                batch_uploaded_count = 0
+                
+                for idx, image in enumerate(batch_images, 1):
+                    global_idx = i + idx
+                    
+                    try:
+                        if global_idx % self.batch_size == 0:
+                            elapsed = (datetime.now() - check_start_time).total_seconds()
+                            self._log_progress(global_idx, len(images), elapsed)
+                        
+                        if image.get('upload_status') == ImageUploadStatus.UNKNOWN:
+                            exists = await self.s3_service.check_exists(image['id'])
+                            
+                            upload_status = ImageUploadStatus.UPLOADED if exists else ImageUploadStatus.MISSING
+                            
+                            await update_image_upload_status(
+                                conn,
+                                image_id=image['id'],
+                                upload_status=upload_status,
+                                force=True
+                            )
+                            
+                            if upload_status == ImageUploadStatus.UPLOADED:
+                                uploaded_count += 1
+                                batch_uploaded_count += 1
+                            else:
+                                missing_count += 1
+                                batch_missing_count += 1
+                            
+                            consecutive_errors = 0
+                            last_successful_check = datetime.now()
+                            
+                    except Exception as e:
+                        consecutive_errors += 1
+                        logger.error(f"   ❌ [ПОРЦИЯ {batch_number}] Ошибка при проверке изображения {image.get('id', 'unknown')}: {e}")
+                        
+                        if consecutive_errors >= 5:
+                            logger.error(f"   🛑 Слишком много ошибок подряд ({consecutive_errors}), прерываем проверку")
+                            break
+                        
+                        continue
+                
+                batch_duration = (datetime.now() - batch_start_time).total_seconds()
+                
+                self._log_batch_check_results(
+                    batch_number, len(batch_images), batch_uploaded_count,
+                    batch_missing_count, batch_duration, i + len(batch_images), len(images)
+                )
+                
+            except Exception as e:
+                logger.error(f"❌ [ПОРЦИЯ {batch_number}] КРИТИЧЕСКАЯ ОШИБКА: {e}", exc_info=True)
+                break
+        
+        check_duration = (datetime.now() - check_start_time).total_seconds()
+        
+        self._log_check_final_stats(
+            len(images), batch_number, uploaded_count, 
+            missing_count, check_duration, consecutive_errors
+        )
+
     def _get_date_range(self, images: List[Dict[str, Any]]) -> str:
         """Получение диапазона дат из списка изображений"""
         if not images:
@@ -306,7 +341,7 @@ class ImageBackgroundFetcher:
         dates = []
         for img in images:
             # Предполагаем, что у изображения есть поле 'created_at' или 'modified_at'
-            date_str = img.get('modified_at') or img.get('created_at') or img.get('date')
+            date_str = img.get('server_modified_at')
             if date_str:
                 try:
                     date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
@@ -337,7 +372,7 @@ async def check_server_availability(
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(
                     f"{base_url}/image/all",
-                    params={"limit": 1},  # Запрашиваем только 1 изображение
+                    params={"limit": 1},
                     timeout=5.0
                 )
                 
@@ -358,10 +393,9 @@ async def check_server_availability(
 
 
 async def fetch_images_background(
-    conn,
     base_url: str,
     modified_since: Optional[datetime] = None,
-    batch_size: int = 20,
+    batch_size: int = 100,
     timeout_seconds: int = 30
 ) -> List[Dict[str, Any]]:
     """
@@ -378,18 +412,23 @@ async def fetch_images_background(
         logger.error(f"🛑 Невозможно запустить загрузку: сервер {base_url} недоступен")
         return []
     
-    fetcher = ImageBackgroundFetcher(base_url, batch_size)
-    fetcher.timeout_seconds = timeout_seconds
+    async for conn in get_db_connection():
+        try:
+            fetcher = ImageBackgroundFetcher(
+                base_url=base_url, 
+                batch_size=batch_size,
+                s3_service=async_s3_service
+            )
+            fetcher.timeout_seconds = timeout_seconds
+
+            images = await fetcher.fetch_all_images_streaming(
+                conn=conn,
+                modified_since=modified_since
+            )
+        except Exception as e:
+            logger.error(f"❌ Ошибка в фоновой задаче: {e}", exc_info=True)
     
-    # Можно добавить callback для дополнительной обработки
-    async def on_batch(images, offset, total_so_far):
-        # Здесь можно добавить дополнительную логику для каждой порции
-        # Например, сохранение в БД или отправку уведомлений
-        logger.debug(f"Callback: обработано {len(images)} изображений, всего: {total_so_far}")
-    
-    # Запускаем загрузку
-    result = await fetcher.fetch_all_images_streaming(conn, modified_since, on_batch)
-    return result
+    return images
 
 
 async def update_image_upload_status(

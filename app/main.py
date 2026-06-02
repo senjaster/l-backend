@@ -1,10 +1,14 @@
 """FastAPI application entry point"""
 
-from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
-from contextlib import asynccontextmanager
 import asyncpg
 import psycopg2
+import logging
+
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi_bgtasks_dashboard import mount_bg_tasks_dashboard
+
+from contextlib import asynccontextmanager
 from app.database import init_db_pool, close_db_pool
 from app.exceptions import (
     asyncpg_exception_handler,
@@ -14,10 +18,27 @@ from app.exceptions import (
 from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
 from app.config import settings
-import logging
+from app.services.s3_service import async_s3_service
+
+# Include routers
+from app.routers import (
+    auth,
+    inspector,
+    image,
+    log,
+    sticker_type,
+    equipment_type,
+    facility_template,
+    defect_type,
+    plant,
+    equipment,
+    inspection,
+    defect,
+)
+
 
 # Initialize logging
-setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
+setup_logging(log_level=settings.log_level, enable_json=settings.log_json) # DEV: log_level="INFO", enable_json=False
 logger = logging.getLogger(__name__)
 
 
@@ -25,14 +46,30 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
+    try:
+        await async_s3_service.initialize()
+        logger.info("✅ S3 service initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize S3 service: {e}")
+
     logger.info("Starting application")
     await init_db_pool()
     logger.info("Database pool initialized")
+        
     yield
+    
+    try:
+        await async_s3_service.close()
+        logger.info("✅ S3 service closed successfully")
+    except Exception as e:
+        logger.error(f"❌ Error closing S3 service: {e}")
+    
     # Shutdown
     logger.info("Shutting down application")
     await close_db_pool()
     logger.info("Database pool closed")
+    await async_s3_service.close()
+    logger.info("S3 service closed")
 
 
 app = FastAPI(
@@ -45,6 +82,9 @@ app = FastAPI(
 
 # Configure OpenAPI security scheme for Swagger UI
 app.openapi_schema = None  # Reset to regenerate with security scheme
+
+mount_bg_tasks_dashboard(app=app)
+
 
 
 def custom_openapi():
@@ -107,28 +147,11 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 # Register authentication middleware (applies to all routes except /auth)
 app.add_middleware(AuthMiddleware)
 
-
 @app.get("/")
 async def root():
     """Health check endpoint"""
     return {"status": "ok", "message": "L-Inspector Backend API"}
 
-
-# Include routers
-from app.routers import (
-    auth,
-    inspector,
-    image,
-    log,
-    sticker_type,
-    equipment_type,
-    facility_template,
-    defect_type,
-    plant,
-    equipment,
-    inspection,
-    defect,
-)
 
 app.include_router(auth.router)
 app.include_router(inspector.router)
