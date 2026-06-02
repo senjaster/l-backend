@@ -9,6 +9,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 from app.config import settings
 
+logging.getLogger('botocore').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
