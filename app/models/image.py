@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from pydantic import BaseModel
 
@@ -12,6 +12,12 @@ class ImageType(str, Enum):
 
     VISUAL = "VISUAL"
     THERMAL = "THERMAL"
+
+
+class ImageUploadStatus(str, Enum):
+    UNKNOWN = "unknown"
+    UPLOADED = "uploaded"
+    MISSING = "missing"
 
 
 class PresignedUploadUrlResponse(BaseModel):
@@ -30,5 +36,12 @@ class Image(BaseModel):
     metadata: Optional[dict] = None
     is_deleted: bool = False
     server_modified_at: datetime
+    upload_status: str = ImageUploadStatus.UNKNOWN
     presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
     presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
+
+
+class ImageListResponse(BaseModel):
+    """List of Image items"""
+    
+    items: List[Image]

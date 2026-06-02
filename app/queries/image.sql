@@ -1,6 +1,21 @@
 -- Image aggregate queries
 -- Following API design principles with optimistic concurrency control
 
+-- name: get_all_images(modified_since)
+-- Get all images
+-- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
+SELECT
+    id,
+    plant_id,
+    original_file_name,
+    image_type,
+    metadata,
+    is_deleted,
+    server_modified_at
+FROM lesiv.image
+WHERE server_modified_at > :modified_since
+ORDER BY server_modified_at DESC;
+
 -- name: get_by_id(id)^
 SELECT
     id,
@@ -28,7 +43,22 @@ WHERE i.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
 ORDER BY i.server_modified_at DESC;
 
--- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at)!
+-- name: get_by_file_name(file_name, modified_since)
+-- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
+SELECT
+    i.id,
+    i.plant_id,
+    i.original_file_name,
+    i.image_type,
+    i.metadata,
+    i.is_deleted,
+    i.server_modified_at
+FROM lesiv.image i
+WHERE id = :file_name
+  AND i.server_modified_at > :modified_since
+ORDER BY i.server_modified_at DESC;
+
+-- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at, upload_status)!
 INSERT INTO lesiv.image (
     id,
     plant_id,
@@ -36,15 +66,18 @@ INSERT INTO lesiv.image (
     image_type,
     metadata,
     is_deleted,
-    server_modified_at
-) VALUES (
+    server_modified_at,
+    upload_status
+)
+VALUES (
     :id,
     :plant_id,
     :original_file_name,
     :image_type,
     :metadata,
     :is_deleted,
-    :server_modified_at
+    :server_modified_at,
+    :upload_status
 )
 ON CONFLICT (id) DO UPDATE SET
     plant_id = EXCLUDED.plant_id,
@@ -52,7 +85,8 @@ ON CONFLICT (id) DO UPDATE SET
     image_type = EXCLUDED.image_type,
     metadata = EXCLUDED.metadata,
     is_deleted = EXCLUDED.is_deleted,
-    server_modified_at = EXCLUDED.server_modified_at;
+    server_modified_at = EXCLUDED.server_modified_at,
+    upload_status = EXCLUDED.upload_status;
 
 -- name: delete(id)!
 DELETE FROM lesiv.image

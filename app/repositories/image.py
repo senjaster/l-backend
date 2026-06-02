@@ -1,10 +1,11 @@
 """Image repository"""
-
-from typing import Optional
-from uuid import UUID
-from datetime import datetime, timezone
 import json
 import aiosql
+import os
+
+from typing import Optional, List
+from uuid import UUID
+from datetime import datetime, timezone
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.constants import DEFAULT_MODIFIED_SINCE
@@ -13,6 +14,7 @@ from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.utils.datetime_utils import truncate_to_milliseconds
 
+
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/image.sql", settings.db_driver)
 queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
@@ -20,6 +22,18 @@ queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queri
 
 class ImageRepository:
     """Repository for Image aggregate"""
+
+    async def get_all(
+        self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE
+    ) -> List[Image]:
+        """Get all images, optionally filtered by modification date"""
+        images = [
+            row
+            async for row in queries.get_all_images(
+                conn, modified_since=modified_since
+            )
+        ]
+        return [Image(**row) for row in images]
 
     async def get_by_id(self, conn, image_id: UUID) -> Optional[Image]:
         """Get image by ID"""
@@ -42,6 +56,22 @@ class ImageRepository:
                 conn, plant_id=plant_id, modified_since=modified_since
             )
         ]
+        images = []
+        for row in rows:
+            row_dict = dict(row)
+            if row_dict.get("metadata") and isinstance(row_dict["metadata"], str):
+                row_dict["metadata"] = json.loads(row_dict["metadata"])
+            images.append(Image(**row_dict))
+        return images
+
+    async def get_by_file_name(
+        self, conn, file_name: str, modified_since: datetime = DEFAULT_MODIFIED_SINCE
+    ) -> list[Image]:
+        """Get all images with a specific file name"""
+        name, ext = os.path.splitext(file_name)
+        rows = [row async for row in queries.get_by_file_name(
+            conn, file_name=name, modified_since=modified_since
+        )]
         images = []
         for row in rows:
             row_dict = dict(row)
@@ -123,6 +153,7 @@ class ImageRepository:
             metadata=json.dumps(image.metadata) if image.metadata else None,
             is_deleted=image.is_deleted,
             server_modified_at=new_server_modified_at,
+            upload_status=image.upload_status
         )
 
         result = await self.get_by_id(conn, image_id)

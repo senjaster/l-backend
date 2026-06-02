@@ -1,21 +1,40 @@
 """Image router - implements API design principles"""
 
-from uuid import UUID
-from datetime import datetime
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Query
+
+from uuid import UUID
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, BackgroundTasks
+
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.image import Image, PresignedUploadUrlResponse
+from app.models.image import Image, PresignedUploadUrlResponse, ImageListResponse, ImageUploadStatus
 from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
 from app.services.s3_service import s3_service
 from app.models.inspector import AccessLevel
+from app.utils.images_routines import update_image_upload_status, fetch_images_background
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/image", tags=["image"])
 image_repo = ImageRepository()
+
+
+@router.get("/all", response_model=ImageListResponse)
+async def get_all_images(
+    modified_since: datetime = Query(
+        DEFAULT_MODIFIED_SINCE,
+        description="Only return images modified after this timestamp",
+    ),
+    conn=Depends(get_db_connection),
+) -> ImageListResponse:
+    """Get all images (read-only), optionally filtered by modification date"""
+    images = await image_repo.get_all(conn, modified_since=modified_since)
+    return ImageListResponse(items=images)
 
 
 @router.get("/by_id/{image_id}", response_model=Image)
@@ -23,7 +42,7 @@ async def get_image_by_id(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+) -> Image:
     """Get specific image by ID"""
     # Check plant access via image
     plant_id = await permission_service.get_plant_id_from_image(image_id)
@@ -52,13 +71,36 @@ async def get_images_by_plant_id(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+) -> list[Image]:
     """Get all images for a plant, optionally filtered by modification date"""
     # Check plant access
     await permission_service.require_plant_access(plant_id)
     
     images = await image_repo.get_by_plant_id(
         conn, plant_id, modified_since=modified_since
+    )
+    
+    # Generate presigned URLs for all images
+    for image in images:
+        url_result = s3_service.generate_presigned_url(image.id)
+        if url_result:
+            image.presigned_url, image.presigned_url_expires_at = url_result
+    
+    return images
+
+
+@router.get("/by_file_name/{file_name}", response_model=list[Image])
+async def get_images_by_file_name(
+    file_name: str,
+    modified_since: datetime = Query(
+        DEFAULT_MODIFIED_SINCE,
+        description="Only return images modified after this timestamp",
+    ),
+    conn=Depends(get_db_connection),
+) -> list[Image]:
+    """Get all images with a specific file name"""
+    images = await image_repo.get_by_file_name(
+        conn, file_name, modified_since=modified_since
     )
     
     # Generate presigned URLs for all images
@@ -78,7 +120,7 @@ async def upsert_image(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+) -> Image:
     """
     Create or replace image.
 
@@ -130,7 +172,7 @@ async def get_upload_url(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+) -> PresignedUploadUrlResponse:
     """
     Get a presigned URL for uploading an image to S3.
     
@@ -173,7 +215,7 @@ async def check_image_exists(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+) -> dict[str, bool]:
     """
     Check if an image file exists in S3 storage.
     
@@ -197,3 +239,104 @@ async def check_image_exists(
     
     exists = s3_service.check_exists(image_id)
     return {"exists": exists}
+
+
+@router.get("/by-name/{file_name}/exists", response_model=dict)
+async def check_image_exists_by_name(
+    file_name: str,
+    conn=Depends(get_db_connection),
+) -> dict[str, bool]:
+    """
+    Check if an image file exists in S3 storage.
+    
+    This endpoint issues a HEAD request to S3 to verify if the image file
+    exists without downloading the actual file content.
+    
+    Args:
+        file_name: Name of the image file to check
+        
+    Returns:
+        Dictionary with 'exists' boolean field
+    """
+    
+    """Get all images with a specific file name"""
+    images = await get_images_by_file_name(
+        file_name=file_name, 
+        modified_since=DEFAULT_MODIFIED_SINCE,
+        conn=conn
+    )
+    if not images:
+        return {"exists": False}
+    
+    # Check if any of the images with the given file name exist in S3
+    for image in images:
+        exists = s3_service.check_exists(image.id)
+        if exists:
+            return {"exists": True}
+    
+    return {"exists": False}
+
+
+@router.patch("/{image_id}/upload-status", response_model=Image)
+async def update_image_upload_status_endpoint(
+    image_id: UUID,
+    upload_status: ImageUploadStatus = ImageUploadStatus.UNKNOWN,
+    force: bool = Query(default=False, description="Force update without validation"),
+    conn=Depends(get_db_connection),
+) -> Image:
+    """
+    Update the upload status of an image.
+    
+    Possible statuses:
+    - pending: Initial state
+    - uploading: Upload in progress
+    - processing: Image being processed
+    - completed: Upload and processing completed
+    - failed: Upload or processing failed
+    - success: Legacy success status
+    """
+    try:
+        async with conn.transaction():
+            # Update upload status using simple version
+            result = await update_image_upload_status(
+                conn, image_id, upload_status, force
+            )
+            
+            return result
+            
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to update upload status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/trigger-images-background-fetch")
+async def trigger_images_background_fetch(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    modified_since: Optional[datetime] = datetime.now() - timedelta(days=2),
+    batch_size: int = 100,
+    timeout_seconds: int = 30,
+    conn=Depends(get_db_connection),
+) -> dict[str, str]:
+    """Запуск фоновой загрузки изображений"""
+    base_url = f"{request.url.scheme}://{request.url.hostname}:{request.url.port}"
+    
+    background_tasks.add_task(
+        fetch_images_background,
+        conn=conn,
+        base_url=base_url,
+        modified_since=modified_since,
+        batch_size=batch_size,
+        timeout_seconds=timeout_seconds
+    )
+    
+    return {
+        "status": "Фоновая загрузка запущена",
+        "base_url": base_url,
+        "message": f"Изображения будут загружаться порциями по {batch_size} штук"
+    }
+
