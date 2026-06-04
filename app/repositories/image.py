@@ -165,3 +165,5 @@ class ImageRepository:
         """Delete image (actual delete, no is_deleted flag)"""
         await queries.delete(conn, id=image_id)
         return True
+
+image_repo = ImageRepository()

@@ -11,18 +11,17 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Request
 
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image, PresignedUploadUrlResponse, ImageListResponse, ImageUploadStatus
-from app.repositories.image import ImageRepository, ConcurrentModificationError
+from app.repositories.image import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
 from app.services.s3_service import AsyncS3Service, get_s3_service
 from app.models.inspector import AccessLevel
-from app.utils.images_routines import update_image_upload_status, fetch_images_background
+from app.utils.images_routines import image_repo, update_image_upload_status, fetch_images_background
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/image", tags=["image"])
-image_repo = ImageRepository()
 
 
 @router.get("/all", response_model=ImageListResponse)
