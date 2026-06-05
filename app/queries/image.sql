@@ -26,7 +26,7 @@ SELECT
 FROM lesiv.image i
 WHERE i.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
-ORDER BY i.server_modified_at DESC;
+ORDER BY i.server_modified_at;
 
 -- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at)!
 INSERT INTO lesiv.image (

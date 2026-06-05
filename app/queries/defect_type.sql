@@ -4,4 +4,4 @@
 SELECT id, name, short_name, t_max, t_excess, is_deleted, server_modified_at
 FROM lesiv.defect_type
 WHERE server_modified_at > :modified_since
-ORDER BY name;
+ORDER BY server_modified_at;

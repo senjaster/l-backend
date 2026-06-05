@@ -43,7 +43,7 @@ WHERE id = :facility_id;
 SELECT id, name, is_deleted, claimed_by_device_id, claimed_by_user_id, claimed_at, server_modified_at
 FROM lesiv.plant
 WHERE server_modified_at > :modified_since
-ORDER BY name;
+ORDER BY server_modified_at;
 
 -- name: upsert_plant(id, name, is_deleted, server_modified_at)!
 -- Insert or update plant (claim fields are managed separately via claim/release endpoints)

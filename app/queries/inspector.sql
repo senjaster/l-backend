@@ -9,7 +9,7 @@ SELECT
     server_modified_at
 FROM lesiv.inspector
 WHERE server_modified_at > :modified_since
-ORDER BY full_name;
+ORDER BY server_modified_at;
 
 -- name: get_by_id(id)^
 SELECT

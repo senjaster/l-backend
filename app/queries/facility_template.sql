@@ -4,7 +4,7 @@
 SELECT id, name, is_multiple_allowed, is_deleted, server_modified_at
 FROM lesiv.facility_template
 WHERE server_modified_at > :modified_since
-ORDER BY name;
+ORDER BY server_modified_at;
 
 -- name: get_all_facility_template_equipment()
 -- Get all facility template equipment
