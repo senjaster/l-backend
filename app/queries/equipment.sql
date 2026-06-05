@@ -4,7 +4,7 @@
 SELECT id, facility_id, parent_id, name, qr_code, is_container, equipment_type_id, facility_template_equipment_id, is_deleted
 FROM lesiv.equipment
 WHERE server_modified_at > :modified_since
-ORDER BY name;
+ORDER BY server_modified_at;
 
 -- name: get_by_plant_id(plant_id, modified_since)
 -- Get all equipment for a plant (full data for aggregates) - joins through facility
@@ -15,7 +15,7 @@ FROM lesiv.equipment e
 JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
   AND e.server_modified_at > :modified_since
-ORDER BY e.name;
+ORDER BY d.server_modified_at;
 
 -- name: get_control_points_by_plant(plant_id)
 -- Get all control points for equipment in a plant

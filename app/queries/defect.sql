@@ -4,7 +4,7 @@
 SELECT id, equipment_id, unit_name, defect_type_id, status, is_deleted
 FROM lesiv.equipment_defect
 WHERE server_modified_at > :modified_since
-ORDER BY detected_at DESC;
+ORDER BY server_modified_at;
 
 -- name: get_by_plant_id(plant_id, modified_since)
 -- Get all defects for a plant (full data) - joins through equipment and facility
@@ -16,7 +16,7 @@ JOIN lesiv.equipment e ON d.equipment_id = e.id
 JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
   AND d.server_modified_at > :modified_since
-ORDER BY d.detected_at DESC;
+ORDER BY d.server_modified_at;
 
 -- name: get_by_id(id)^
 -- Get defect by ID
