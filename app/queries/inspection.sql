@@ -4,7 +4,7 @@
 SELECT id, equipment_id, inspector_id, started_at, completed_at, status, is_deleted
 FROM lesiv.inspection
 WHERE server_modified_at > :modified_since
-ORDER BY started_at DESC;
+ORDER BY server_modified_at;
 
 -- name: get_by_plant_id(plant_id, modified_since)
 -- Get all inspections for plant (full data for aggregates)
@@ -15,7 +15,7 @@ JOIN lesiv.equipment e ON i.equipment_id = e.id
 JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
-ORDER BY i.started_at DESC;
+ORDER BY i.server_modified_at;
 
 -- name: get_steps_by_plant(plant_id)
 -- Get all inspection steps for inspections of a plant

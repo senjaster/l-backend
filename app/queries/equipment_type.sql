@@ -4,7 +4,7 @@
 SELECT id, name, is_deleted, server_modified_at
 FROM lesiv.equipment_type
 WHERE server_modified_at > :modified_since
-ORDER BY name;
+ORDER BY server_modified_at;
 
 -- name: get_all_control_point_templates()
 -- Get all control point templates
