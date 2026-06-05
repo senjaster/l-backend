@@ -41,7 +41,7 @@ SELECT
 FROM lesiv.image i
 WHERE i.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
-ORDER BY i.server_modified_at DESC;
+ORDER BY i.server_modified_at;
 
 -- name: get_by_file_name(file_name, modified_since)
 -- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
