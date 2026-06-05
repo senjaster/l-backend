@@ -15,7 +15,7 @@ FROM lesiv.equipment e
 JOIN lesiv.facility f ON e.facility_id = f.id
 WHERE f.plant_id = :plant_id
   AND e.server_modified_at > :modified_since
-ORDER BY d.server_modified_at;
+ORDER BY e.server_modified_at;
 
 -- name: get_control_points_by_plant(plant_id)
 -- Get all control points for equipment in a plant

@@ -2,7 +2,8 @@
 -- :modified_since defaults to 1790-01-01 - only return sticker types modified after that timestamp
 SELECT id, name, is_deleted, server_modified_at
 FROM lesiv.sticker_type
-WHERE server_modified_at > :modified_since;
+WHERE server_modified_at > :modified_since
+ORDER BY server_modified_at;
 
 -- name: get_temp_ranges()
 SELECT id, sticker_id, name, t_min, t_max, is_deleted
