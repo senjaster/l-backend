@@ -18,7 +18,7 @@ from app.exceptions import (
 from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
 from app.config import settings
-from app.services.s3_service import async_s3_service
+from app.services.s3_objects_service import init_s3_service, close_s3_service
 
 # Include routers
 from app.routers import (
@@ -38,7 +38,8 @@ from app.routers import (
 
 
 # Initialize logging
-setup_logging(log_level=settings.log_level, enable_json=settings.log_json) # DEV: log_level="INFO", enable_json=False
+setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
+# setup_logging(log_level="DEBUG", enable_json=False)
 logger = logging.getLogger(__name__)
 
 
@@ -47,10 +48,10 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
     try:
-        await async_s3_service.initialize()
-        logger.info("✅ S3 service initialized successfully")
+        await init_s3_service()
+        logger.info("  S3 service initialized successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize S3 service: {e}")
+        logger.error(f"  Failed to initialize S3 service: {e}")
 
     logger.info("Starting application")
     await init_db_pool()
@@ -59,16 +60,16 @@ async def lifespan(app: FastAPI):
     yield
     
     try:
-        await async_s3_service.close()
-        logger.info("✅ S3 service closed successfully")
+        await close_s3_service()
+        logger.info("  S3 service closed successfully")
     except Exception as e:
-        logger.error(f"❌ Error closing S3 service: {e}")
+        logger.error(f"  Error closing S3 service: {e}")
     
     # Shutdown
     logger.info("Shutting down application")
     await close_db_pool()
     logger.info("Database pool closed")
-    await async_s3_service.close()
+    await close_s3_service()
     logger.info("S3 service closed")
 
 

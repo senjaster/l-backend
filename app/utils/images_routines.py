@@ -11,7 +11,8 @@ from uuid import UUID
 from app.config import settings
 from app.database import get_db_connection
 from app.models.image import Image, ImageUploadStatus
-from app.services.s3_service import async_s3_service
+from app.services.s3_objects_service import get_s3_service
+
 from app.repositories.image import image_repo
 from app.utils.async_wrapper import AsyncWrapper
 
@@ -28,7 +29,7 @@ class ImageBackgroundFetcher:
         self.batch_size = batch_size
         self.timeout_seconds = 30  # Таймаут ожидания следующей порции (секунд)
         self.request_timeout = httpx.Timeout(10.0, connect=5.0)  # Таймаут для HTTP запроса
-        self.s3_service = async_s3_service
+        self.s3_service = s3_service
     
     def _log_section_header(self, title: str, **kwargs):
         """Логирование заголовка секции"""
@@ -420,7 +421,7 @@ async def fetch_images_background(
             fetcher = ImageBackgroundFetcher(
                 base_url=base_url, 
                 batch_size=batch_size,
-                s3_service=async_s3_service
+                s3_service=get_s3_service()
             )
             fetcher.timeout_seconds = timeout_seconds
 

@@ -15,7 +15,8 @@ from app.repositories.image import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
-from app.services.s3_service import AsyncS3Service, get_s3_service
+from app.services.s3_objects_service import S3ObjectService, get_s3_service
+
 from app.models.inspector import AccessLevel
 from app.utils.images_routines import image_repo, update_image_upload_status, fetch_images_background
 
@@ -42,7 +43,7 @@ async def get_image_by_id(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
+    s3_service: S3ObjectService = Depends(get_s3_service)
 ) -> Image:
     """Get specific image by ID"""
     # Check plant access via image
@@ -72,7 +73,7 @@ async def get_images_by_plant_id(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
+    s3_service: S3ObjectService = Depends(get_s3_service)
 ) -> list[Image]:
     """Get all images for a plant, optionally filtered by modification date"""
     # Check plant access
@@ -99,7 +100,7 @@ async def get_images_by_file_name(
         description="Only return images modified after this timestamp",
     ),
     conn=Depends(get_db_connection),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
+    s3_service: S3ObjectService = Depends(get_s3_service)
 ) -> list[Image]:
     """Get all images with a specific file name"""
     images = await image_repo.get_by_file_name(
@@ -123,7 +124,7 @@ async def upsert_image(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
+    s3_service: S3ObjectService = Depends(get_s3_service)
 ) -> Image:
     """
     Create or replace image.
@@ -148,7 +149,7 @@ async def upsert_image(
             result = await image_repo.save(conn, image, force=force)
         
         # Generate upload presigned URL
-        url_result = await s3_service.generate_upload_presigned_url(result.id)
+        url_result = await s3_service.generate_presigned_url(result.id)
         if url_result:
             result.presigned_url, result.presigned_url_expires_at = url_result
         
@@ -176,7 +177,7 @@ async def get_upload_url(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
+    s3_service: S3ObjectService = Depends(get_s3_service)
 ) -> PresignedUploadUrlResponse:
     """
     Get a presigned URL for uploading an image to S3.
@@ -201,7 +202,7 @@ async def get_upload_url(
         raise HTTPException(status_code=404, detail="Image not found")
     await permission_service.require_plant_access(plant_id)
     
-    url_result = await s3_service.generate_upload_presigned_url(image_id)
+    url_result = await s3_service.generate_presigned_url(image_id)
     if not url_result:
         raise HTTPException(
             status_code=500,
@@ -220,7 +221,7 @@ async def check_image_exists(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
+    s3_service: S3ObjectService = Depends(get_s3_service)
 ) -> dict[str, bool]:
     """
     Check if an image file exists in S3 storage.
@@ -251,7 +252,7 @@ async def check_image_exists(
 async def check_image_exists_by_name(
     file_name: str,
     conn=Depends(get_db_connection),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
+    s3_service: S3ObjectService = Depends(get_s3_service)
 ) -> dict[str, bool]:
     """
     Check if an image file exists in S3 storage.
