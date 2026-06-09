@@ -22,6 +22,7 @@ class S3ConnectionManager:
     def __init__(self):
         self._session = None
         self._client = None
+        self._sqs_client = None
         self._lock = asyncio.Lock()
         self._initialized = False
         
@@ -80,7 +81,6 @@ class S3ConnectionManager:
                     "aws_secret_access_key": self.secret_access_key,
                 }
                 
-                # Добавляем custom endpoint URL если указан
                 if self.endpoint_host:
                     endpoint_url = f"https://{self.endpoint_host}"
                     client_kwargs["endpoint_url"] = endpoint_url
@@ -90,9 +90,23 @@ class S3ConnectionManager:
                     "s3",
                     **client_kwargs
                 ).__aenter__()
+
+                # Создаем SQS клиент для Yandex Message Queue
+                sqs_client_kwargs = {
+                    "config": boto_config,
+                    "aws_access_key_id": self.access_key_id,
+                    "aws_secret_access_key": self.secret_access_key,
+                    "endpoint_url": "https://message-queue.api.cloud.yandex.net"
+                }
+                
+                # Создаем SQS клиент
+                self._sqs_client = await self._session.create_client(
+                    "sqs",
+                    **sqs_client_kwargs
+                ).__aenter__()
                 
                 self._initialized = True
-                logger.info("  Async S3 service initialized successfully")
+                logger.info("  Async S3/SQS connection manager initialized successfully")
                 
             except NoCredentialsError as e:
                 logger.error(f"AWS credentials not found: {e}")
@@ -107,12 +121,21 @@ class S3ConnectionManager:
             await self.initialize()
         return self._client
 
+    async def get_sqs_client(self):
+        """Получение SQS клиента (ленивая инициализация)"""
+        if not self._initialized:
+            await self.initialize()
+        return self._sqs_client
+    
     async def close(self):
         """Закрытие сессии и клиента"""
         async with self._lock:
             if self._client:
                 await self._client.close()
                 self._client = None
+            if self._sqs_client:
+                await self._sqs_client.close()
+                self._sqs_client = None
             if self._session:
                 self._session = None
             self._initialized = False

@@ -1,4 +1,3 @@
-# s3_object_service.py
 import asyncio
 from typing import Optional, List, Dict, Tuple
 from uuid import UUID
