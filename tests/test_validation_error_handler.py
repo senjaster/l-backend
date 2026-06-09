@@ -96,7 +96,7 @@ def test_validation_error_invalid_json(client):
     """Test validation error when JSON is malformed"""
     response = client.post(
         "/auth/login",
-        data="not valid json",
+        content="not valid json",
         headers={"Content-Type": "application/json"},
     )
 
