@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class ImageBackgroundFetcher:
+    
     def __init__(self, base_url: str, batch_size: int = 20, s3_service=None):
         self.base_url = base_url.rstrip('/')
         self.batch_size = batch_size
@@ -113,7 +114,7 @@ class ImageBackgroundFetcher:
         
         if error_type == "НЕПРЕДВИДЕННАЯ ОШИБКА":
             logger.error(f"   Ошибка: {error}", exc_info=True)
-    
+
     async def fetch_images_batch(
         self,
         client: httpx.AsyncClient,
@@ -176,7 +177,7 @@ class ImageBackgroundFetcher:
                     # Проверка таймаута
                     time_since_last_fetch = (datetime.now() - last_successful_fetch).total_seconds()
                     if time_since_last_fetch > self.timeout_seconds:
-                        logger.warning(f"⏰ Таймаут: за последние {self.timeout_seconds} секунд не получено изображений")
+                        logger.warning(f"  Таймаут: за последние {self.timeout_seconds} секунд не получено изображений")
                         break
                     
                     # Формируем параметры запроса
@@ -194,7 +195,6 @@ class ImageBackgroundFetcher:
                     )
                     response.raise_for_status()
                     data = response.json()
-                    # images = await image_repo.get_all(conn, modified_since=modified_since)
                     
                     items = data.get('items', [])
                     cursor = data.get('next_cursor')
@@ -313,7 +313,7 @@ class ImageBackgroundFetcher:
                         logger.error(f"     [ПОРЦИЯ {batch_number}] Ошибка при проверке изображения {image.get('id', 'unknown')}: {e}")
                         
                         if consecutive_errors >= 5:
-                            logger.error(f"   🛑 Слишком много ошибок подряд ({consecutive_errors}), прерываем проверку")
+                            logger.error(f"     Слишком много ошибок подряд ({consecutive_errors}), прерываем проверку")
                             break
                         
                         continue
@@ -412,7 +412,7 @@ async def fetch_images_background(
     """
     is_available = await check_server_availability(base_url)
     if not is_available:
-        logger.error(f"🛑 Невозможно запустить загрузку: сервер {base_url} недоступен")
+        logger.error(f"  Невозможно запустить загрузку: сервер {base_url} недоступен")
         return []
     
     async for conn in get_db_connection():
