@@ -24,16 +24,27 @@ class ImageRepository:
     """Repository for Image aggregate"""
 
     async def get_all(
-        self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE
+        self, 
+        conn, 
+        modified_since: datetime = DEFAULT_MODIFIED_SINCE, 
+        limit: Optional[int] = None
     ) -> List[Image]:
         """Get all images, optionally filtered by modification date"""
-        images = [
-            row
-            async for row in queries.get_all_images(
-                conn, modified_since=modified_since
-            )
-        ]
-        return [Image(**row) for row in images]
+        images = []
+        async for row in queries.get_all_images(
+                conn, modified_since=modified_since, limit=limit
+        ):
+            # Convert the row to a dictionary and parse metadata if it's a string
+            row_dict = dict(row)
+            if 'metadata' in row_dict and isinstance(row_dict['metadata'], str):
+                try:
+                    row_dict['metadata'] = json.loads(row_dict['metadata'])
+                except json.JSONDecodeError:
+                    row_dict['metadata'] = {}
+            
+            images.append(Image(**row_dict))
+        
+        return images
 
     async def get_by_id(self, conn, image_id: UUID) -> Optional[Image]:
         """Get image by ID"""
@@ -153,7 +164,8 @@ class ImageRepository:
             metadata=json.dumps(image.metadata) if image.metadata else None,
             is_deleted=image.is_deleted,
             server_modified_at=new_server_modified_at,
-            upload_status=image.upload_status
+            upload_status=image.upload_status,
+            server_uploaded_at=image.server_uploaded_at
         )
 
         result = await self.get_by_id(conn, image_id)

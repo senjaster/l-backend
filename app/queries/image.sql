@@ -1,9 +1,10 @@
 -- Image aggregate queries
 -- Following API design principles with optimistic concurrency control
 
--- name: get_all_images(modified_since)
+-- name: get_all_images(modified_since, limit)
 -- Get all images
 -- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
+-- :limit optional - maximum number of rows to return (no limit if NULL)
 SELECT
     id,
     plant_id,
@@ -11,10 +12,13 @@ SELECT
     image_type,
     metadata,
     is_deleted,
-    server_modified_at
+    server_modified_at,
+    upload_status,
+    server_uploaded_at
 FROM lesiv.image
 WHERE server_modified_at > :modified_since
-ORDER BY server_modified_at DESC;
+ORDER BY server_modified_at DESC
+LIMIT NULLIF(:limit, 0);
 
 -- name: get_by_id(id)^
 SELECT
@@ -24,7 +28,9 @@ SELECT
     image_type,
     metadata,
     is_deleted,
-    server_modified_at
+    server_modified_at,
+    upload_status,
+    server_uploaded_at
 FROM lesiv.image
 WHERE id = :id;
 
@@ -37,7 +43,9 @@ SELECT
     i.image_type,
     i.metadata,
     i.is_deleted,
-    i.server_modified_at
+    i.server_modified_at,
+    i.upload_status,
+    i.server_uploaded_at
 FROM lesiv.image i
 WHERE i.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
@@ -52,13 +60,15 @@ SELECT
     i.image_type,
     i.metadata,
     i.is_deleted,
-    i.server_modified_at
+    i.server_modified_at,
+    i.upload_status,
+    i.server_uploaded_at
 FROM lesiv.image i
 WHERE id = :file_name
   AND i.server_modified_at > :modified_since
 ORDER BY i.server_modified_at DESC;
 
--- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at, upload_status)!
+-- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at, upload_status, server_uploaded_at)!
 INSERT INTO lesiv.image (
     id,
     plant_id,
@@ -67,7 +77,8 @@ INSERT INTO lesiv.image (
     metadata,
     is_deleted,
     server_modified_at,
-    upload_status
+    upload_status,
+    server_uploaded_at
 )
 VALUES (
     :id,
@@ -77,7 +88,8 @@ VALUES (
     :metadata,
     :is_deleted,
     :server_modified_at,
-    :upload_status
+    :upload_status,
+    :server_uploaded_at
 )
 ON CONFLICT (id) DO UPDATE SET
     plant_id = EXCLUDED.plant_id,
@@ -86,7 +98,8 @@ ON CONFLICT (id) DO UPDATE SET
     metadata = EXCLUDED.metadata,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at,
-    upload_status = EXCLUDED.upload_status;
+    upload_status = EXCLUDED.upload_status,
+    server_uploaded_at = EXCLUDED.server_uploaded_at;
 
 -- name: delete(id)!
 DELETE FROM lesiv.image

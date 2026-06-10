@@ -1,4 +1,3 @@
-import aiosql
 import asyncio
 import logging
 import httpx
@@ -144,7 +143,8 @@ class ImageBackgroundFetcher:
         self,
         conn,
         modified_since: Optional[datetime] = None,
-        callback: Optional[callable] = None
+        callback: Optional[callable] = None,
+        limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Получение всех изображений порциями с контролем таймаута"""
         
@@ -182,10 +182,16 @@ class ImageBackgroundFetcher:
                         break
                     
                     # Формируем параметры запроса
-                    params = {
-                        "modified_since": modified_since.isoformat(),
-                        "limit": self.batch_size
-                    }
+                    if limit:
+                        limit = min(limit, self.batch_size) if limit else self.batch_size
+                        params = {
+                            "modified_since": modified_since.isoformat(),
+                            "limit": limit
+                        }
+                    else:
+                        params = {
+                            "modified_since": modified_since.isoformat(),
+                        }
                     if cursor:
                         params["cursor"] = cursor
                     
@@ -219,6 +225,11 @@ class ImageBackgroundFetcher:
                         
                         if callback:
                             await callback(items, len(images), cursor)
+                        
+                        if limit and len(images) >= limit:
+                            logger.debug(f"  Достигнут лимит загрузки: {limit} изображений")
+                            break
+                    
                     else:
                         logger.debug(f"  [ПОРЦИЯ {batch_number}] Нет изображений в этой порции")
                         break
@@ -287,15 +298,26 @@ class ImageBackgroundFetcher:
                             elapsed = (datetime.now() - check_start_time).total_seconds()
                             self._log_progress(global_idx, len(images), elapsed)
                         
-                        if image.get('upload_status') == ImageUploadStatus.UNKNOWN:
+                        if image.get('upload_status') == ImageUploadStatus.MISSING:
+                            last_modified = None
                             exists = await self.s3_service.check_exists(image['id'])
-                            
+                            metadata = await self.s3_service.get_metadata(image['id'])
+                            if metadata:
+                                last_modified = metadata.get('last_modified')
+                            if last_modified and isinstance(last_modified, datetime):
+                                server_modified_at = datetime.fromisoformat(image['server_modified_at'].replace('Z', '+00:00'))
+                                if last_modified > server_modified_at:
+                                    server_modified_at = last_modified
+                                else:
+                                    server_modified_at = datetime.fromisoformat(image['server_modified_at'].replace('Z', '+00:00'))
+                            server_uploaded_at = last_modified
                             upload_status = ImageUploadStatus.UPLOADED if exists else ImageUploadStatus.MISSING
                             
                             await update_image_upload_status(
                                 conn,
                                 image_id=image['id'],
                                 upload_status=upload_status,
+                                server_uploaded_at=server_uploaded_at,
                                 force=True
                             )
                             
@@ -400,7 +422,8 @@ async def fetch_images_background(
     base_url: str,
     modified_since: Optional[datetime] = None,
     batch_size: int = 100,
-    timeout_seconds: int = 30
+    timeout_seconds: int = 30,
+    limit: Optional[int] = None
 ) -> List[Dict[str, Any]]:
     """
     Фоновая задача для получения изображений порциями
@@ -421,13 +444,14 @@ async def fetch_images_background(
             fetcher = ImageBackgroundFetcher(
                 base_url=base_url, 
                 batch_size=batch_size,
-                s3_service=get_s3_service()
+                s3_service=await get_s3_service()
             )
             fetcher.timeout_seconds = timeout_seconds
 
             images = await fetcher.fetch_all_images_streaming(
                 conn=conn,
-                modified_since=modified_since
+                modified_since=modified_since,
+                limit=limit
             )
         except Exception as e:
             logger.error(f"  Ошибка в фоновой задаче: {e}", exc_info=True)
@@ -439,6 +463,7 @@ async def update_image_upload_status(
     conn,
     image_id: UUID,
     upload_status: ImageUploadStatus,
+    server_uploaded_at: Optional[datetime] = None,
     force: bool = False,
 ) -> Image:
     """
@@ -448,6 +473,7 @@ async def update_image_upload_status(
         conn: Соединение с БД
         image_id: ID изображения
         upload_status: Новый статус загрузки
+        server_uploaded_at: Новая дата загрузки на сервер
         force: Принудительное обновление
     
     Returns:
@@ -470,6 +496,7 @@ async def update_image_upload_status(
                 is_deleted=existing_image.is_deleted,
                 server_modified_at=existing_image.server_modified_at,
                 upload_status=upload_status,
+                server_uploaded_at=server_uploaded_at or existing_image.server_uploaded_at
             )
             
             result = await image_repo.save(conn, updated_image, force=force)

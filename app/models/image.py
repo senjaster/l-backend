@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, List
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class ImageType(str, Enum):
@@ -37,6 +37,7 @@ class Image(BaseModel):
     is_deleted: bool = False
     server_modified_at: datetime
     upload_status: str = ImageUploadStatus.UNKNOWN
+    server_uploaded_at: Optional[datetime] = None
     presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
     presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
 

@@ -32,9 +32,13 @@ async def get_all_images(
         description="Only return images modified after this timestamp",
     ),
     conn=Depends(get_db_connection),
+    limit: Optional[int] = Query(
+        None, 
+        description="Maximum number of images to return"
+    )
 ) -> ImageListResponse:
     """Get all images (read-only), optionally filtered by modification date"""
-    images = await image_repo.get_all(conn, modified_since=modified_since)
+    images = await image_repo.get_all(conn, modified_since=modified_since, limit=limit)
     return ImageListResponse(items=images)
 
 
@@ -168,6 +172,62 @@ async def upsert_image(
     except ValueError as e:
         logger.warning(
             "Invalid image data", extra={"image_id": str(image.id), "error": str(e)}
+        )
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{image_id}", response_model=Image)
+async def update_image_upload_date(
+    image_id: str,
+    server_modified_at: datetime,
+    conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
+    s3_service: S3ObjectService = Depends(get_s3_service)
+) -> Image:
+    """
+    Create or replace image by ID.
+
+    Rules:
+    - Permission: User must have access to the plant
+    """
+    try:
+        async with conn.transaction():
+            # Get existing image
+            existing_image = await image_repo.get_by_id(conn, image_id)
+            if not existing_image:
+                raise HTTPException(status_code=404, detail="Image not found")
+            
+            existing_image.server_uploaded_at = server_modified_at
+            
+            # Check access level (INSPECT required)
+            permission_service.require_access_level(AccessLevel.INSPECT)
+            
+            # Check plant access
+            await permission_service.require_plant_access(existing_image.plant_id)
+            
+            # Save image with the updated data
+            result = await image_repo.save(conn, existing_image)
+        
+        # Generate upload presigned URL
+        url_result = await s3_service.generate_presigned_url(result.id)
+        if url_result:
+            result.presigned_url, result.presigned_url_expires_at = url_result
+        
+        return result
+    except ConcurrentModificationError as e:
+        logger.warning(
+            "Concurrent modification detected for image",
+            extra={
+                "image_id": str(image_id),
+                "conflict": e.conflict_error.model_dump(mode="json"),
+            },
+        )
+        raise HTTPException(
+            status_code=409, detail=e.conflict_error.model_dump(mode="json")
+        )
+    except ValueError as e:
+        logger.warning(
+            "Invalid image data", extra={"image_id": str(image_id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -327,6 +387,7 @@ async def trigger_images_background_fetch(
     modified_since: Optional[datetime] = datetime.now() - timedelta(days=2),
     batch_size: int = 500,
     timeout_seconds: int = 30,
+    limit: Optional[int] = None
 ) -> dict[str, str]:
     """Запуск фоновой загрузки изображений"""
     base_url = f"{request.url.scheme}://{request.url.hostname}:{request.url.port}"
@@ -336,7 +397,8 @@ async def trigger_images_background_fetch(
             base_url=base_url,
             modified_since=modified_since,
             batch_size=batch_size,
-            timeout_seconds=timeout_seconds
+            timeout_seconds=timeout_seconds,
+            limit=limit
         )
     )
     
