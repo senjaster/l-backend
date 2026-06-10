@@ -143,6 +143,7 @@ class ImageBackgroundFetcher:
         self,
         conn,
         modified_since: Optional[datetime] = None,
+        uploaded_since: Optional[datetime] = None,
         callback: Optional[callable] = None,
         limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
@@ -151,11 +152,15 @@ class ImageBackgroundFetcher:
         if modified_since is None:
             modified_since = datetime(2020, 1, 1)
         
+        if uploaded_since is None:
+            uploaded_since = datetime(2020, 1, 1)
+        
         # Логируем начало загрузки
         self._log_section_header(
             "НАЧАЛО ЗАГРУЗКИ ИЗОБРАЖЕНИЙ",
             **{
-                "  Дата фильтрации": modified_since.isoformat(),
+                "  Дата изменения": modified_since.isoformat(),
+                "  Дата загрузки": uploaded_since.isoformat(),
                 "  Размер порции": self.batch_size,
                 "   Таймаут ожидания": f"{self.timeout_seconds} сек",
                 "  URL сервера": self.base_url
@@ -182,16 +187,13 @@ class ImageBackgroundFetcher:
                         break
                     
                     # Формируем параметры запроса
+                    params = {
+                        "modified_since": modified_since.isoformat(),
+                        "uploaded_since": uploaded_since.isoformat(),
+                    }
                     if limit:
-                        limit = min(limit, self.batch_size) if limit else self.batch_size
-                        params = {
-                            "modified_since": modified_since.isoformat(),
-                            "limit": limit
-                        }
-                    else:
-                        params = {
-                            "modified_since": modified_since.isoformat(),
-                        }
+                        limit = min(limit, self.batch_size)
+                        params["limit"] = str(limit)
                     if cursor:
                         params["cursor"] = cursor
                     
@@ -298,7 +300,10 @@ class ImageBackgroundFetcher:
                             elapsed = (datetime.now() - check_start_time).total_seconds()
                             self._log_progress(global_idx, len(images), elapsed)
                         
-                        if image.get('upload_status') == ImageUploadStatus.MISSING:
+                        if image.get('upload_status') in (
+                            ImageUploadStatus.MISSING,
+                            ImageUploadStatus.UNKNOWN
+                        ):
                             last_modified = None
                             exists = await self.s3_service.check_exists(image['id'])
                             metadata = await self.s3_service.get_metadata(image['id'])
@@ -421,6 +426,7 @@ async def check_server_availability(
 async def fetch_images_background(
     base_url: str,
     modified_since: Optional[datetime] = None,
+    uploaded_since: Optional[datetime] = None,
     batch_size: int = 100,
     timeout_seconds: int = 30,
     limit: Optional[int] = None
@@ -430,7 +436,8 @@ async def fetch_images_background(
     
     Args:
         base_url: Базовый URL API
-        modified_since: Начальная дата фильтрации
+        modified_since: Изменены, начиная с этой даты
+        uploaded_since: Загружены, начиная с этой даты
         batch_size: Размер порции
         timeout_seconds: Таймаут ожидания следующей порции в секундах
     """
@@ -451,6 +458,7 @@ async def fetch_images_background(
             images = await fetcher.fetch_all_images_streaming(
                 conn=conn,
                 modified_since=modified_since,
+                uploaded_since=uploaded_since,
                 limit=limit
             )
         except Exception as e:

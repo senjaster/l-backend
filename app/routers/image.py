@@ -31,6 +31,10 @@ async def get_all_images(
         DEFAULT_MODIFIED_SINCE,
         description="Only return images modified after this timestamp",
     ),
+    uploaded_since: Optional[datetime] = Query(
+        DEFAULT_MODIFIED_SINCE,
+        description="Only return images uploaded after this timestamp",
+    ),
     conn=Depends(get_db_connection),
     limit: Optional[int] = Query(
         None, 
@@ -38,7 +42,12 @@ async def get_all_images(
     )
 ) -> ImageListResponse:
     """Get all images (read-only), optionally filtered by modification date"""
-    images = await image_repo.get_all(conn, modified_since=modified_since, limit=limit)
+    images = await image_repo.get_all(
+        conn, 
+        modified_since=modified_since, 
+        uploaded_since=uploaded_since, 
+        limit=limit
+    )
     return ImageListResponse(items=images)
 
 
@@ -385,6 +394,7 @@ async def update_image_upload_status_endpoint(
 async def trigger_images_background_fetch(
     request: Request,
     modified_since: Optional[datetime] = datetime.now() - timedelta(days=2),
+    uploaded_since: Optional[datetime] = datetime.now() - timedelta(days=30),
     batch_size: int = 500,
     timeout_seconds: int = 30,
     limit: Optional[int] = None
@@ -396,6 +406,7 @@ async def trigger_images_background_fetch(
         fetch_images_background(
             base_url=base_url,
             modified_since=modified_since,
+            uploaded_since=uploaded_since,
             batch_size=batch_size,
             timeout_seconds=timeout_seconds,
             limit=limit

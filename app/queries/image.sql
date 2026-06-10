@@ -1,9 +1,10 @@
 -- Image aggregate queries
 -- Following API design principles with optimistic concurrency control
 
--- name: get_all_images(modified_since, limit)
+-- name: get_all_images(modified_since, uploaded_since, limit)
 -- Get all images
 -- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
+-- :uploaded_since defaults to 1790-01-01 - only return images uploaded after that timestamp
 -- :limit optional - maximum number of rows to return (no limit if NULL)
 SELECT
     id,
@@ -16,7 +17,8 @@ SELECT
     upload_status,
     server_uploaded_at
 FROM lesiv.image
-WHERE server_modified_at > :modified_since
+WHERE server_modified_at > :modified_since 
+AND server_uploaded_at > :uploaded_since
 ORDER BY server_modified_at DESC
 LIMIT NULLIF(:limit, 0);
 

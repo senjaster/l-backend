@@ -2,6 +2,7 @@
 import json
 import aiosql
 import os
+import logging
 
 from typing import Optional, List
 from uuid import UUID
@@ -19,6 +20,8 @@ from app.utils.datetime_utils import truncate_to_milliseconds
 _queries = aiosql.from_path("app/queries/image.sql", settings.db_driver)
 queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
 
+logger = logging.getLogger(__name__)
+
 
 class ImageRepository:
     """Repository for Image aggregate"""
@@ -27,12 +30,16 @@ class ImageRepository:
         self, 
         conn, 
         modified_since: datetime = DEFAULT_MODIFIED_SINCE, 
+        uploaded_since: Optional[datetime] = DEFAULT_MODIFIED_SINCE,
         limit: Optional[int] = None
     ) -> List[Image]:
         """Get all images, optionally filtered by modification date"""
         images = []
         async for row in queries.get_all_images(
-                conn, modified_since=modified_since, limit=limit
+                conn, 
+                modified_since=modified_since, 
+                uploaded_since=uploaded_since, 
+                limit=limit
         ):
             # Convert the row to a dictionary and parse metadata if it's a string
             row_dict = dict(row)
