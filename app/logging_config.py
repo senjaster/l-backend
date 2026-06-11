@@ -64,7 +64,7 @@ def setup_logging(log_level: str = "INFO", enable_json: bool = True):
     # Reduce noise from third-party libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("asyncpg").setLevel(logging.WARNING)
-    logging.getLogger("aiosql").setLevel(logging.DEBUG)
+    logging.getLogger("aiosql").setLevel(logging.WARNING)
 
     # Log initialization
     logger = logging.getLogger(__name__)
