@@ -142,6 +142,7 @@ class ImageBackgroundFetcher:
     async def fetch_all_images_streaming(
         self,
         conn,
+        upload_status: Optional[ImageUploadStatus] = None,
         modified_since: Optional[datetime] = None,
         uploaded_since: Optional[datetime] = None,
         callback: Optional[callable] = None,
@@ -188,6 +189,7 @@ class ImageBackgroundFetcher:
                     
                     # Формируем параметры запроса
                     params = {
+                        "upload_status": upload_status.value if upload_status else None,
                         "modified_since": modified_since.isoformat(),
                         "uploaded_since": uploaded_since.isoformat(),
                     }
@@ -425,6 +427,7 @@ async def check_server_availability(
 
 async def fetch_images_background(
     base_url: str,
+    upload_status: Optional[ImageUploadStatus] = None,
     modified_since: Optional[datetime] = None,
     uploaded_since: Optional[datetime] = None,
     batch_size: int = 100,
@@ -436,10 +439,12 @@ async def fetch_images_background(
     
     Args:
         base_url: Базовый URL API
+        upload_status: Фильтр по статусу загрузки (MISSING, UPLOADED, UNKNOWN)
         modified_since: Изменены, начиная с этой даты
         uploaded_since: Загружены, начиная с этой даты
         batch_size: Размер порции
         timeout_seconds: Таймаут ожидания следующей порции в секундах
+        limit: Максимальное количество изображений для загрузки (None - без лимита)
     """
     is_available = await check_server_availability(base_url)
     if not is_available:
@@ -457,6 +462,7 @@ async def fetch_images_background(
 
             images = await fetcher.fetch_all_images_streaming(
                 conn=conn,
+                upload_status=upload_status,
                 modified_since=modified_since,
                 uploaded_since=uploaded_since,
                 limit=limit

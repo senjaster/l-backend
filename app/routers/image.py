@@ -27,6 +27,9 @@ router = APIRouter(prefix="/image", tags=["image"])
 
 @router.get("/all", response_model=ImageListResponse)
 async def get_all_images(
+    upload_status: Optional[str] = Query(
+        None, description="Filter images by upload status"
+    ),
     modified_since: datetime = Query(
         DEFAULT_MODIFIED_SINCE,
         description="Only return images modified after this timestamp",
@@ -43,7 +46,8 @@ async def get_all_images(
 ) -> ImageListResponse:
     """Get all images (read-only), optionally filtered by modification date"""
     images = await image_repo.get_all(
-        conn, 
+        conn,
+        upload_status=upload_status,
         modified_since=modified_since, 
         uploaded_since=uploaded_since, 
         limit=limit
@@ -393,6 +397,7 @@ async def update_image_upload_status_endpoint(
 @router.post("/trigger-images-background-fetch")
 async def trigger_images_background_fetch(
     request: Request,
+    upload_status: Optional[ImageUploadStatus] = None,
     modified_since: Optional[datetime] = datetime.now() - timedelta(days=2),
     uploaded_since: Optional[datetime] = datetime.now() - timedelta(days=30),
     batch_size: int = 500,
@@ -405,6 +410,7 @@ async def trigger_images_background_fetch(
     asyncio.create_task(
         fetch_images_background(
             base_url=base_url,
+            upload_status=upload_status,
             modified_since=modified_since,
             uploaded_since=uploaded_since,
             batch_size=batch_size,

@@ -29,6 +29,7 @@ class ImageRepository:
     async def get_all(
         self, 
         conn, 
+        upload_status: Optional[str] = None,
         modified_since: datetime = DEFAULT_MODIFIED_SINCE, 
         uploaded_since: Optional[datetime] = DEFAULT_MODIFIED_SINCE,
         limit: Optional[int] = None
@@ -37,6 +38,7 @@ class ImageRepository:
         images = []
         async for row in queries.get_all_images(
                 conn, 
+                upload_status=upload_status.lower() if upload_status else None,
                 modified_since=modified_since, 
                 uploaded_since=uploaded_since, 
                 limit=limit
