@@ -69,8 +69,16 @@ class S3ObjectService:
             logger.error(f"Unexpected error generating presigned URL: {e}")
             return None
     
-    async def generate_upload_url(self, image_id: UUID) -> Optional[Tuple[str, datetime]]:
-        """Генерация presigned URL для загрузки"""
+    async def generate_upload_presigned_url(self, image_id: UUID) -> Optional[Tuple[str, datetime]]:
+        """
+        Генерация presigned URL для загрузки.
+        
+        Args:
+            image_id: UUID изображения
+        
+        Returns:
+            Tuple (presigned URL, время истечения) или None при ошибке
+        """
         return await self.generate_presigned_url(image_id, operation="put_object")
     
     async def check_exists(self, image_id: UUID) -> bool:

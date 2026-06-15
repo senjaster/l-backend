@@ -142,7 +142,7 @@ async def upsert_image(
             result = await image_repo.save(conn, image, force=force)
         
         # Generate upload presigned URL
-        url_result = await s3_service.generate_presigned_url(result.id)
+        url_result = await s3_service.generate_upload_presigned_url(result.id)
         if url_result:
             result.presigned_url, result.presigned_url_expires_at = url_result
         
@@ -195,7 +195,7 @@ async def get_upload_url(
         raise HTTPException(status_code=404, detail="Image not found")
     await permission_service.require_plant_access(plant_id)
     
-    url_result = await s3_service.generate_presigned_url(image_id)
+    url_result = await s3_service.generate_upload_presigned_url(image_id)
     if not url_result:
         raise HTTPException(
             status_code=500,
