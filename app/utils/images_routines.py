@@ -315,8 +315,6 @@ class ImageBackgroundFetcher:
                                 server_modified_at = datetime.fromisoformat(image['server_modified_at'].replace('Z', '+00:00'))
                                 if last_modified > server_modified_at:
                                     server_modified_at = last_modified
-                                else:
-                                    server_modified_at = datetime.fromisoformat(image['server_modified_at'].replace('Z', '+00:00'))
                             server_uploaded_at = last_modified
                             upload_status = ImageUploadStatus.UPLOADED if exists else ImageUploadStatus.MISSING
                             

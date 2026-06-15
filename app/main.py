@@ -38,8 +38,7 @@ from app.routers import (
 
 
 # Initialize logging
-setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
-# setup_logging(log_level="DEBUG", enable_json=False)
+setup_logging(log_level=settings.log_level, enable_json=settings.log_json) # DEV: log_level="DEBUG", enable_json=False
 logger = logging.getLogger(__name__)
 
 
@@ -64,13 +63,11 @@ async def lifespan(app: FastAPI):
         logger.info("  S3 service closed successfully")
     except Exception as e:
         logger.error(f"  Error closing S3 service: {e}")
-    
-    # Shutdown
-    logger.info("Shutting down application")
-    await close_db_pool()
-    logger.info("Database pool closed")
-    await close_s3_service()
-    logger.info("S3 service closed")
+    finally:
+        # Shutdown
+        logger.info("Shutting down application")
+        await close_db_pool()
+        logger.info("Database pool closed")
 
 
 app = FastAPI(
