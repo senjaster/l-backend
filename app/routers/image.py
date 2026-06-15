@@ -10,7 +10,13 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.image import Image, PresignedUploadUrlResponse, ImageListResponse, ImageUploadStatus
+from app.models.image import (
+    Image, 
+    PresignedUploadUrlResponse, 
+    ImageListResponse, 
+    ImageUploadStatus, 
+    PutImageRequestBody
+)
 from app.repositories.image import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
@@ -109,9 +115,9 @@ async def get_images_by_plant_id(
     return images
 
 
-@router.put("", response_model=Image)
+@router.put("", response_model=PutImageRequestBody)
 async def upsert_image(
-    image: Image,
+    image_request: PutImageRequestBody,
     force: bool = Query(
         default=False, description="If true, ignore server_modified_at validation"
     ),
@@ -137,9 +143,9 @@ async def upsert_image(
             permission_service.require_access_level(AccessLevel.INSPECT)
             
             # Check plant access
-            await permission_service.require_plant_access(image.plant_id)
+            await permission_service.require_plant_access(image_request.plant_id)
             
-            result = await image_repo.save(conn, image, force=force)
+            result = await image_repo.save(conn, image_request.to_image(), force=force)
         
         # Generate upload presigned URL
         url_result = await s3_service.generate_upload_presigned_url(result.id)
@@ -147,20 +153,22 @@ async def upsert_image(
             result.presigned_url, result.presigned_url_expires_at = url_result
         
         return result
+    
     except ConcurrentModificationError as e:
         logger.warning(
             "Concurrent modification detected for image",
             extra={
-                "image_id": str(image.id),
+                "image_id": str(image_request.id),
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
         raise HTTPException(
             status_code=409, detail=e.conflict_error.model_dump(mode="json")
         )
+    
     except ValueError as e:
         logger.warning(
-            "Invalid image data", extra={"image_id": str(image.id), "error": str(e)}
+            "Invalid image data", extra={"image_id": str(image_request.id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))
 
