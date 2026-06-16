@@ -10,7 +10,7 @@ from uuid import UUID
 from app.config import settings
 from app.database import get_db_connection
 from app.models.image import Image, ImageUploadStatus
-from app.services.s3_objects_service import get_s3_service
+from app.services.s3_objects_service import get_s3_objects_service
 
 from app.repositories.image import image_repo
 from app.utils.async_wrapper import AsyncWrapper
@@ -466,7 +466,7 @@ async def fetch_images_background(
             fetcher = ImageBackgroundFetcher(
                 base_url=base_url, 
                 batch_size=batch_size,
-                s3_service=await get_s3_service()
+                s3_service=await get_s3_objects_service()
             )
             fetcher.timeout_seconds = timeout_seconds
 

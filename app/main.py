@@ -18,7 +18,7 @@ from app.exceptions import (
 from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
 from app.config import settings
-from app.services.s3_objects_service import init_s3_service, close_s3_service
+from app.services.s3_objects_service import init_s3_objects_service, close_s3_objects_service
 
 # Include routers
 from app.routers import (
@@ -26,6 +26,7 @@ from app.routers import (
     inspector,
     image,
     log,
+    s3_queue,
     sticker_type,
     equipment_type,
     facility_template,
@@ -47,10 +48,10 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
     try:
-        await init_s3_service()
-        logger.info("  S3 service initialized successfully")
+        await init_s3_objects_service()
+        logger.info("  S3 objects service initialized successfully")
     except Exception as e:
-        logger.error(f"  Failed to initialize S3 service: {e}")
+        logger.error(f"  Failed to initialize S3 objects service: {e}")
 
     logger.info("Starting application")
     await init_db_pool()
@@ -59,10 +60,10 @@ async def lifespan(app: FastAPI):
     yield
     
     try:
-        await close_s3_service()
-        logger.info("  S3 service closed successfully")
+        await close_s3_objects_service()
+        logger.info("  S3 objects service closed successfully")
     except Exception as e:
-        logger.error(f"  Error closing S3 service: {e}")
+        logger.error(f"  Error closing S3 objects service: {e}")
     finally:
         # Shutdown
         logger.info("Shutting down application")
@@ -163,3 +164,4 @@ app.include_router(plant.router)
 app.include_router(equipment.router)
 app.include_router(inspection.router)
 app.include_router(defect.router)
+app.include_router(s3_queue.router)
