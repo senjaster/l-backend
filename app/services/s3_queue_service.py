@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import List, Dict, Optional, Union, Any
 from uuid import UUID
 
@@ -57,70 +58,69 @@ class S3QueueService:
         logger.info(f"Starting read_queue_messages: queue_url={queue_url}, max_messages={max_messages}, wait_time={wait_time}")
         
         try:
-            client = await self._connection.get_sqs_client()
+            async with await self._connection.get_sqs_client_cm() as client:
+                
+                request_params = {
+                    'QueueUrl': queue_url,
+                    'MaxNumberOfMessages': min(max_messages, 10),
+                    'WaitTimeSeconds': wait_time,
+                    'VisibilityTimeout': 60,
+                    'AttributeNames': ['All'],
+                    'MessageAttributeNames': ['All']
+                }
             
-            request_params = {
-                'QueueUrl': queue_url,
-                'MaxNumberOfMessages': min(max_messages, 10),
-                'WaitTimeSeconds': wait_time,
-                'VisibilityTimeout': 60,
-                'AttributeNames': ['All'],
-                'MessageAttributeNames': ['All']
-            }
+                start_time = time.time()
+                response = await client.receive_message(**request_params)
+                elapsed_time = time.time() - start_time
             
-            import time
-            start_time = time.time()
-            response = await client.receive_message(**request_params)
-            elapsed_time = time.time() - start_time
-            
-            logger.debug(f"receive_message completed in {elapsed_time:.2f}s")
-            
-            if 'Error' in response:
-                logger.error(f"AWS error in response: {response['Error']}")
-                return []
-            
-            messages = response.get('Messages', [])
-            logger.info(f"Found {len(messages)} messages in queue")
-            
-            if messages:
-                result = []
-                for msg in messages:
-                    body = msg.get('Body', '')
-                    try:
-                        parsed_body = json.loads(body) if body else {}
-                    except json.JSONDecodeError:
-                        parsed_body = body
+                logger.debug(f"receive_message completed in {elapsed_time:.2f}s")
+                
+                if 'Error' in response:
+                    logger.error(f"AWS error in response: {response['Error']}")
+                    return []
+                
+                messages = response.get('Messages', [])
+                logger.info(f"Found {len(messages)} messages in queue")
+                
+                if messages:
+                    result = []
+                    for msg in messages:
+                        body = msg.get('Body', '')
+                        try:
+                            parsed_body = json.loads(body) if body else {}
+                        except json.JSONDecodeError:
+                            parsed_body = body
+                        
+                        result.append({
+                            'message_id': msg.get('MessageId'),
+                            'receipt_handle': msg.get('ReceiptHandle'),
+                            'body': parsed_body,
+                            'body_raw': body,
+                            'attributes': msg.get('Attributes', {}),
+                            'message_attributes': msg.get('MessageAttributes', {})
+                        })
                     
-                    result.append({
-                        'message_id': msg.get('MessageId'),
-                        'receipt_handle': msg.get('ReceiptHandle'),
-                        'body': parsed_body,
-                        'body_raw': body,
-                        'attributes': msg.get('Attributes', {}),
-                        'message_attributes': msg.get('MessageAttributes', {})
-                    })
-                
-                logger.info(f"Successfully processed {len(result)} messages")
-                return result
-            else:
-                logger.debug("No messages in queue")
-                
-                # Check queue attributes for debugging
-                try:
-                    queue_attrs = await client.get_queue_attributes(
-                        QueueUrl=queue_url,
-                        AttributeNames=[
-                            'ApproximateNumberOfMessages',
-                            'ApproximateNumberOfMessagesDelayed',
-                            'ApproximateNumberOfMessagesNotVisible'
-                        ]
-                    )
-                    attr = queue_attrs.get('Attributes', {})
-                    logger.debug(f"Queue attributes: {attr}")
-                except Exception as e:
-                    logger.debug(f"Failed to get queue attributes: {e}")
-                
-                return []
+                    logger.info(f"Successfully processed {len(result)} messages")
+                    return result
+                else:
+                    logger.debug("No messages in queue")
+                    
+                    # Check queue attributes for debugging
+                    try:
+                        queue_attrs = await client.get_queue_attributes(
+                            QueueUrl=queue_url,
+                            AttributeNames=[
+                                'ApproximateNumberOfMessages',
+                                'ApproximateNumberOfMessagesDelayed',
+                                'ApproximateNumberOfMessagesNotVisible'
+                            ]
+                        )
+                        attr = queue_attrs.get('Attributes', {})
+                        logger.debug(f"Queue attributes: {attr}")
+                    except Exception as e:
+                        logger.debug(f"Failed to get queue attributes: {e}")
+                    
+                    return []
             
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', 'Unknown')
@@ -146,15 +146,14 @@ class S3QueueService:
             True если сообщение удалено успешно, иначе False
         """
         try:
-            client = await self._connection.get_sqs_client()
-            
-            await client.delete_message(
-                QueueUrl=queue_url,
-                ReceiptHandle=receipt_handle
-            )
-            
-            logger.debug(f"  Message deleted from queue: {receipt_handle[:20]}...")
-            return True
+            async with await self._connection.get_sqs_client_cm() as client:
+                await client.delete_message(
+                    QueueUrl=queue_url,
+                    ReceiptHandle=receipt_handle
+                )
+                
+                logger.debug(f"Message deleted from queue: {receipt_handle[:20]}...")
+                return True
             
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', 'Unknown')
@@ -175,13 +174,12 @@ class S3QueueService:
             True если очередь очищена успешно, иначе False
         """
         try:
-            client = await self._connection.get_sqs_client()
-            
-            await client.purge_queue(QueueUrl=queue_url)
-            
-            logger.info(f"  Queue purged successfully: {queue_url}")
-            return True
-            
+            async with await self._connection.get_sqs_client_cm() as client:
+                await client.purge_queue(QueueUrl=queue_url)
+                
+                logger.info(f"Queue purged successfully: {queue_url}")
+                return True
+        
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', 'Unknown')
             logger.error(f"Error purging queue: {error_code}")
@@ -204,22 +202,21 @@ class S3QueueService:
             ID отправленного сообщения или None при ошибке
         """
         try:
-            client = await self._connection.get_sqs_client()
-            
-            if isinstance(message_body, (dict, list)):
-                body = json.dumps(message_body, ensure_ascii=False, default=str)
-            else:
-                body = str(message_body)
-            
-            response = await client.send_message(
-                QueueUrl=queue_url,
-                MessageBody=body,
-                DelaySeconds=delay_seconds
-            )
-            
-            message_id = response.get('MessageId')
-            logger.info(f"✅ Message sent to queue. MessageId: {message_id}")
-            return message_id
+            async with await self._connection.get_sqs_client_cm() as client:
+                if isinstance(message_body, (dict, list)):
+                    body = json.dumps(message_body, ensure_ascii=False, default=str)
+                else:
+                    body = str(message_body)
+                
+                response = await client.send_message(
+                    QueueUrl=queue_url,
+                    MessageBody=body,
+                    DelaySeconds=delay_seconds
+                )
+                
+                message_id = response.get('MessageId')
+                logger.info(f"Message sent to queue. MessageId: {message_id}")
+                return message_id
             
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', 'Unknown')
@@ -234,6 +231,6 @@ class S3QueueService:
 async def get_s3_queue_service() -> S3QueueService:
     """Dependency для получения S3 сервиса"""
     connection_manager = S3ConnectionManager()
-    await connection_manager.initialize()
+    await connection_manager.initialize_sqs_only()
     s3_queue_service = S3QueueService(connection_manager)
     return s3_queue_service

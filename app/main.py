@@ -18,7 +18,10 @@ from app.exceptions import (
 from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
 from app.config import settings
-from app.services.s3_objects_service import init_s3_objects_service, close_s3_objects_service
+
+from app.services.s3_connection import S3ConnectionManager
+from app.services.s3_objects_service import S3ObjectService
+from app.services.s3_queue_service import S3QueueService
 
 # Include routers
 from app.routers import (
@@ -46,29 +49,56 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    # Startup
-    try:
-        await init_s3_objects_service()
-        logger.info("  S3 objects service initialized successfully")
-    except Exception as e:
-        logger.error(f"  Failed to initialize S3 objects service: {e}")
-
-    logger.info("Starting application")
-    await init_db_pool()
-    logger.info("Database pool initialized")
-        
-    yield
+    global s3_objects_service, s3_queue_service, connection_manager
+    
+    connection_manager = None
     
     try:
-        await close_s3_objects_service()
-        logger.info("  S3 objects service closed successfully")
+        # Startup
+        logger.info("Initializing S3 services...")
+        
+        connection_manager = S3ConnectionManager()
+        await connection_manager.initialize()
+        logger.info("S3/SQS connection manager initialized successfully")
+        
+        
+        s3_objects_service = S3ObjectService(connection_manager)
+        s3_queue_service = S3QueueService(connection_manager)
+        
+        app.state.connection_manager = connection_manager
+        app.state.s3_objects_service = s3_objects_service
+        app.state.s3_queue_service = s3_queue_service
+        
+        logger.info("S3 services initialized successfully")
+        
+        await init_db_pool()
+        logger.info("Database pool initialized")
+        
+        logger.info("Application started successfully")
+        
+        yield
+        
     except Exception as e:
-        logger.error(f"  Error closing S3 objects service: {e}")
+        logger.error(f"Error during startup: {e}")
+        raise
+    
     finally:
-        # Shutdown
-        logger.info("Shutting down application")
-        await close_db_pool()
-        logger.info("Database pool closed")
+        logger.info("Shutting down application...")
+        
+        if connection_manager:
+            try:
+                await connection_manager.close()
+                logger.info("S3/SQS connection manager closed successfully")
+            except Exception as e:
+                logger.error(f"Error closing S3/SQS connection manager: {e}")
+        
+        try:
+            await close_db_pool()
+            logger.info("Database pool closed successfully")
+        except Exception as e:
+            logger.error(f"Error closing database pool: {e}")
+        
+        logger.info("Application shutdown complete")
 
 
 app = FastAPI(

@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from aiobotocore.session import get_session
+from aiobotocore.session import ClientCreatorContext, get_session
 from botocore.client import Config
 from botocore.exceptions import NoCredentialsError
 
@@ -23,6 +23,8 @@ class S3ConnectionManager:
         self._session = None
         self._client = None
         self._sqs_client = None
+        self._client_cm = None
+        self._sqs_client_cm = None
         self._lock = asyncio.Lock()
         self._initialized = False
         self._s3_initialized = False
@@ -102,11 +104,9 @@ class S3ConnectionManager:
                 endpoint_url = f"https://{self.endpoint_host}"
                 s3_client_kwargs["endpoint_url"] = endpoint_url
             
-            self._client = await self._session.create_client(
-                "s3",
-                **s3_client_kwargs
-            ).__aenter__()
-            
+            self._client_cm = self._session.create_client("s3", **s3_client_kwargs)
+            self._client = await self._client_cm.__aenter__()
+
             self._s3_initialized = True
             logger.info("S3 client initialized successfully")
             
@@ -148,10 +148,8 @@ class S3ConnectionManager:
             else:
                 sqs_client_kwargs["endpoint_url"] = "https://message-queue.api.cloud.yandex.net"
             
-            self._sqs_client = await self._session.create_client(
-                "sqs",
-                **sqs_client_kwargs
-            ).__aenter__()
+            self._sqs_client_cm = self._session.create_client("sqs", **sqs_client_kwargs)
+            self._sqs_client = await self._sqs_client_cm.__aenter__()
             
             self._sqs_initialized = True
             logger.info("SQS client initialized successfully")
@@ -173,30 +171,138 @@ class S3ConnectionManager:
             if not self._session:
                 self._session = get_session()
             await self._initialize_sqs_client()
-    
-    async def get_s3_client(self):
-        """Получение или создание клиента (ленивая инициализация)"""
-        if not self._initialized:
-            await self.initialize()
-        return self._client
 
-    async def get_sqs_client(self):
-        """Получение SQS клиента (ленивая инициализация)"""
-        if not self._initialized:
-            await self.initialize()
-        return self._sqs_client
-    
+    async def get_sqs_client_cm(self) -> ClientCreatorContext:
+        """
+        Возвращает контекстный менеджер SQS клиента.
+        
+        Использование:
+            async with await connection.get_sqs_client_cm() as client:
+                response = await client.receive_message(...)
+        
+        Клиент автоматически закрывается при выходе из блока async with.
+        """
+        sqs_config_kwargs = {
+            "region_name": self.region_name,
+            "signature_version": 's3v4',
+            "max_pool_connections": self.max_pool_connections,
+            "connect_timeout": self.connection_timeout,
+            "read_timeout": self.read_timeout,
+            "retries": {
+                'max_attempts': 3,
+                'mode': 'adaptive'
+            }
+        }
+        
+        sqs_config = Config(**sqs_config_kwargs)
+        
+        sqs_client_kwargs = {
+            "config": sqs_config,
+            "aws_access_key_id": self.access_key_id,
+            "aws_secret_access_key": self.secret_access_key,
+        }
+        
+        if self.queue_host:
+            endpoint_url = f"https://{self.queue_host}"
+            sqs_client_kwargs["endpoint_url"] = endpoint_url
+        else:
+            sqs_client_kwargs["endpoint_url"] = "https://message-queue.api.cloud.yandex.net"
+        
+        session = get_session()
+        return session.create_client("sqs", **sqs_client_kwargs)
+
+    async def get_s3_client_cm(self) -> ClientCreatorContext:
+        """
+        Возвращает контекстный менеджер S3 клиента.
+        
+        Использование:
+            async with await connection.get_s3_client_cm() as client:
+                response = await client.head_object(...)
+        
+        Клиент автоматически закрывается при выходе из блока async with.
+        """
+        s3_config_kwargs = {
+            "region_name": self.region_name,
+            "signature_version": 's3v4',
+            "s3": {
+                'addressing_style': 'virtual' if self.use_virtual_hosted_style else 'path'
+            },
+            "max_pool_connections": self.max_pool_connections,
+            "connect_timeout": self.connection_timeout,
+            "read_timeout": self.read_timeout,
+            "retries": {
+                'max_attempts': 3,
+                'mode': 'adaptive'
+            }
+        }
+        
+        s3_config = Config(**s3_config_kwargs)
+        
+        s3_client_kwargs = {
+            "config": s3_config,
+            "aws_access_key_id": self.access_key_id,
+            "aws_secret_access_key": self.secret_access_key,
+        }
+        
+        if self.endpoint_host:
+            endpoint_url = f"https://{self.endpoint_host}"
+            s3_client_kwargs["endpoint_url"] = endpoint_url
+        
+        session = get_session()
+        return session.create_client("s3", **s3_client_kwargs)
+
     async def close(self):
         """Закрытие сессии и клиента"""
         async with self._lock:
-            if self._client:
-                await self._client.close()
-                self._client = None
-            if self._sqs_client:
-                await self._sqs_client.close()
-                self._sqs_client = None
+            if self._client_cm:
+                try:
+                    # Получаем доступ к внутренней aiohttp сессии
+                    if hasattr(self._client, '_http_session'):
+                        try:
+                            await self._client._http_session.close()
+                            logger.debug("S3 aiohttp session closed")
+                        except Exception as e:
+                            logger.debug(f"Error closing S3 aiohttp session: {e}")
+                    
+                    await self._client_cm.__aexit__(None, None, None)
+                    logger.debug("S3 client context manager exited")
+                except Exception as e:
+                    logger.warning(f"Error closing S3 client: {e}")
+                finally:
+                    self._client = None
+                    self._client_cm = None
+                    self._s3_initialized = False
+            
+            if self._sqs_client_cm:
+                try:
+                    # Получаем доступ к внутренней aiohttp сессии
+                    if hasattr(self._sqs_client, '_http_session'):
+                        try:
+                            await self._sqs_client._http_session.close()
+                            logger.debug("SQS aiohttp session closed")
+                        except Exception as e:
+                            logger.debug(f"Error closing SQS aiohttp session: {e}")
+                    
+                    await self._sqs_client_cm.__aexit__(None, None, None)
+                    logger.debug("SQS client context manager exited")
+                except Exception as e:
+                    logger.warning(f"Error closing SQS client: {e}")
+                finally:
+                    self._sqs_client = None
+                    self._sqs_client_cm = None
+                    self._sqs_initialized = False
+            
             if self._session:
-                self._session = None
+                try:
+                    # Закрываем внутреннюю сессию aiobotocore
+                    if hasattr(self._session, '_session') and hasattr(self._session._session, 'close'):
+                        await self._session._session.close()
+                        logger.debug("aiobotocore session closed")
+                except Exception as e:
+                    logger.debug(f"Error closing aiobotocore session: {e}")
+                finally:
+                    self._session = None
+            
             self._initialized = False
             logger.info("S3 service closed")
 
