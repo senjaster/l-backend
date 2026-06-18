@@ -11,10 +11,7 @@ from app.config import settings
 from app.database import get_db_connection
 from app.models.image import Image, ImageUploadStatus
 from app.services.s3_objects_service import get_s3_objects_service
-
 from app.repositories.image import image_repo
-from app.utils.async_wrapper import AsyncWrapper
-
 
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 
@@ -23,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class ImageBackgroundFetcher:
     
-    def __init__(self, base_url: str, batch_size: int = 20, s3_service=None):
+    def __init__(self, base_url: str, batch_size: int = 20, s3_service=None) -> None:
         self.base_url = base_url.rstrip('/')
         self.batch_size = batch_size
         self.timeout_seconds = 30  # Таймаут ожидания следующей порции (секунд)
@@ -81,7 +78,7 @@ class ImageBackgroundFetcher:
                 logger.error(f"\n    Ошибка при получении изображений: {e}")
                 raise
     
-    def _log_section_header(self, title: str, **kwargs):
+    def _log_section_header(self, title: str, **kwargs) -> None:
         """Логирование заголовка секции"""
         logger.debug("=" * 80)
         logger.debug(f"  {title}")
@@ -89,7 +86,7 @@ class ImageBackgroundFetcher:
             logger.debug(f"   {key}: {value}")
         logger.debug("=" * 80)
     
-    def _log_progress(self, current: int, total: int, elapsed: float):
+    def _log_progress(self, current: int, total: int, elapsed: float) -> None:
         """Логирование прогресса"""
         progress_percent = current * 100 // total
         logger.debug(f"     Прогресс проверки: {current}/{total} изображений "
@@ -97,7 +94,7 @@ class ImageBackgroundFetcher:
     
     def _log_batch_check_results(self, batch_number: int, batch_size: int, 
                                 uploaded: int, missing: int, duration: float,
-                                processed: int, total: int):
+                                processed: int, total: int) -> None:
         """Логирование результатов проверки порции"""
         logger.debug(f"  [ПОРЦИЯ {batch_number}] ПРОВЕРКА ЗАВЕРШЕНА")
         logger.debug(f"     Результаты порции:")
@@ -110,7 +107,7 @@ class ImageBackgroundFetcher:
     
     def _log_check_final_stats(self, total_checked: int, total_batches: int,
                               uploaded: int, missing: int, duration: float,
-                              errors: int = 0):
+                              errors: int = 0) -> None:
         """Логирование финальной статистики проверки"""
         logger.debug("=" * 80)
         logger.debug(f"  ЗАВЕРШЕНИЕ ПРОВЕРКИ СТАТУСОВ")
@@ -198,7 +195,7 @@ class ImageBackgroundFetcher:
         
         logger.debug(f"{'='*60}\n")
 
-    async def _check_images_statuses(self, conn, images: List[Image], start_time: datetime):
+    async def _check_images_statuses(self, conn, images: List[Image], start_time: datetime) -> None:
         """Проверка статусов изображений (вынесенная логика)"""
         
         self._log_section_header(
@@ -433,12 +430,10 @@ async def update_image_upload_status(
     """
     try:
         async with conn.transaction():
-            # Получаем существующее изображение
             existing_image = await image_repo.get_by_id(conn, image_id)
             if not existing_image:
                 raise ValueError(f"Image with id {image_id} not found")
             
-            # Создаем объект Image с обновленным статусом
             updated_image = Image(
                 id=existing_image.id,
                 plant_id=existing_image.plant_id,

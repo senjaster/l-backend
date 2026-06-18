@@ -1,9 +1,8 @@
-import asyncio
 import json
 import logging
 import time
-from typing import List, Dict, Optional, Union, Any
-from uuid import UUID
+
+from typing import List, Dict, Optional, Union
 
 from botocore.exceptions import ClientError
 
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 class S3QueueService:
     """Сервис для работы с S3 объектами и очередями YMQ"""
     
-    def __init__(self, connection_manager: S3ConnectionManager):
+    def __init__(self, connection_manager: S3ConnectionManager) -> None:
         """
         Инициализация сервиса.
         

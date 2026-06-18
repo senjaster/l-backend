@@ -24,7 +24,7 @@ from app.services.permission_service import PermissionService
 from app.services.s3_objects_service import S3ObjectService, get_s3_objects_service
 
 from app.models.inspector import AccessLevel
-from app.utils.images_routines import image_repo, update_image_upload_status, fetch_images_background
+from app.utils.images_routines import image_repo, fetch_images_background
 
 
 logger = logging.getLogger(__name__)
@@ -275,7 +275,7 @@ async def trigger_images_background_fetch(
     )
     
     return {
-        "status": "Background upload has started",
+        "status": "Images upload has started in background",
         "base_url": base_url,
         "message": f"Images will be uploaded in batches with size of {batch_size}"
     }
