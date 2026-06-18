@@ -31,128 +31,56 @@ class ImageBackgroundFetcher:
         self.s3_service = s3_service
     
     async def fetch_all_images_streaming(
-        self,
-        conn,
-        upload_status: Optional[ImageUploadStatus] = None,
-        modified_since: Optional[datetime] = None,
-        uploaded_since: Optional[datetime] = None,
-        callback: Optional[callable] = None,
-        limit: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-        """Получение всех изображений с поддержкой курсорной пагинации"""
-        
-        if modified_since is None:
-            modified_since = datetime(2020, 1, 1)
-        
-        if uploaded_since is None:
-            uploaded_since = datetime(2020, 1, 1)
-        
-        # Логируем начало загрузки
-        self._log_download_start(modified_since, uploaded_since, upload_status)
-        
-        images = []
-        cursor = None
-        start_time = datetime.now()
-        page_number = 0
-        has_more = True
-        
-        async with httpx.AsyncClient() as client:
+            self,
+            conn,
+            upload_status: Optional[ImageUploadStatus] = None,
+            modified_since: Optional[datetime] = None,
+            uploaded_since: Optional[datetime] = None,
+            callback: Optional[callable] = None,
+            limit: Optional[int] = None
+        ) -> List[Image]:
+            """Получение всех изображений с поддержкой курсорной пагинации"""
+            
+            if modified_since is None:
+                modified_since = datetime(2020, 1, 1)
+            
+            if uploaded_since is None:
+                uploaded_since = datetime(2020, 1, 1)
+            
+            self._log_download_start(modified_since, uploaded_since, upload_status)
+            
+            start_time = datetime.now()
+            
             try:
-                while has_more:
-                    page_number += 1
-                    page_start_time = datetime.now()
+                images = await image_repo.get_all(
+                    conn,
+                    upload_status=upload_status.value if upload_status else None,
+                    modified_since=modified_since,
+                    uploaded_since=uploaded_since,
+                    limit=limit
+                )
+                
+                self._log_final_download_stats(
+                    total_images=len(images),
+                    total_pages=1,
+                    start_time=start_time,
+                    limit=limit
+                )
+                
+                if images:
+                    if callback:
+                        await callback(images, len(images), None)
                     
-                    params = {
-                        "modified_since": modified_since.isoformat(),
-                        "uploaded_since": uploaded_since.isoformat(),
-                    }
-                    
-                    if upload_status:
-                        params["upload_status"] = upload_status.value
-                    
-                    if cursor:
-                        params["cursor"] = cursor
-                    
-                    if limit:
-                        remaining = limit - len(images)
-                        if remaining <= 0:
-                            logger.debug(f"  Достигнут лимит загрузки: {limit} изображений")
-                            break
-                        params["limit"] = str(remaining)
-                    
-                    logger.debug(f"  [СТРАНИЦА {page_number}] Загрузка изображений...")
-                    if cursor:
-                        logger.debug(f"     Используется курсор: {cursor[:30]}...")
-                    if limit:
-                        logger.debug(f"     Лимит для этой страницы: {params.get('limit')}")
-                    else:
-                        logger.debug(f"     Лимит не установлен (загрузка всех изображений)")
-                    
-                    response = await client.get(
-                        f"{self.base_url}/image/all",
-                        params=params,
-                        timeout=self.request_timeout
-                    )
-                    response.raise_for_status()
-                    data = response.json()
-                    
-                    items = data.get('items', [])
-                    cursor = data.get('next_cursor')
-                    
-                    page_duration = (datetime.now() - page_start_time).total_seconds()
-                    
-                    # Проверяем, есть ли еще страницы
-                    has_more = cursor is not None and len(items) > 0
-                    
-                    if items:
-                        images.extend(items)
-                        
-                        # Логируем промежуточную статистику
-                        self._log_page_stats(
-                            page_number=page_number,
-                            items_count=len(items),
-                            total_count=len(images),
-                            date_range=self._get_date_range(items),
-                            page_duration=page_duration,
-                            cursor=cursor,
-                            start_time=start_time
-                        )
-                        
-                        if callback:
-                            await callback(items, len(images), cursor)
-                        
-                        # Небольшая задержка между запросами, чтобы не перегружать сервер
-                        if has_more:
-                            await asyncio.sleep(0.1)
-                        
-                    else:
-                        logger.debug(f"  [СТРАНИЦА {page_number}] Нет изображений в ответе")
-                        break
-                            
-            except httpx.TimeoutException as e:
-                logger.error(f"\n    Таймаут при загрузке страницы {page_number}: {e}")
-                raise
-            except httpx.HTTPStatusError as e:
-                logger.error(f"\n    HTTP ошибка при загрузке страницы {page_number}: {e.response.status_code} - {e.response.text}")
-                raise
+                    await self._check_images_statuses(conn, images, start_time)
+                else:
+                    logger.warning("    Нет изображений для проверки статусов")
+                
+                return images
+                
             except Exception as e:
-                logger.error(f"\n    Непредвиденная ошибка при загрузке страницы {page_number}: {e}")
+                logger.error(f"\n    Ошибка при получении изображений: {e}")
                 raise
-        
-        self._log_final_download_stats(
-            total_images=len(images),
-            total_pages=page_number,
-            start_time=start_time,
-            limit=limit
-        )
-        
-        if images:
-            await self._check_images_statuses(conn, images, start_time)
-        else:
-            logger.warning("    Нет изображений для проверки статусов")
-        
-        return images
-
+    
     def _log_section_header(self, title: str, **kwargs):
         """Логирование заголовка секции"""
         logger.debug("=" * 80)
@@ -270,7 +198,7 @@ class ImageBackgroundFetcher:
         
         logger.debug(f"{'='*60}\n")
 
-    async def _check_images_statuses(self, conn, images: List[Dict[str, Any]], start_time: datetime):
+    async def _check_images_statuses(self, conn, images: List[Image], start_time: datetime):
         """Проверка статусов изображений (вынесенная логика)"""
         
         self._log_section_header(
@@ -315,17 +243,17 @@ class ImageBackgroundFetcher:
                             elapsed = (datetime.now() - check_start_time).total_seconds()
                             self._log_progress(global_idx, len(images), elapsed)
                         
-                        if image.get('upload_status') in (
+                        if image.upload_status in (
                             ImageUploadStatus.MISSING,
                             ImageUploadStatus.UNKNOWN
                         ):
                             last_modified = None
-                            exists = await self.s3_service.check_exists(image['id'])
-                            metadata = await self.s3_service.get_metadata(image['id'])
+                            exists = await self.s3_service.check_exists(image.id)
+                            metadata = await self.s3_service.get_metadata(image.id)
                             if metadata:
                                 last_modified = metadata.get('last_modified')
                             if last_modified and isinstance(last_modified, datetime):
-                                server_modified_at = datetime.fromisoformat(image['server_modified_at'].replace('Z', '+00:00'))
+                                server_modified_at = datetime.fromisoformat(str(image.server_modified_at).replace('Z', '+00:00'))
                                 if last_modified > server_modified_at:
                                     server_modified_at = last_modified
                             server_uploaded_at = last_modified
@@ -333,7 +261,7 @@ class ImageBackgroundFetcher:
                             
                             await update_image_upload_status(
                                 conn,
-                                image_id=image['id'],
+                                image_id=image.id,
                                 upload_status=upload_status,
                                 server_uploaded_at=server_uploaded_at,
                                 force=True
@@ -351,7 +279,7 @@ class ImageBackgroundFetcher:
                             
                     except Exception as e:
                         consecutive_errors += 1
-                        logger.error(f"     [ПОРЦИЯ {batch_number}] Ошибка при проверке изображения {image.get('id', 'unknown')}: {e}")
+                        logger.error(f"     [ПОРЦИЯ {batch_number}] Ошибка при проверке изображения {image.id}: {e}")
                         
                         if consecutive_errors >= 5:
                             logger.error(f"     Слишком много ошибок подряд ({consecutive_errors}), прерываем проверку")
@@ -443,7 +371,7 @@ async def fetch_images_background(
     batch_size: int = 100,
     timeout_seconds: int = 30,
     limit: Optional[int] = None
-) -> List[Dict[str, Any]]:
+) -> List[Image]:
     """
     Фоновая задача для получения изображений порциями
     
