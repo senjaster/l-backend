@@ -1,0 +1,24 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "l-backend",
+			"path": "."
+		},
+		{
+			"name": "l-report2",
+			"path": "../../l-report2"
+		},
+		{
+			"name": "l-mobile",
+			"path": "../../l-mobile"
+		},
+		{
+			"name": "l-reports",
+			"path": "../../l-reports"
+		}
+	],
+	"settings": {}
+}

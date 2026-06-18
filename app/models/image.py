@@ -31,7 +31,10 @@ class Image(BaseModel):
 
     id: UUID
     plant_id: UUID
-    original_file_name: str
+    # HOTFIX: original_file_name is temporarily optional to handle buggy client
+    # versions that omit this field in PUT /image requests. Remove this default
+    # once the client is fixed and all versions in the field send the field reliably.
+    original_file_name: str = "unknown.jpg"
     image_type: ImageType
     metadata: Optional[dict] = None
     is_deleted: bool = False
