@@ -39,7 +39,12 @@ class S3QueueService:
         self._connection.queue_host
         return f"https://{self._connection.queue_host}/{folder_id}/{queue_name}/file-info-queue"
     
-    async def read_queue_messages(self, queue_url: str, max_messages: int = 10, wait_time: int = 20) -> List[Dict]:
+    async def read_queue_messages(
+        self, 
+        queue_url: str, 
+        max_messages: int = 10, 
+        wait_time: int = 20
+    ) -> List[Dict]:
         """
         Асинхронное чтение сообщений из очереди YMQ (SQS).
         
