@@ -55,23 +55,6 @@ WHERE i.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
 ORDER BY i.server_modified_at;
 
--- name: get_by_file_name(file_name, modified_since)
--- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
-SELECT
-    i.id,
-    i.plant_id,
-    i.original_file_name,
-    i.image_type,
-    i.metadata,
-    i.is_deleted,
-    i.server_modified_at,
-    i.upload_status,
-    i.server_uploaded_at
-FROM lesiv.image i
-WHERE id = :file_name
-  AND i.server_modified_at > :modified_since
-ORDER BY i.server_modified_at DESC;
-
 -- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at, upload_status, server_uploaded_at)!
 INSERT INTO lesiv.image (
     id,

@@ -115,7 +115,7 @@ async def get_images_by_plant_id(
     return images
 
 
-@router.put("", response_model=PutImageRequestBody)
+@router.put("", response_model=Image)
 async def upsert_image(
     image_request: PutImageRequestBody,
     force: bool = Query(

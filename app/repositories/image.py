@@ -84,22 +84,6 @@ class ImageRepository:
             images.append(Image(**row_dict))
         return images
 
-    async def get_by_file_name(
-        self, conn, file_name: str, modified_since: datetime = DEFAULT_MODIFIED_SINCE
-    ) -> list[Image]:
-        """Get all images with a specific file name"""
-        name, ext = os.path.splitext(file_name)
-        rows = [row async for row in queries.get_by_file_name(
-            conn, file_name=name, modified_since=modified_since
-        )]
-        images = []
-        for row in rows:
-            row_dict = dict(row)
-            if row_dict.get("metadata") and isinstance(row_dict["metadata"], str):
-                row_dict["metadata"] = json.loads(row_dict["metadata"])
-            images.append(Image(**row_dict))
-        return images
-
     async def save(self, conn, image: Image, force: bool = False) -> Image:
         """
         Create or update image with optimistic concurrency control.
