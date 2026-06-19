@@ -43,7 +43,6 @@ class ImageRepository:
                 uploaded_since=uploaded_since, 
                 limit=limit
         ):
-            # Convert the row to a dictionary and parse metadata if it's a string
             row_dict = dict(row)
             if 'metadata' in row_dict and isinstance(row_dict['metadata'], str):
                 try:
@@ -147,7 +146,6 @@ class ImageRepository:
                     )
                 )
 
-        # Upsert image
         await queries.upsert(
             conn,
             id=image_id,

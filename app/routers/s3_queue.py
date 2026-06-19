@@ -14,7 +14,7 @@ from app.models.queue import (
 )
 from app.services.s3_queue_service import S3QueueService, get_s3_queue_service
 from app.services.s3_objects_service import get_s3_objects_service
-from app.utils.images_routines import update_image_upload_status
+from app.utils.images_routines import update_image_upload_status_in_db
 from app.utils.s3_queue_routines import (
     process_messages_background
 )

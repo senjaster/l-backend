@@ -9,7 +9,7 @@ from app.database import get_db_connection
 from app.models.image import ImageUploadStatus
 from app.repositories.image import image_repo
 from app.services.s3_queue_service import S3QueueService, get_s3_queue_service
-from app.utils.images_routines import update_image_upload_status
+from app.utils.images_routines import update_image_upload_status_in_db
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +225,7 @@ class QueueBackgroundProcessor:
                 )
                 return ('failed', 'image_not_found')
             
-            await update_image_upload_status(
+            await update_image_upload_status_in_db(
                 conn=conn,
                 image_id=image.id,
                 upload_status=ImageUploadStatus.UPLOADED,
