@@ -9,7 +9,9 @@ SELECT
     image_type,
     metadata,
     is_deleted,
-    server_modified_at
+    server_modified_at,
+    upload_status,
+    server_uploaded_at
 FROM lesiv.image
 WHERE id = :id;
 
@@ -22,7 +24,9 @@ SELECT
     i.image_type,
     i.metadata,
     i.is_deleted,
-    i.server_modified_at
+    i.server_modified_at,
+    i.upload_status,
+    i.server_uploaded_at
 FROM lesiv.image i
 WHERE i.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
@@ -53,6 +57,12 @@ ON CONFLICT (id) DO UPDATE SET
     metadata = EXCLUDED.metadata,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
+
+-- name: update_upload_status(id, upload_status, server_uploaded_at)!
+UPDATE lesiv.image
+SET upload_status = :upload_status,
+    server_uploaded_at = :server_uploaded_at
+WHERE id = :id;
 
 -- name: delete(id)!
 DELETE FROM lesiv.image
