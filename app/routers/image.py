@@ -1,6 +1,7 @@
 """Image router - implements API design principles"""
 
 import asyncio
+import json
 import logging
 
 from uuid import UUID
@@ -17,6 +18,7 @@ from app.models.image import (
     ImageUploadStatus, 
     PutImageRequestBody
 )
+from app.models.s3_event import StorageEventPayload
 from app.repositories.image import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
@@ -24,7 +26,7 @@ from app.services.permission_service import PermissionService
 from app.services.s3_objects_service import S3ObjectService, get_s3_objects_service
 
 from app.models.inspector import AccessLevel
-from app.utils.images_routines import image_repo, fetch_images_background
+from app.utils.images_routines import image_repo, fetch_images_background, update_image_upload_status_in_db
 
 
 logger = logging.getLogger(__name__)
@@ -280,3 +282,64 @@ async def trigger_images_background_fetch(
         "message": f"Images will be uploaded in batches with size of {batch_size}"
     }
 
+
+@router.post("/s3-upload-callback")
+async def handle_s3_upload_callback(
+    payload: StorageEventPayload,
+    conn=Depends(get_db_connection)
+) -> dict:
+    """
+    Handle storage events from Yandex Cloud.
+    Processes ObjectCreate events and updates image upload status in database.
+    """
+    if not payload.messages:
+        logger.info("Empty messages list, skipping processing")
+        return {"status": "skipped", "reason": "empty messages list"}
+    
+    processed_count = 0
+    errors = []
+    
+    for idx, message in enumerate(payload.messages):
+        try:
+            event_metadata = message.event_metadata
+            details = message.details
+            
+            if event_metadata.event_type != 'yandex.cloud.events.storage.ObjectCreate':
+                logger.info(f"Skipping event {idx}: not ObjectCreate event, type={event_metadata.event_type}")
+                continue
+            
+            if '.' in details.object_id:
+                object_id = details.object_id.split('.')[0]
+            else:
+                object_id = details.object_id
+            created_at = event_metadata.created_at
+            
+            try:
+                server_uploaded_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            except ValueError as e:
+                logger.error(f"Error parsing created_at '{created_at}': {e}")
+                errors.append(f"Event {idx}: invalid created_at format")
+                continue
+            
+            await update_image_upload_status_in_db(
+                conn=conn,
+                image_id=UUID(object_id),
+                upload_status=ImageUploadStatus.UPLOADED,
+                server_uploaded_at=server_uploaded_at,
+                force=True
+            )
+            
+            processed_count += 1
+            logger.info(f"Successfully processed image {object_id} with upload status 'uploaded'")
+            
+        except Exception as e:
+            error_msg = f"Error processing event {idx}: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+    
+    return {
+        "status": "processed",
+        "processed_count": processed_count,
+        "total_messages": len(payload.messages),
+        "errors": errors if errors else None
+    }
