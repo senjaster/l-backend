@@ -8,7 +8,7 @@ import aiosql
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.image import Image
+from app.models.image import Image, ImageUploadStatus
 from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.utils.datetime_utils import truncate_to_milliseconds
@@ -113,7 +113,12 @@ class ImageRepository:
                     )
                 )
 
-        # Upsert image
+        # Upsert image.
+        # upload_status and server_uploaded_at are intentionally excluded from both
+        # the INSERT column list and the ON CONFLICT DO UPDATE SET clause in the SQL,
+        # so they are never overwritten by a PUT request:
+        #   - INSERT: DB column defaults apply ('unknown' / NULL)
+        #   - UPDATE: existing values are preserved untouched
         await queries.upsert(
             conn,
             id=image_id,
@@ -129,6 +134,21 @@ class ImageRepository:
         if not result:
             raise ValueError(f"Image {image_id} not found after save")
         return result
+
+    async def update_upload_status(
+        self,
+        conn,
+        image_id: UUID,
+        upload_status: ImageUploadStatus,
+        server_uploaded_at: Optional[datetime],
+    ) -> None:
+        """Update upload status fields only (called by S3 event callback)."""
+        await queries.update_upload_status(
+            conn,
+            id=image_id,
+            upload_status=upload_status.value,
+            server_uploaded_at=server_uploaded_at,
+        )
 
     async def delete(self, conn, image_id: UUID) -> bool:
         """Delete image (actual delete, no is_deleted flag)"""
