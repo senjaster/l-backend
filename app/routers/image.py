@@ -1,6 +1,6 @@
 """Image router - implements API design principles"""
-
-import asyncio
+from uuid import UUID
+from datetime import datetime
 import logging
 
 from uuid import UUID
@@ -10,8 +10,10 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.image import Image, PresignedUploadUrlResponse, ImageListResponse, ImageUploadStatus
+from app.models.image import Image, ImageUploadStatus, PresignedUploadUrlResponse, PutImageRequestBody, ImageListResponse
 from app.repositories.image import ImageRepository, ConcurrentModificationError
+from app.models.s3_event import StorageEventPayload
+from app.repositories.image import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
@@ -118,7 +120,7 @@ async def get_images_by_file_name(
 
 @router.put("", response_model=Image)
 async def upsert_image(
-    image: Image,
+    image_body: PutImageRequestBody,
     force: bool = Query(
         default=False, description="If true, ignore server_modified_at validation"
     ),
@@ -138,6 +140,19 @@ async def upsert_image(
     - Logical deletion via is_deleted flag (not implemented yet)
     - Permission: User must have access to the plant
     """
+    # Convert PutImageRequestBody to Image with default upload status fields.
+    # upload_status and server_uploaded_at are not settable via PUT — the repo
+    # will preserve the existing values for updates, or use defaults for inserts.
+    image = Image(
+        id=image_body.id,
+        plant_id=image_body.plant_id,
+        original_file_name=image_body.original_file_name,
+        image_type=image_body.image_type,
+        metadata=image_body.metadata,
+        is_deleted=image_body.is_deleted,
+        server_modified_at=image_body.server_modified_at,
+        upload_status=ImageUploadStatus.UNKNOWN, # This is correct, see repo query
+    )
     try:
         async with conn.transaction():
             # Check access level (INSPECT required)
@@ -247,102 +262,62 @@ async def check_image_exists(
     exists = await s3_service.check_exists(image_id)
     return {"exists": exists}
 
-
-@router.get("/by-name/{file_name}/exists", response_model=dict)
-async def check_image_exists_by_name(
-    file_name: str,
-    conn=Depends(get_db_connection),
-    s3_service: AsyncS3Service = Depends(get_s3_service)
-) -> dict[str, bool]:
+@router.post("/s3-upload-callback")
+async def handle_s3_upload_callback(
+    payload: StorageEventPayload,
+    conn=Depends(get_db_connection)
+) -> dict:
     """
-    Check if an image file exists in S3 storage.
-    
-    This endpoint issues a HEAD request to S3 to verify if the image file
-    exists without downloading the actual file content.
-    
-    Args:
-        file_name: Name of the image file to check
-        
-    Returns:
-        Dictionary with 'exists' boolean field
+    Handle storage events from Yandex Cloud.
+    Processes ObjectCreate events and updates image upload status in database.
     """
+    if not payload.messages:
+        logger.info("Empty messages list, skipping processing")
+        return {"status": "skipped", "reason": "empty messages list"}
     
-    """Get all images with a specific file name"""
-    images = await get_images_by_file_name(
-        file_name=file_name, 
-        modified_since=DEFAULT_MODIFIED_SINCE,
-        conn=conn
-    )
-    if not images:
-        return {"exists": False}
+    processed_count = 0
+    errors = []
     
-    # Check if any of the images with the given file name exist in S3
-    for image in images:
-        exists = await s3_service.check_exists(image.id)
-        if exists:
-            return {"exists": True}
-    
-    return {"exists": False}
-
-
-@router.patch("/{image_id}/upload-status", response_model=Image)
-async def update_image_upload_status_endpoint(
-    image_id: UUID,
-    upload_status: ImageUploadStatus = ImageUploadStatus.UNKNOWN,
-    force: bool = Query(default=False, description="Force update without validation"),
-    conn=Depends(get_db_connection),
-) -> Image:
-    """
-    Update the upload status of an image.
-    
-    Possible statuses:
-    - pending: Initial state
-    - uploading: Upload in progress
-    - processing: Image being processed
-    - completed: Upload and processing completed
-    - failed: Upload or processing failed
-    - success: Legacy success status
-    """
-    try:
-        async with conn.transaction():
-            # Update upload status using simple version
-            result = await update_image_upload_status(
-                conn, image_id, upload_status, force
+    for idx, message in enumerate(payload.messages):
+        try:
+            event_metadata = message.event_metadata
+            details = message.details
+            
+            if event_metadata.event_type != 'yandex.cloud.events.storage.ObjectCreate':
+                logger.info(f"Skipping event {idx}: not ObjectCreate event, type={event_metadata.event_type}")
+                continue
+            
+            if '.' in details.object_id:
+                object_id = details.object_id.split('.')[0]
+            else:
+                object_id = details.object_id
+            created_at = event_metadata.created_at
+            
+            try:
+                server_uploaded_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            except ValueError as e:
+                logger.error(f"Error parsing created_at '{created_at}': {e}")
+                errors.append(f"Event {idx}: invalid created_at format")
+                continue
+            
+            await image_repo.update_upload_status(
+                conn=conn,
+                image_id=UUID(object_id),
+                upload_status=ImageUploadStatus.UPLOADED,
+                server_uploaded_at=server_uploaded_at,
             )
             
-            return result
+            processed_count += 1
+            logger.info(f"Successfully processed image {object_id} with upload status 'uploaded'")
             
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to update upload status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post("/trigger-images-background-fetch")
-async def trigger_images_background_fetch(
-    request: Request,
-    modified_since: Optional[datetime] = datetime.now() - timedelta(days=2),
-    batch_size: int = 500,
-    timeout_seconds: int = 30,
-) -> dict[str, str]:
-    """Запуск фоновой загрузки изображений"""
-    base_url = f"{request.url.scheme}://{request.url.hostname}:{request.url.port}"
-    
-    asyncio.create_task(
-        fetch_images_background(
-            base_url=base_url,
-            modified_since=modified_since,
-            batch_size=batch_size,
-            timeout_seconds=timeout_seconds
-        )
-    )
+        except Exception as e:
+            error_msg = f"Error processing event {idx}: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
     
     return {
-        "status": "Фоновая загрузка запущена",
-        "base_url": base_url,
-        "message": f"Изображения будут загружаться порциями по {batch_size} штук"
+        "status": "processed",
+        "processed_count": processed_count,
+        "total_messages": len(payload.messages),
+        "errors": errors if errors else None
     }
-

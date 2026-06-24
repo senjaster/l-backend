@@ -1,6 +1,8 @@
 """Integration tests for Image API"""
 
 import pytest
+from unittest.mock import patch, MagicMock
+from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
 from uuid import uuid4
 
@@ -416,3 +418,331 @@ def test_invalid_plant_id(client: TestClient):
     response = client.put("/image", json=image_data)
     assert response.status_code == 400
     assert "does not exist" in response.json()["detail"].lower()
+
+
+# ── upload_status tests ────────────────────────────────────────────────────────
+
+
+def test_new_image_has_unknown_upload_status(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """Newly created image must have upload_status == UNKNOWN"""
+    image_data = {
+        "id": str(uuid4()),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+    response = client.put("/image", json=image_data)
+    assert response.status_code == 200
+    assert response.json()["upload_status"] == "UNKNOWN"
+
+
+def test_put_does_not_overwrite_upload_status(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """PUT /image must never overwrite upload_status set by the S3 callback"""
+    image_id = uuid4()
+    image_data = {
+        "id": str(image_id),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+
+    # Create image
+    create_resp = client.put("/image", json=image_data)
+    assert create_resp.status_code == 200
+    server_modified_at = create_resp.json()["server_modified_at"]
+
+    # Simulate S3 callback setting status to UPLOADED
+    callback_payload = {
+        "messages": [
+            {
+                "event_metadata": {
+                    "event_id": "test-event-id",
+                    "event_type": "yandex.cloud.events.storage.ObjectCreate",
+                    "created_at": "2024-06-01T10:00:00Z",
+                    "tracing_context": {},
+                    "cloud_id": "cloud-123",
+                    "folder_id": "folder-123",
+                },
+                "details": {
+                    "bucket_id": "test-bucket",
+                    "object_id": f"{image_id}.jpg",
+                },
+            }
+        ]
+    }
+    cb_resp = client.post("/image/s3-upload-callback", json=callback_payload)
+    assert cb_resp.status_code == 200
+
+    # Verify upload_status is now UPLOADED
+    get_resp = client.get(f"/image/by_id/{image_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["upload_status"] == "UPLOADED"
+
+    # Now do a regular PUT update
+    image_data["server_modified_at"] = server_modified_at
+    image_data["original_file_name"] = "updated.jpg"
+    update_resp = client.put("/image", json=image_data)
+    assert update_resp.status_code == 200
+
+    # upload_status must still be UPLOADED — not reset to UNKNOWN
+    assert update_resp.json()["upload_status"] == "UPLOADED"
+
+
+def test_s3_upload_callback_sets_uploaded_status(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """POST /image/s3-upload-callback sets upload_status=UPLOADED and server_uploaded_at"""
+    image_id = uuid4()
+    image_data = {
+        "id": str(image_id),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+    client.put("/image", json=image_data)
+
+    uploaded_at = "2024-06-01T10:00:00Z"
+    callback_payload = {
+        "messages": [
+            {
+                "event_metadata": {
+                    "event_id": "evt-001",
+                    "event_type": "yandex.cloud.events.storage.ObjectCreate",
+                    "created_at": uploaded_at,
+                    "tracing_context": {},
+                    "cloud_id": "cloud-1",
+                    "folder_id": "folder-1",
+                },
+                "details": {
+                    "bucket_id": "my-bucket",
+                    "object_id": str(image_id),  # no extension — router strips it
+                },
+            }
+        ]
+    }
+    response = client.post("/image/s3-upload-callback", json=callback_payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["processed_count"] == 1
+    assert body["total_messages"] == 1
+    assert body["errors"] is None
+
+    # Verify DB state
+    get_resp = client.get(f"/image/by_id/{image_id}")
+    assert get_resp.status_code == 200
+    data = get_resp.json()
+    assert data["upload_status"] == "UPLOADED"
+    assert data["server_uploaded_at"] is not None
+
+
+def test_s3_upload_callback_with_extension_in_object_id(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """Callback object_id with .jpg extension is handled correctly"""
+    image_id = uuid4()
+    image_data = {
+        "id": str(image_id),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+    client.put("/image", json=image_data)
+
+    callback_payload = {
+        "messages": [
+            {
+                "event_metadata": {
+                    "event_id": "evt-002",
+                    "event_type": "yandex.cloud.events.storage.ObjectCreate",
+                    "created_at": "2024-06-01T12:00:00Z",
+                    "tracing_context": {},
+                    "cloud_id": "cloud-1",
+                    "folder_id": "folder-1",
+                },
+                "details": {
+                    "bucket_id": "my-bucket",
+                    "object_id": f"{image_id}.jpg",  # with extension
+                },
+            }
+        ]
+    }
+    response = client.post("/image/s3-upload-callback", json=callback_payload)
+    assert response.status_code == 200
+    assert response.json()["processed_count"] == 1
+
+    get_resp = client.get(f"/image/by_id/{image_id}")
+    assert get_resp.json()["upload_status"] == "UPLOADED"
+
+
+def test_s3_upload_callback_skips_non_object_create_events(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """Non-ObjectCreate events are skipped and not counted as processed"""
+    image_id = uuid4()
+    image_data = {
+        "id": str(image_id),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+    client.put("/image", json=image_data)
+
+    callback_payload = {
+        "messages": [
+            {
+                "event_metadata": {
+                    "event_id": "evt-003",
+                    "event_type": "yandex.cloud.events.storage.ObjectDelete",
+                    "created_at": "2024-06-01T12:00:00Z",
+                    "tracing_context": {},
+                    "cloud_id": "cloud-1",
+                    "folder_id": "folder-1",
+                },
+                "details": {
+                    "bucket_id": "my-bucket",
+                    "object_id": str(image_id),
+                },
+            }
+        ]
+    }
+    response = client.post("/image/s3-upload-callback", json=callback_payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["processed_count"] == 0
+    assert body["total_messages"] == 1
+
+    # upload_status must remain UNKNOWN
+    get_resp = client.get(f"/image/by_id/{image_id}")
+    assert get_resp.json()["upload_status"] == "UNKNOWN"
+
+
+def test_s3_upload_callback_empty_messages(client: TestClient):
+    """Empty messages list returns skipped status"""
+    response = client.post("/image/s3-upload-callback", json={"messages": []})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "skipped"
+
+
+def test_get_upload_url_returns_presigned_url(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/{id}/upload_url returns a presigned upload URL"""
+    image_id = uuid4()
+    image_data = {
+        "id": str(image_id),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+    client.put("/image", json=image_data)
+
+    fake_url = "https://s3.example.com/upload/test"
+    fake_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    with patch("app.routers.image.s3_service") as mock_s3:
+        mock_s3.generate_upload_presigned_url.return_value = (fake_url, fake_expires)
+        mock_s3.generate_presigned_url.return_value = None
+
+        response = client.get(f"/image/{image_id}/upload_url")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["presigned_url"] == fake_url
+    assert "presigned_url_expires_at" in data
+
+
+def test_get_upload_url_for_nonexistent_image(client: TestClient):
+    """GET /image/{id}/upload_url returns 404 for unknown image"""
+    with patch("app.routers.image.s3_service") as mock_s3:
+        mock_s3.generate_upload_presigned_url.return_value = None
+        mock_s3.generate_presigned_url.return_value = None
+
+        response = client.get(f"/image/{uuid4()}/upload_url")
+
+    assert response.status_code == 404
+
+
+def test_check_image_exists_true(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/{id}/exists returns exists=true when S3 object is present"""
+    image_id = uuid4()
+    image_data = {
+        "id": str(image_id),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+    client.put("/image", json=image_data)
+
+    with patch("app.routers.image.s3_service") as mock_s3:
+        mock_s3.check_exists.return_value = True
+        mock_s3.generate_presigned_url.return_value = None
+
+        response = client.get(f"/image/{image_id}/exists")
+
+    assert response.status_code == 200
+    assert response.json()["exists"] is True
+
+
+def test_check_image_exists_false(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/{id}/exists returns exists=false when S3 object is absent"""
+    image_id = uuid4()
+    image_data = {
+        "id": str(image_id),
+        "plant_id": str(plant_id),
+        "original_file_name": "test.jpg",
+        "image_type": "VISUAL",
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+    client.put("/image", json=image_data)
+
+    with patch("app.routers.image.s3_service") as mock_s3:
+        mock_s3.check_exists.return_value = False
+        mock_s3.generate_presigned_url.return_value = None
+
+        response = client.get(f"/image/{image_id}/exists")
+
+    assert response.status_code == 200
+    assert response.json()["exists"] is False
+
+
+def test_check_image_exists_nonexistent_image(client: TestClient):
+    """GET /image/{id}/exists returns 404 for unknown image"""
+    with patch("app.routers.image.s3_service") as mock_s3:
+        mock_s3.check_exists.return_value = False
+        mock_s3.generate_presigned_url.return_value = None
+
+        response = client.get(f"/image/{uuid4()}/exists")
+
+    assert response.status_code == 404
