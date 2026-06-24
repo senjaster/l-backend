@@ -55,4 +55,7 @@ class PutImageRequestBody(BaseModel):
     metadata: Optional[dict] = None
     is_deleted: bool = False
     server_modified_at: datetime
+    presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
+    presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
+
 
