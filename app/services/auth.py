@@ -217,15 +217,24 @@ class AuthService:
     
     def verify_access_token(self, token: str) -> Optional[TokenPayload]:
         """
-        Универсальная проверка токена: определяет окружение и выбирает метод проверки
+        Универсальная проверка токена: сначала JWT, потом S3 (Basic Auth)
         """
         self._load_keys()
-        if self.is_yandex_cloud_environment():
-            logger.info("  Запуск в Yandex Cloud Container - используем S3 проверку")
-            return self._yc_verify_access_token(token)
-        else:
-            logger.info("  Запуск вне Yandex Cloud - используем JWT проверку")
-            return self._jwt_verify_access_token(token)
+        
+        logger.info("🔄 Попытка авторизации через JWT...")
+        jwt_payload = self._jwt_verify_access_token(token)
+        if jwt_payload:
+            logger.info("✅ Авторизация через JWT успешна")
+            return jwt_payload
+        
+        logger.info("🔄 JWT не прошел, пробуем авторизацию через S3 (Basic Auth)...")
+        s3_payload = self._yc_verify_access_token(token)
+        if s3_payload:
+            logger.info("✅ Авторизация через S3 (Basic Auth) успешна")
+            return s3_payload
+        
+        logger.warning("❌ Авторизация не удалась: ни JWT, ни S3 проверка не прошли")
+        return None
 
     def decode_token_without_validation(self, token: str) -> Optional[TokenPayload]:
         """
