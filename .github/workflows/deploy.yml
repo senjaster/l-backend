@@ -1,0 +1,86 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: cr.yandex
+  REGISTRY_ID: crpd2b5gg7tt3399i6c9
+  IMAGE_NAME: t-app-backend
+  CONTAINER_ID: bba55cg0j840ga866sb5
+
+jobs:
+  deploy:
+    name: Build, Migrate & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Extract version tag
+        id: tag
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      # ── Docker ────────────────────────────────────────────────────────────
+
+      - name: Authenticate with Yandex Container Registry
+        run: |
+          echo '${{ secrets.YC_SA_JSON_KEY }}' | \
+            docker login \
+              --username json_key \
+              --password-stdin \
+              cr.yandex
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $REGISTRY/$REGISTRY_ID/$IMAGE_NAME:${{ steps.tag.outputs.VERSION }} \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push $REGISTRY/$REGISTRY_ID/$IMAGE_NAME:${{ steps.tag.outputs.VERSION }}
+
+      # ── Database migrations ───────────────────────────────────────────────
+
+      - name: Run Flyway migrations
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/db/migrations:/flyway/sql" \
+            -v "${{ github.workspace }}/db/flyway.conf:/flyway/conf/flyway.conf" \
+            flyway/flyway:12 \
+            -url="${{ secrets.FLYWAY_URL }}" \
+            -user="${{ secrets.FLYWAY_USER }}" \
+            -password="${{ secrets.FLYWAY_PASSWORD }}" \
+            migrate
+
+      # ── Yandex Cloud deployment ───────────────────────────────────────────
+
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | \
+            bash -s -- -i /usr/local/yc -n
+          echo "/usr/local/yc/bin" >> "$GITHUB_PATH"
+
+      - name: Authenticate with Yandex Cloud
+        run: |
+          echo '${{ secrets.YC_SA_JSON_KEY }}' > /tmp/sa-key.json
+          yc config set service-account-key /tmp/sa-key.json
+          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+
+      - name: Deploy new container revision
+        run: |
+          yc serverless container revision deploy \
+            --container-id $CONTAINER_ID \
+            --image $REGISTRY/$REGISTRY_ID/$IMAGE_NAME:${{ steps.tag.outputs.VERSION }} \
+            --service-account-id ${{ secrets.YC_SA_ID }} \
+            --execution-timeout 30s \
+            --memory 256MB
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f /tmp/sa-key.json
