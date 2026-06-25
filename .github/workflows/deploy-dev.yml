@@ -1,9 +1,9 @@
-name: Deploy
+name: Deploy (dev)
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - dev
 
 env:
   REGISTRY: cr.yandex
@@ -12,17 +12,17 @@ env:
 
 jobs:
   deploy:
-    name: Build, Migrate & Deploy
+    name: Build, Migrate & Deploy to Dev
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Extract version tag
+      - name: Build image tag
         id: tag
-        run: echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       # ── Docker ────────────────────────────────────────────────────────────
 
