@@ -151,7 +151,6 @@ class AuthService:
         Оригинальная функция проверки JWT токена (локальная)
         """
         try:
-            import jwt
             
             payload = jwt.decode(
                 token,
