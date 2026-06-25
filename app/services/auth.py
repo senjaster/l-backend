@@ -11,6 +11,7 @@ from typing import Optional
 import bcrypt
 import jwt
 import time
+
 from app.models.auth import TokenPayload, TokenResponse, InspectorWithPassword
 from app.repositories.auth import AuthRepository
 from app.config import settings
@@ -96,80 +97,34 @@ class AuthService:
 
         return jwt.encode(payload_dict, self._private_key, algorithm="RS256")
 
-    def is_yandex_cloud_environment(self) -> bool:
-        """
-        Определяет, запущен ли код в Yandex Cloud Container
-        
-        Проверяет наличие характерных для Yandex Cloud признаков:
-        - Переменные окружения Yandex Cloud
-        - Метаданные сервиса
-        - Специфичные для контейнера переменные
-        """
-        # Проверяем наличие переменных окружения Yandex Cloud
-        yc_env_vars = [
-            'YC_FUNCTION_ID',           # ID функции
-            'YC_FUNCTION_VERSION_ID',   # ID версии функции
-            'YC_SERVICE_ACCOUNT_ID',    # ID сервисного аккаунта
-            'FUNCTION_NAME',            # Имя функции
-            'YCLOUD_ACCESS_TOKEN',      # Токен доступа
-            'YANDEX_CLOUD_FOLDER_ID'    # ID папки
-        ]
-        
-        for var in yc_env_vars:
-            if os.environ.get(var):
-                logger.debug(f"✅ Обнаружена Yandex Cloud переменная: {var}")
-                return True
-        
-        metadata_host = os.environ.get('YC_METADATA_HOST', '169.254.169.254')
-        if metadata_host:
-            try:
-                import socket
-                socket.gethostbyname(metadata_host)
-                logger.debug("✅ Обнаружен хост метаданных Yandex Cloud")
-                return True
-            except:
-                pass
-        
-        if os.path.exists('/etc/yandex'):
-            logger.debug("✅ Обнаружена папка /etc/yandex")
-            return True
-        
-        logger.info("❌ Среда не является Yandex Cloud Container")
-        return False
-
     def _yc_verify_access_token(self, token: str) -> Optional[TokenPayload]:
         """
         Проверяет токен через S3 ключи (Basic Auth) для Yandex Cloud
         """
         try:
-            # Получаем S3 ключи из переменных окружения
-            expected_access_key = os.environ.get('S3_ACCESS_KEY_ID')
-            expected_secret_key = os.environ.get('S3_SECRET_ACCESS_KEY')
+            expected_access_key = settings.s3_access_key_id
+            expected_secret_key = settings.s3_secret_access_key
             
             if not expected_access_key or not expected_secret_key:
-                logger.error("❌ S3 credentials not found in environment variables")
+                logger.error("  S3 credentials not found in environment variables")
                 return None
             
-            # Проверяем формат токена
             if not token.startswith('Basic '):
-                logger.warning("⚠️ Invalid token format: expected Basic auth")
+                logger.warning("  Invalid token format: expected Basic auth")
                 return None
             
-            # Декодируем токен
             encoded_credentials = token.split(' ')[1]
             decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
             
             if ':' not in decoded_credentials:
-                logger.warning("⚠️ Invalid Basic auth format: missing colon separator")
+                logger.warning("  Invalid Basic auth format: missing colon separator")
                 return None
                 
             access_key, secret_key = decoded_credentials.split(':', 1)
             
             current_time = int(time.time())
-            # Сравниваем с ожидаемыми значениями
             if access_key == expected_access_key and secret_key == expected_secret_key:
-                logger.info("✅ S3 credentials match")
-                # Создаем TokenPayload с данными из S3 ключей
+                logger.info("  S3 credentials match")
                 original_payload = jwt.decode(
                     token,
                     options={"verify_signature": False}
@@ -184,11 +139,11 @@ class AuthService:
                     aud=original_payload.get('aud', "s3-service")
                 )
             else:
-                logger.warning("❌ S3 credentials don't match")
+                logger.warning("  S3 credentials don't match")
                 return None
                 
         except Exception as e:
-            logger.error(f"❌ Error in yc_verify_access_token: {e}")
+            logger.error(f"  Error in yc_verify_access_token: {e}")
             return None
     
     def _jwt_verify_access_token(self, token: str) -> Optional[TokenPayload]:
@@ -221,19 +176,19 @@ class AuthService:
         """
         self._load_keys()
         
-        logger.info("🔄 Попытка авторизации через JWT...")
+        logger.info("  Попытка авторизации через JWT...")
         jwt_payload = self._jwt_verify_access_token(token)
         if jwt_payload:
-            logger.info("✅ Авторизация через JWT успешна")
+            logger.info("  Авторизация через JWT успешна")
             return jwt_payload
         
-        logger.info("🔄 JWT не прошел, пробуем авторизацию через S3 (Basic Auth)...")
+        logger.info("  JWT не прошел, пробуем авторизацию через S3 (Basic Auth)...")
         s3_payload = self._yc_verify_access_token(token)
         if s3_payload:
-            logger.info("✅ Авторизация через S3 (Basic Auth) успешна")
+            logger.info("  Авторизация через S3 (Basic Auth) успешна")
             return s3_payload
         
-        logger.warning("❌ Авторизация не удалась: ни JWT, ни S3 проверка не прошли")
+        logger.warning("  Авторизация не удалась: ни JWT, ни S3 проверка не прошли")
         return None
 
     def decode_token_without_validation(self, token: str) -> Optional[TokenPayload]:
