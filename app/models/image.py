@@ -42,6 +42,12 @@ class Image(BaseModel):
     presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
 
 
+class ImageListResponse(BaseModel):
+    """List of Image items"""
+    
+    items: List[Image]
+
+
 class PutImageRequestBody(BaseModel):
     """Image aggregate without file upload status and upload date"""
     

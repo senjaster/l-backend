@@ -1,5 +1,7 @@
 """Authentication service with business logic"""
 
+import base64
+import os
 import secrets
 import hashlib
 import logging
@@ -8,7 +10,8 @@ from uuid import UUID, uuid4
 from typing import Optional
 import bcrypt
 import jwt
-from app.models.auth import Token, TokenPayload, TokenResponse, InspectorWithPassword
+import time
+from app.models.auth import TokenPayload, TokenResponse, InspectorWithPassword
 from app.repositories.auth import AuthRepository
 from app.config import settings
 
@@ -93,11 +96,108 @@ class AuthService:
 
         return jwt.encode(payload_dict, self._private_key, algorithm="RS256")
 
-    def verify_access_token(self, token: str) -> Optional[TokenPayload]:
-        """Verify and decode a JWT access token"""
-        self._load_keys()
+    def is_yandex_cloud_environment(self) -> bool:
+        """
+        Определяет, запущен ли код в Yandex Cloud Container
+        
+        Проверяет наличие характерных для Yandex Cloud признаков:
+        - Переменные окружения Yandex Cloud
+        - Метаданные сервиса
+        - Специфичные для контейнера переменные
+        """
+        # Проверяем наличие переменных окружения Yandex Cloud
+        yc_env_vars = [
+            'YC_FUNCTION_ID',           # ID функции
+            'YC_FUNCTION_VERSION_ID',   # ID версии функции
+            'YC_SERVICE_ACCOUNT_ID',    # ID сервисного аккаунта
+            'FUNCTION_NAME',            # Имя функции
+            'YCLOUD_ACCESS_TOKEN',      # Токен доступа
+            'YANDEX_CLOUD_FOLDER_ID'    # ID папки
+        ]
+        
+        for var in yc_env_vars:
+            if os.environ.get(var):
+                logger.debug(f"✅ Обнаружена Yandex Cloud переменная: {var}")
+                return True
+        
+        metadata_host = os.environ.get('YC_METADATA_HOST', '169.254.169.254')
+        if metadata_host:
+            try:
+                import socket
+                socket.gethostbyname(metadata_host)
+                logger.debug("✅ Обнаружен хост метаданных Yandex Cloud")
+                return True
+            except:
+                pass
+        
+        if os.path.exists('/etc/yandex'):
+            logger.debug("✅ Обнаружена папка /etc/yandex")
+            return True
+        
+        logger.info("❌ Среда не является Yandex Cloud Container")
+        return False
 
+    def _yc_verify_access_token(self, token: str) -> Optional[TokenPayload]:
+        """
+        Проверяет токен через S3 ключи (Basic Auth) для Yandex Cloud
+        """
         try:
+            # Получаем S3 ключи из переменных окружения
+            expected_access_key = os.environ.get('S3_ACCESS_KEY_ID')
+            expected_secret_key = os.environ.get('S3_SECRET_ACCESS_KEY')
+            
+            if not expected_access_key or not expected_secret_key:
+                logger.error("❌ S3 credentials not found in environment variables")
+                return None
+            
+            # Проверяем формат токена
+            if not token.startswith('Basic '):
+                logger.warning("⚠️ Invalid token format: expected Basic auth")
+                return None
+            
+            # Декодируем токен
+            encoded_credentials = token.split(' ')[1]
+            decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+            
+            if ':' not in decoded_credentials:
+                logger.warning("⚠️ Invalid Basic auth format: missing colon separator")
+                return None
+                
+            access_key, secret_key = decoded_credentials.split(':', 1)
+            
+            current_time = int(time.time())
+            # Сравниваем с ожидаемыми значениями
+            if access_key == expected_access_key and secret_key == expected_secret_key:
+                logger.info("✅ S3 credentials match")
+                # Создаем TokenPayload с данными из S3 ключей
+                original_payload = jwt.decode(
+                    token,
+                    options={"verify_signature": False}
+                )
+                return TokenPayload(
+                    sub=int(access_key),
+                    dev=original_payload.get('dev', True),
+                    scope=original_payload.get('scope', ["s3:upload"]),
+                    exp=original_payload.get('exp', current_time + 3600),
+                    iat=original_payload.get('iat', current_time),
+                    iss=original_payload.get('iss', "s3-auth"),
+                    aud=original_payload.get('aud', "s3-service")
+                )
+            else:
+                logger.warning("❌ S3 credentials don't match")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Error in yc_verify_access_token: {e}")
+            return None
+    
+    def _jwt_verify_access_token(self, token: str) -> Optional[TokenPayload]:
+        """
+        Оригинальная функция проверки JWT токена (локальная)
+        """
+        try:
+            import jwt
+            
             payload = jwt.decode(
                 token,
                 self._public_key,
@@ -114,6 +214,18 @@ class AuthService:
                 extra={"error_type": type(e).__name__, "error": str(e)},
             )
             return None
+    
+    def verify_access_token(self, token: str) -> Optional[TokenPayload]:
+        """
+        Универсальная проверка токена: определяет окружение и выбирает метод проверки
+        """
+        self._load_keys()
+        if self.is_yandex_cloud_environment():
+            logger.info("  Запуск в Yandex Cloud Container - используем S3 проверку")
+            return self._yc_verify_access_token(token)
+        else:
+            logger.info("  Запуск вне Yandex Cloud - используем JWT проверку")
+            return self._jwt_verify_access_token(token)
 
     def decode_token_without_validation(self, token: str) -> Optional[TokenPayload]:
         """
