@@ -41,7 +41,7 @@ The pipeline will:
 
 Secrets are managed via **GitHub Environments** (Settings → Environments), which allows the same secret names to hold different values per environment. Both workflows share repository-level secrets for Yandex Cloud auth.
 
-### Environment: `production`
+### Environment: `prod`
 
 Add a **Required reviewers** protection rule to prevent accidental production deploys.
 
@@ -59,7 +59,7 @@ Add a **Required reviewers** protection rule to prevent accidental production de
 | `FLYWAY_USER` | DB migration user |
 | `CONTAINER_ID` | Yandex Serverless Container ID for production |
 
-### Environment: `development`
+### Environment: `dev`
 
 No protection rules — deploys automatically on every push to `dev`.
 
