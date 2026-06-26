@@ -116,23 +116,19 @@ class AuthService:
                 logger.warning("  Invalid Basic auth format: missing colon separator")
                 return None
                 
-            access_key, secret_key = decoded_credentials.split(':', 1)
+            inspector_id, access_key, secret_key = decoded_credentials.split(':')
             
             current_time = int(time.time())
             if access_key == expected_access_key and secret_key == expected_secret_key:
                 logger.info("  S3 credentials match")
-                original_payload = jwt.decode(
-                    token,
-                    options={"verify_signature": False}
-                )
                 return TokenPayload(
-                    sub=int(access_key),
-                    dev=original_payload.get('dev', True),
-                    scope=original_payload.get('scope', ["s3:upload"]),
-                    exp=original_payload.get('exp', current_time + 3600),
-                    iat=original_payload.get('iat', current_time),
-                    iss=original_payload.get('iss', "s3-auth"),
-                    aud=original_payload.get('aud', "s3-service")
+                    sub=int(inspector_id),
+                    dev="s3-trigger",
+                    scope="s3-scope",
+                    exp=current_time + 3600,
+                    iat=current_time,
+                    iss="s3-auth",
+                    aud="s3-service"
                 )
             else:
                 logger.warning("  S3 credentials don't match")
