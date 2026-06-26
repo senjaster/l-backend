@@ -75,7 +75,7 @@ jobs:
           revision-core-fraction: 50
           revision-concurrency: 1
           revision-image-url: ${{ env.REGISTRY }}/${{ env.REGISTRY_ID }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.VERSION }}
-          revision-execution-timeout: 10
+          revision-execution-timeout: 100
           revision-network-id: enpaulbnqhiqbshkl7q6
           revision-env: |
             ACCESS_TOKEN_LIFETIME_MIN=10

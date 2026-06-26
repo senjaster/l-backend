@@ -21,7 +21,7 @@ def extract_token_from_header(header_value: str) -> str:
     parts = header_value.split()
     
     # Format: "Bearer <token>"
-    if len(parts) == 2 and parts[0].lower() == "bearer":
+    if len(parts) == 2 and parts[0].lower() in ("bearer", "basic"):
         return parts[1]
     
     # Format: "<token>" (no Bearer prefix)
