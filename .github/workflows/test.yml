@@ -58,6 +58,11 @@ jobs:
           openssl genrsa -out private.pem 2048
           openssl rsa -in private.pem -pubout -out public.pem
 
+      - name: Create l_app_role in test database
+        run: |
+          psql postgresql://lesiv_admin:lesiv_test_password@localhost:5432/lesiv_test \
+            -c "CREATE ROLE l_app_role;"
+
       - name: Install Flyway
         run: |
           wget -qO- https://download.red-gate.com/maven/release/com/redgate/flyway/flyway-commandline/12.0.1/flyway-commandline-12.0.1-linux-x64.tar.gz \
