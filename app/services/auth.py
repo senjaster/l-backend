@@ -110,12 +110,7 @@ class AuthService:
                 logger.error("  S3 credentials not found in environment variables")
                 return None
             
-            if not token.startswith('Basic '):
-                logger.warning("  Invalid token format: expected Basic auth")
-                return None
-            
-            encoded_credentials = token.split(' ')[1]
-            decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+            decoded_credentials = base64.b64decode(token).decode('utf-8')
             
             if ':' not in decoded_credentials:
                 logger.warning("  Invalid Basic auth format: missing colon separator")
