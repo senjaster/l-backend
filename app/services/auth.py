@@ -105,7 +105,7 @@ class AuthService:
             expected_access_key = settings.s3_access_key_id
             expected_secret_key = settings.s3_secret_access_key
             
-            logger.debug(f"Got token: {token}")
+            logger.info(f"Got token: {token}")
             if not expected_access_key or not expected_secret_key:
                 logger.error("  S3 credentials not found in environment variables")
                 return None
