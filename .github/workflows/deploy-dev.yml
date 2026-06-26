@@ -1,0 +1,87 @@
+name: Deploy (dev)
+
+on:
+  push:
+    branches:
+      - dev
+
+env:
+  REGISTRY: cr.yandex
+  REGISTRY_ID: crpd2b5gg7tt3399i6c9
+  IMAGE_NAME: t-app-backend
+
+jobs:
+  deploy:
+    name: Build, Migrate & Deploy to Dev
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build image tag
+        id: tag
+        run: echo "VERSION=dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # ── Docker ────────────────────────────────────────────────────────────
+
+      - name: Authenticate with Yandex Container Registry
+        run: |
+          echo '${{ secrets.YC_SA_JSON_KEY }}' | \
+            docker login \
+              --username json_key \
+              --password-stdin \
+              cr.yandex
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -t $REGISTRY/$REGISTRY_ID/$IMAGE_NAME:${{ steps.tag.outputs.VERSION }} \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push $REGISTRY/$REGISTRY_ID/$IMAGE_NAME:${{ steps.tag.outputs.VERSION }}
+
+      # ── Database migrations ───────────────────────────────────────────────
+
+      - name: Install Flyway
+        run: |
+          wget -qO- https://download.red-gate.com/maven/release/com/redgate/flyway/flyway-commandline/12.0.1/flyway-commandline-12.0.1-linux-x64.tar.gz \
+            | tar -xz -C "$HOME"
+          echo "$HOME/flyway-12.0.1" >> "$GITHUB_PATH"
+
+      - name: Run Flyway migrations
+        run: flyway migrate
+        working-directory: db
+        env:
+          FLYWAY_URL: ${{ vars.FLYWAY_URL }}
+          FLYWAY_USER: ${{ vars.FLYWAY_USER }}
+          FLYWAY_PASSWORD: ${{ secrets.FLYWAY_PASSWORD }}
+
+      # ── Yandex Cloud deployment ───────────────────────────────────────────
+
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | \
+            bash -s -- -i "$HOME/yc" -n
+          echo "$HOME/yc/bin" >> "$GITHUB_PATH"
+
+      - name: Authenticate with Yandex Cloud
+        run: |
+          echo '${{ secrets.YC_SA_JSON_KEY }}' > /tmp/sa-key.json
+          yc config set service-account-key /tmp/sa-key.json
+          yc config set folder-id ${{ vars.YC_FOLDER_ID }}
+
+      - name: Deploy new container revision
+        run: |
+          yc serverless container revision deploy \
+            --container-id ${{ vars.CONTAINER_ID }} \
+            --image $REGISTRY/$REGISTRY_ID/$IMAGE_NAME:${{ steps.tag.outputs.VERSION }} \
+            --service-account-id ${{ vars.YC_SA_ID }}
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f /tmp/sa-key.json
