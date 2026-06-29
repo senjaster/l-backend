@@ -105,7 +105,6 @@ class AuthService:
             expected_access_key = settings.s3_access_key_id
             expected_secret_key = settings.s3_secret_access_key
             
-            logger.info(f"Got token: {token}")
             if not expected_access_key or not expected_secret_key:
                 logger.error("  S3 credentials not found in environment variables")
                 return None
@@ -120,7 +119,6 @@ class AuthService:
             
             current_time = int(time.time())
             if access_key == expected_access_key and secret_key == expected_secret_key:
-                logger.info("  S3 credentials match")
                 return TokenPayload(
                     sub=int(inspector_id),
                     dev="s3-trigger",
@@ -167,16 +165,12 @@ class AuthService:
         """
         self._load_keys()
         
-        logger.info("  Попытка авторизации через JWT...")
         jwt_payload = self._jwt_verify_access_token(token)
         if jwt_payload:
-            logger.info("  Авторизация через JWT успешна")
             return jwt_payload
         
-        logger.info("  JWT не прошел, пробуем авторизацию через S3 (Basic Auth)...")
         s3_payload = self._yc_verify_access_token(token)
         if s3_payload:
-            logger.info("  Авторизация через S3 (Basic Auth) успешна")
             return s3_payload
         
         logger.warning("  Авторизация не удалась: ни JWT, ни S3 проверка не прошли")
