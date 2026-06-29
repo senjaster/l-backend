@@ -1,5 +1,5 @@
 # Use Python 3.11 slim image as base
-FROM python:3.14-slim
+FROM python:3.14.3-slim
 
 # Set working directory
 WORKDIR /app
@@ -16,11 +16,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
-COPY ./requirements.txt ./requirements.txt
+# Copy requirements lockfile
+COPY ./requirements.lock ./requirements.lock
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (exact pinned versions)
+RUN pip install --no-cache-dir -r requirements.lock
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
