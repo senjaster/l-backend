@@ -16,11 +16,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements lockfile
-COPY ./requirements.lock ./requirements.lock
+# Copy requirements file
+COPY ./requirements.txt ./requirements.txt
 
 # Install Python dependencies (exact pinned versions)
-RUN pip install --no-cache-dir -r requirements.lock
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
