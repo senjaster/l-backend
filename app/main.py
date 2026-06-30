@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from contextlib import asynccontextmanager
-from app.database import init_db_pool, close_db_pool
+from app.database import close_db_pool
 from app.exceptions import (
     asyncpg_exception_handler,
     psycopg2_exception_handler,
@@ -17,9 +17,6 @@ from app.exceptions import (
 from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
 from app.config import settings
-
-from app.services.s3_connection import S3ConnectionManager
-from app.services.s3_objects_service import S3ObjectService
 
 # Include routers
 from app.routers import (
@@ -46,53 +43,15 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    global s3_objects_service, connection_manager
-
-    connection_manager = None
-
+    logger.info("Application started successfully")
+    yield
+    logger.info("Shutting down application...")
     try:
-        # Startup
-        logger.info("Initializing S3 services...")
-
-        connection_manager = S3ConnectionManager()
-        await connection_manager.initialize_s3_only()
-        logger.info("S3 connection manager initialized successfully")
-
-        s3_objects_service = S3ObjectService(connection_manager)
-
-        app.state.connection_manager = connection_manager
-        app.state.s3_objects_service = s3_objects_service
-
-        logger.info("S3 services initialized successfully")
-        
-        await init_db_pool()
-        logger.info("Database pool initialized")
-        
-        logger.info("Application started successfully")
-        
-        yield
-        
+        await close_db_pool()
+        logger.info("Database pool closed successfully")
     except Exception as e:
-        logger.error(f"Error during startup: {e}")
-        raise
-    
-    finally:
-        logger.info("Shutting down application...")
-        
-        if connection_manager:
-            try:
-                await connection_manager.close()
-                logger.info("S3 connection manager closed successfully")
-            except Exception as e:
-                logger.error(f"Error closing S3 connection manager: {e}")
-        
-        try:
-            await close_db_pool()
-            logger.info("Database pool closed successfully")
-        except Exception as e:
-            logger.error(f"Error closing database pool: {e}")
-        
-        logger.info("Application shutdown complete")
+        logger.error(f"Error closing database pool: {e}")
+    logger.info("Application shutdown complete")
 
 
 app = FastAPI(
