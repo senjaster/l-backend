@@ -119,7 +119,7 @@ async def get_images_by_plant_id(
 
 @router.put("", response_model=Image)
 async def upsert_image(
-    image_request: PutImageRequestBody,
+    image_body: PutImageRequestBody,
     force: bool = Query(
         default=False, description="If true, ignore server_modified_at validation"
     ),
@@ -139,6 +139,19 @@ async def upsert_image(
     - Logical deletion via is_deleted flag (not implemented yet)
     - Permission: User must have access to the plant
     """
+    # Convert PutImageRequestBody to Image with default upload status fields.
+    # upload_status and server_uploaded_at are not settable via PUT — the repo
+    # will preserve the existing values for updates, or use defaults for inserts.
+    image = Image(
+        id=image_body.id,
+        plant_id=image_body.plant_id,
+        original_file_name=image_body.original_file_name,
+        image_type=image_body.image_type,
+        metadata=image_body.metadata,
+        is_deleted=image_body.is_deleted,
+        server_modified_at=image_body.server_modified_at,
+        upload_status=ImageUploadStatus.UNKNOWN, # This is correct, see repo query
+    )
     try:
         async with conn.transaction():
             # Check access level (INSPECT required)
