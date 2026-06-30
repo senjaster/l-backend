@@ -29,7 +29,6 @@ from app.routers import (
     inspector,
     image,
     log,
-    s3_queue,
     sticker_type,
     equipment_type,
     facility_template,
@@ -194,4 +193,3 @@ app.include_router(plant.router)
 app.include_router(equipment.router)
 app.include_router(inspection.router)
 app.include_router(defect.router)
-app.include_router(s3_queue.router)

@@ -36,7 +36,6 @@ class S3ConnectionManager:
         self.secret_access_key = settings.s3_secret_access_key
         self.bucket_name = settings.s3_bucket_name
         self.endpoint_host = settings.s3_endpoint_host
-        self.queue_host = settings.s3_queue_host
         self.use_virtual_hosted_style = settings.s3_use_virtual_hosted_style
         
         # Настройки пула соединений
