@@ -1,10 +1,13 @@
 """Integration tests for Image API"""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
 from uuid import uuid4
+
+from app.main import app
+from app.services.s3_objects_service import get_s3_objects_service
 
 
 def test_create_image(client: TestClient, plant_id, seed_test_plant_and_facility):
@@ -662,11 +665,14 @@ def test_get_upload_url_returns_presigned_url(
     fake_url = "https://s3.example.com/upload/test"
     fake_expires = datetime.now(timezone.utc) + timedelta(hours=1)
 
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.generate_upload_presigned_url.return_value = (fake_url, fake_expires)
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=(fake_url, fake_expires))
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{image_id}/upload_url")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 200
     data = response.json()
@@ -676,11 +682,14 @@ def test_get_upload_url_returns_presigned_url(
 
 def test_get_upload_url_for_nonexistent_image(client: TestClient):
     """GET /image/{id}/upload_url returns 404 for unknown image"""
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.generate_upload_presigned_url.return_value = None
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{uuid4()}/upload_url")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 404
 
@@ -701,11 +710,14 @@ def test_check_image_exists_true(
     }
     client.put("/image", json=image_data)
 
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.check_exists.return_value = True
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.check_exists = AsyncMock(return_value=True)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{image_id}/exists")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 200
     assert response.json()["exists"] is True
@@ -727,11 +739,14 @@ def test_check_image_exists_false(
     }
     client.put("/image", json=image_data)
 
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.check_exists.return_value = False
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.check_exists = AsyncMock(return_value=False)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{image_id}/exists")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 200
     assert response.json()["exists"] is False
@@ -739,10 +754,13 @@ def test_check_image_exists_false(
 
 def test_check_image_exists_nonexistent_image(client: TestClient):
     """GET /image/{id}/exists returns 404 for unknown image"""
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.check_exists.return_value = False
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.check_exists = AsyncMock(return_value=False)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{uuid4()}/exists")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 404

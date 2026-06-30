@@ -85,8 +85,8 @@ ON CONFLICT (id) DO UPDATE SET
     metadata = EXCLUDED.metadata,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at,
-    upload_status = EXCLUDED.upload_status,
-    server_uploaded_at = EXCLUDED.server_uploaded_at;
+    upload_status = lesiv.image.upload_status,
+    server_uploaded_at = lesiv.image.server_uploaded_at;
 
 -- name: update_upload_status(id, upload_status, server_uploaded_at)!
 UPDATE lesiv.image

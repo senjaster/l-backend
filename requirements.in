@@ -12,3 +12,4 @@ pyjwt[crypto]
 mangum
 python-json-logger
 boto3
+aiobotocore

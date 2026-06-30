@@ -158,9 +158,9 @@ async def upsert_image(
             permission_service.require_access_level(AccessLevel.INSPECT)
             
             # Check plant access
-            await permission_service.require_plant_access(image_request.plant_id)
+            await permission_service.require_plant_access(image_body.plant_id)
             
-            result = await image_repo.save(conn, image_request.to_image(), force=force)
+            result = await image_repo.save(conn, image_body.to_image(), force=force)
         
         # Generate upload presigned URL
         url_result = await s3_service.generate_upload_presigned_url(result.id)
@@ -173,7 +173,7 @@ async def upsert_image(
         logger.warning(
             "Concurrent modification detected for image",
             extra={
-                "image_id": str(image_request.id),
+                "image_id": str(image_body.id),
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
@@ -183,7 +183,7 @@ async def upsert_image(
     
     except ValueError as e:
         logger.warning(
-            "Invalid image data", extra={"image_id": str(image_request.id), "error": str(e)}
+            "Invalid image data", extra={"image_id": str(image_body.id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))
 

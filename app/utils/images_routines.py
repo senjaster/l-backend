@@ -336,20 +336,20 @@ async def fetch_images_background(
 async def update_image_upload_status_in_db(
     conn,
     image_id: UUID,
-    upload_status: str,
+    upload_status: ImageUploadStatus,
     server_uploaded_at: Optional[datetime] = None,
     force: bool = False,
 ) -> Image:
     """
-    Обновляет только статус загрузки изображения
-    
+    Обновляет только статус загрузки изображения без изменения server_modified_at.
+
     Args:
         conn: Соединение с БД
         image_id: ID изображения
         upload_status: Новый статус загрузки
         server_uploaded_at: Новая дата загрузки на сервер
-        force: Принудительное обновление
-    
+        force: Не используется, оставлен для обратной совместимости
+
     Returns:
         Обновленная запись изображения
     """
@@ -357,24 +357,17 @@ async def update_image_upload_status_in_db(
         existing_image = await image_repo.get_by_id(conn, image_id)
         if not existing_image:
             raise ValueError(f"Image with id {image_id} not found")
-        
-        updated_image = Image(
-            id=existing_image.id,
-            plant_id=existing_image.plant_id,
-            original_file_name=existing_image.original_file_name,
-            image_type=existing_image.image_type,
-            metadata=existing_image.metadata,
-            is_deleted=existing_image.is_deleted,
-            server_modified_at=existing_image.server_modified_at,
+
+        await image_repo.update_upload_status(
+            conn,
+            image_id=image_id,
             upload_status=upload_status,
-            server_uploaded_at=server_uploaded_at or existing_image.server_uploaded_at
+            server_uploaded_at=server_uploaded_at or existing_image.server_uploaded_at,
         )
 
-        async with conn.transaction():
-            result = await image_repo.save(conn, updated_image, force=force)
-        
+        result = await image_repo.get_by_id(conn, image_id)
         return result
-    
+
     except ValueError as e:
         logger.warning(f"Image not found: {image_id}")
         raise HTTPException(status_code=404, detail=str(e))
