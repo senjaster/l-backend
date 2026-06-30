@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from contextlib import asynccontextmanager
-from app.database import close_db_pool
+from app.database import init_db_pool, close_db_pool
 from app.exceptions import (
     asyncpg_exception_handler,
     psycopg2_exception_handler,
@@ -36,15 +36,19 @@ from app.routers import (
 
 
 # Initialize logging
-setup_logging(log_level=settings.log_level, enable_json=settings.log_json) # DEV: log_level="DEBUG", enable_json=False
+setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    logger.info("Application started successfully")
+    # Startup
+    logger.info("Starting application")
+    await init_db_pool()
+    logger.info("Database pool initialized")
     yield
+    # Shutdown
     logger.info("Shutting down application...")
     try:
         await close_db_pool()
@@ -125,6 +129,7 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 # Register authentication middleware (applies to all routes except /auth)
 app.add_middleware(AuthMiddleware)
+
 
 @app.get("/")
 async def root():
