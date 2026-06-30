@@ -19,6 +19,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+db/flyway.conf
+*.code-workspace
+requirements_old.txt
 
 # Virtual Environment
 .venv/

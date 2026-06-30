@@ -1,10 +1,12 @@
 """Image repository"""
-
-from typing import Optional
-from uuid import UUID
-from datetime import datetime, timezone
 import json
 import aiosql
+import os
+import logging
+
+from typing import Optional, List
+from uuid import UUID
+from datetime import datetime, timezone
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.constants import DEFAULT_MODIFIED_SINCE
@@ -13,13 +15,44 @@ from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.utils.datetime_utils import truncate_to_milliseconds
 
+
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/image.sql", settings.db_driver)
 queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
 
+logger = logging.getLogger(__name__)
+
 
 class ImageRepository:
     """Repository for Image aggregate"""
+
+    async def get_all(
+        self, 
+        conn, 
+        upload_status: Optional[str] = None,
+        modified_since: datetime = DEFAULT_MODIFIED_SINCE, 
+        uploaded_since: Optional[datetime] = DEFAULT_MODIFIED_SINCE,
+        limit: Optional[int] = None
+    ) -> List[Image]:
+        """Get all images, optionally filtered by modification date"""
+        images = []
+        async for row in queries.get_all_images(
+                conn, 
+                upload_status=upload_status.lower() if upload_status else None,
+                modified_since=modified_since, 
+                uploaded_since=uploaded_since, 
+                limit=limit
+        ):
+            row_dict = dict(row)
+            if 'metadata' in row_dict and isinstance(row_dict['metadata'], str):
+                try:
+                    row_dict['metadata'] = json.loads(row_dict['metadata'])
+                except json.JSONDecodeError:
+                    row_dict['metadata'] = {}
+            
+            images.append(Image(**row_dict))
+        
+        return images
 
     async def get_by_id(self, conn, image_id: UUID) -> Optional[Image]:
         """Get image by ID"""
@@ -113,12 +146,6 @@ class ImageRepository:
                     )
                 )
 
-        # Upsert image.
-        # upload_status and server_uploaded_at are intentionally excluded from both
-        # the INSERT column list and the ON CONFLICT DO UPDATE SET clause in the SQL,
-        # so they are never overwritten by a PUT request:
-        #   - INSERT: DB column defaults apply ('unknown' / NULL)
-        #   - UPDATE: existing values are preserved untouched
         await queries.upsert(
             conn,
             id=image_id,
@@ -128,6 +155,8 @@ class ImageRepository:
             metadata=json.dumps(image.metadata) if image.metadata else None,
             is_deleted=image.is_deleted,
             server_modified_at=new_server_modified_at,
+            upload_status=image.upload_status,
+            server_uploaded_at=image.server_uploaded_at
         )
 
         result = await self.get_by_id(conn, image_id)
@@ -154,3 +183,5 @@ class ImageRepository:
         """Delete image (actual delete, no is_deleted flag)"""
         await queries.delete(conn, id=image_id)
         return True
+
+image_repo = ImageRepository()

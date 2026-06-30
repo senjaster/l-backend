@@ -2,10 +2,10 @@
 
 import logging
 import sys
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json
 
 
-class CustomJsonFormatter(jsonlogger.JsonFormatter):
+class CustomJsonFormatter(json.JsonFormatter):
     """Custom JSON formatter with additional fields"""
 
     def add_fields(self, log_record, record, message_dict):
@@ -64,6 +64,7 @@ def setup_logging(log_level: str = "INFO", enable_json: bool = True):
     # Reduce noise from third-party libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("asyncpg").setLevel(logging.WARNING)
+    logging.getLogger("aiosql").setLevel(logging.WARNING)
 
     # Log initialization
     logger = logging.getLogger(__name__)

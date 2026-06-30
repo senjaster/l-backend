@@ -209,7 +209,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "path": request.url.path,
             "method": request.method,
             "exception_type": type(exc).__name__,
-            "request_body": request.body(),
+            "request_body": await request.body(),
         },
         exc_info=True,
     )
@@ -221,5 +221,5 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     error = BaseError(type="request_validation_error", message=message)
 
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error.model_dump()
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, content=error.model_dump()
     )

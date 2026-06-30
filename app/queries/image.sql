@@ -1,6 +1,29 @@
 -- Image aggregate queries
 -- Following API design principles with optimistic concurrency control
 
+-- name: get_all_images(upload_status, modified_since, uploaded_since, limit)
+-- Get all images
+-- :upload_status optional - filter by upload status (MISSING, UPLOADED, UNKNOWN)
+-- :modified_since defaults to 1790-01-01 - only return images modified after that timestamp
+-- :uploaded_since defaults to 1790-01-01 - only return images uploaded after that timestamp
+-- :limit optional - maximum number of rows to return (no limit if NULL)
+SELECT
+    id,
+    plant_id,
+    original_file_name,
+    image_type,
+    metadata,
+    is_deleted,
+    server_modified_at,
+    upload_status,
+    server_uploaded_at
+FROM lesiv.image
+WHERE server_modified_at > :modified_since 
+AND server_uploaded_at > :uploaded_since
+AND (CAST(:upload_status AS VARCHAR) IS NULL OR upload_status = :upload_status)
+ORDER BY server_modified_at DESC
+LIMIT NULLIF(:limit, 0);
+
 -- name: get_by_id(id)^
 SELECT
     id,
@@ -32,7 +55,7 @@ WHERE i.plant_id = :plant_id
   AND i.server_modified_at > :modified_since
 ORDER BY i.server_modified_at;
 
--- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at)!
+-- name: upsert(id, plant_id, original_file_name, image_type, metadata, is_deleted, server_modified_at, upload_status, server_uploaded_at)!
 INSERT INTO lesiv.image (
     id,
     plant_id,
@@ -40,15 +63,20 @@ INSERT INTO lesiv.image (
     image_type,
     metadata,
     is_deleted,
-    server_modified_at
-) VALUES (
+    server_modified_at,
+    upload_status,
+    server_uploaded_at
+)
+VALUES (
     :id,
     :plant_id,
     :original_file_name,
     :image_type,
     :metadata,
     :is_deleted,
-    :server_modified_at
+    :server_modified_at,
+    :upload_status,
+    :server_uploaded_at
 )
 ON CONFLICT (id) DO UPDATE SET
     plant_id = EXCLUDED.plant_id,
@@ -56,7 +84,9 @@ ON CONFLICT (id) DO UPDATE SET
     image_type = EXCLUDED.image_type,
     metadata = EXCLUDED.metadata,
     is_deleted = EXCLUDED.is_deleted,
-    server_modified_at = EXCLUDED.server_modified_at;
+    server_modified_at = EXCLUDED.server_modified_at,
+    upload_status = EXCLUDED.upload_status,
+    server_uploaded_at = EXCLUDED.server_uploaded_at;
 
 -- name: update_upload_status(id, upload_status, server_uploaded_at)!
 UPDATE lesiv.image
