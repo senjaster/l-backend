@@ -160,7 +160,7 @@ async def upsert_image(
             # Check plant access
             await permission_service.require_plant_access(image_body.plant_id)
             
-            result = await image_repo.save(conn, image_body.to_image(), force=force)
+            result = await image_repo.save(conn, image, force=force)
         
         # Generate upload presigned URL
         url_result = await s3_service.generate_upload_presigned_url(result.id)
