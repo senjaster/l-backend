@@ -3,20 +3,20 @@ import logging
 import httpx
 
 from datetime import datetime
-from fastapi import HTTPException
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 
 from app.config import settings
 from app.database import get_db_connection
 from app.models.image import Image, ImageUploadStatus
-from app.repositories.image import image_repo
+from app.repositories.image import ImageRepository
 from app.services.s3_objects_service import get_s3_objects_service
 
 
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
+image_repo = ImageRepository()
 
 
 class ImageBackgroundFetcher:
@@ -317,14 +317,12 @@ async def fetch_images_background(
             else:
                 logger.warning("    Для заданного фильтра не найдено изображений в базе данных")
             
-            check_start_time = datetime.now()
             for image in updated_images:
-                image = await update_image_upload_status_in_db(
-                    conn=conn, 
-                    image_id=image.id, 
+                await image_repo.update_upload_status(
+                    conn,
+                    image_id=image.id,
                     upload_status=image.upload_status,
-                    server_uploaded_at=image.server_uploaded_at, 
-                    force=True
+                    server_uploaded_at=image.server_uploaded_at,
                 )
         
         except Exception as e:
@@ -332,45 +330,3 @@ async def fetch_images_background(
     
     return images
 
-
-async def update_image_upload_status_in_db(
-    conn,
-    image_id: UUID,
-    upload_status: ImageUploadStatus,
-    server_uploaded_at: Optional[datetime] = None,
-    force: bool = False,
-) -> Image:
-    """
-    Обновляет только статус загрузки изображения без изменения server_modified_at.
-
-    Args:
-        conn: Соединение с БД
-        image_id: ID изображения
-        upload_status: Новый статус загрузки
-        server_uploaded_at: Новая дата загрузки на сервер
-        force: Не используется, оставлен для обратной совместимости
-
-    Returns:
-        Обновленная запись изображения
-    """
-    try:
-        existing_image = await image_repo.get_by_id(conn, image_id)
-        if not existing_image:
-            raise ValueError(f"Image with id {image_id} not found")
-
-        await image_repo.update_upload_status(
-            conn,
-            image_id=image_id,
-            upload_status=upload_status,
-            server_uploaded_at=server_uploaded_at or existing_image.server_uploaded_at,
-        )
-
-        result = await image_repo.get_by_id(conn, image_id)
-        return result
-
-    except ValueError as e:
-        logger.warning(f"Image not found: {image_id}")
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to update upload status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))

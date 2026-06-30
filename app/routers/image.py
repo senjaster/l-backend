@@ -19,18 +19,19 @@ from app.models.image import (
     PutImageRequestBody
 )
 from app.models.s3_event import StorageEventPayload
-from app.repositories.image import ConcurrentModificationError
+from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
 from app.services.s3_objects_service import S3ObjectService, get_s3_objects_service
 
 from app.models.inspector import AccessLevel
-from app.utils.images_routines import image_repo, fetch_images_background, update_image_upload_status_in_db
+from app.utils.image_routines import fetch_images_background
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/image", tags=["image"])
+image_repo = ImageRepository()
 
 
 @router.get("/all", response_model=ImageListResponse)
@@ -158,7 +159,7 @@ async def upsert_image(
             permission_service.require_access_level(AccessLevel.INSPECT)
             
             # Check plant access
-            await permission_service.require_plant_access(image_body.plant_id)
+            await permission_service.require_plant_access(image.plant_id)
             
             result = await image_repo.save(conn, image, force=force)
         
@@ -173,7 +174,7 @@ async def upsert_image(
         logger.warning(
             "Concurrent modification detected for image",
             extra={
-                "image_id": str(image_body.id),
+                "image_id": str(image.id),
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
@@ -334,13 +335,15 @@ async def handle_s3_upload_callback(
                 errors.append(f"Event {idx}: invalid created_at format")
                 continue
             
-            await update_image_upload_status_in_db(
-                conn=conn,
+            result = await image_repo.update_upload_status(
+                conn,
                 image_id=UUID(object_id),
                 upload_status=ImageUploadStatus.UPLOADED,
                 server_uploaded_at=server_uploaded_at,
-                force=True
             )
+            if not result:
+                logger.warning(f"Image {object_id} not found, skipping upload status update")
+                continue
             
             processed_count += 1
             logger.info(f"Successfully processed image {object_id} with upload status 'uploaded'")

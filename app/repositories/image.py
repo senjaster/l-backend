@@ -15,7 +15,6 @@ from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.utils.datetime_utils import truncate_to_milliseconds
 
-
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/image.sql", settings.db_driver)
 queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
@@ -170,18 +169,26 @@ class ImageRepository:
         image_id: UUID,
         upload_status: ImageUploadStatus,
         server_uploaded_at: Optional[datetime],
-    ) -> None:
-        """Update upload status fields only (called by S3 event callback)."""
-        await queries.update_upload_status(
+    ) -> Optional[Image]:
+        """Update upload status fields only (called by S3 event callback).
+
+        Returns the updated Image, or None if no row matched the given id.
+        """
+        row = await queries.update_upload_status(
             conn,
             id=image_id,
             upload_status=upload_status.value,
             server_uploaded_at=server_uploaded_at,
         )
+        if not row:
+            return None
+        row_dict = dict(row)
+        if row_dict.get("metadata") and isinstance(row_dict["metadata"], str):
+            row_dict["metadata"] = json.loads(row_dict["metadata"])
+        return Image(**row_dict)
 
     async def delete(self, conn, image_id: UUID) -> bool:
         """Delete image (actual delete, no is_deleted flag)"""
         await queries.delete(conn, id=image_id)
         return True
 
-image_repo = ImageRepository()

@@ -88,11 +88,21 @@ ON CONFLICT (id) DO UPDATE SET
     upload_status = lesiv.image.upload_status,
     server_uploaded_at = lesiv.image.server_uploaded_at;
 
--- name: update_upload_status(id, upload_status, server_uploaded_at)!
+-- name: update_upload_status(id, upload_status, server_uploaded_at)^
 UPDATE lesiv.image
 SET upload_status = :upload_status,
     server_uploaded_at = :server_uploaded_at
-WHERE id = :id;
+WHERE id = :id
+RETURNING
+    id,
+    plant_id,
+    original_file_name,
+    image_type,
+    metadata,
+    is_deleted,
+    server_modified_at,
+    upload_status,
+    server_uploaded_at;
 
 -- name: delete(id)!
 DELETE FROM lesiv.image
