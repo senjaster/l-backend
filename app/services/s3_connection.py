@@ -141,11 +141,7 @@ class S3ConnectionManager:
                 "aws_secret_access_key": self.secret_access_key,
             }
             
-            if self.queue_host:
-                endpoint_url = f"https://{self.queue_host}"
-                sqs_client_kwargs["endpoint_url"] = endpoint_url
-            else:
-                sqs_client_kwargs["endpoint_url"] = "https://message-queue.api.cloud.yandex.net"
+            sqs_client_kwargs["endpoint_url"] = "https://message-queue.api.cloud.yandex.net"
             
             self._sqs_client_cm = self._session.create_client("sqs", **sqs_client_kwargs)
             self._sqs_client = await self._sqs_client_cm.__aenter__()

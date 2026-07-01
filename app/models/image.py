@@ -60,26 +60,6 @@ class PutImageRequestBody(BaseModel):
     presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
     presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
 
-
-class ImageListResponse(BaseModel):
-    """List of Image items"""
-    
-    items: List[Image]
-
-
-class PutImageRequestBody(BaseModel):
-    """Image aggregate without file upload status and upload date"""
-    
-    id: UUID
-    plant_id: UUID
-    original_file_name: str
-    image_type: ImageType
-    metadata: Optional[dict] = None
-    is_deleted: bool = False
-    server_modified_at: datetime
-    presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
-    presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL    
-    
     def to_image(self) -> Image:
         """Convert to full Image model"""
         return Image(
@@ -87,3 +67,8 @@ class PutImageRequestBody(BaseModel):
             upload_status=ImageUploadStatus.UNKNOWN,
             server_uploaded_at=None
         )
+
+class ImageListResponse(BaseModel):
+    """List of Image items"""
+    
+    items: List[Image]
