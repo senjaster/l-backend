@@ -1,5 +1,6 @@
 import asyncio
-from typing import Optional, List, Dict, Tuple
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Optional, List, Dict, Tuple
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
@@ -24,7 +25,7 @@ class S3ObjectService:
         """
         self._connection = connection_manager
         self._key_generator = S3KeyGenerator()
-    
+
     def _get_object_key(self, image_id: UUID) -> str:
         """Генерация ключа объекта"""
         return self._key_generator.generate_image_key(image_id)
@@ -235,10 +236,34 @@ class S3ObjectService:
         return metadata.get('content_length') if metadata else None
 
 
-# Функция для использования в FastAPI приложении
-async def get_s3_objects_service() -> S3ObjectService:
-    """Dependency для получения S3 сервиса"""
+async def get_s3_objects_service() -> AsyncGenerator[S3ObjectService, None]:
+    """
+    FastAPI Depends() yield-dependency для получения S3 сервиса.
+    FastAPI автоматически вызывает cleanup после обработки запроса.
+
+    Использование:
+        s3_service: S3ObjectService = Depends(get_s3_objects_service)
+    """
     connection_manager = S3ConnectionManager()
     await connection_manager.initialize_s3_only()
-    s3_objects_service = S3ObjectService(connection_manager)
-    return s3_objects_service
+    try:
+        yield S3ObjectService(connection_manager)
+    finally:
+        await connection_manager.close()
+
+
+@asynccontextmanager
+async def s3_objects_service_ctx() -> AsyncGenerator[S3ObjectService, None]:
+    """
+    Async context manager для использования S3 сервиса вне FastAPI Depends().
+
+    Использование:
+        async with s3_objects_service_ctx() as svc:
+            await svc.check_exists(image_id)
+    """
+    connection_manager = S3ConnectionManager()
+    await connection_manager.initialize_s3_only()
+    try:
+        yield S3ObjectService(connection_manager)
+    finally:
+        await connection_manager.close()

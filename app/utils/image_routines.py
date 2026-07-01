@@ -10,7 +10,7 @@ from app.config import settings
 from app.database import get_db_connection
 from app.models.image import Image, ImageUploadStatus
 from app.repositories.image import ImageRepository
-from app.services.s3_objects_service import get_s3_objects_service
+from app.services.s3_objects_service import s3_objects_service_ctx
 
 
 logging.getLogger('httpcore').setLevel(logging.WARNING)
@@ -296,38 +296,39 @@ async def fetch_images_background(
     
     images: List[Image] = []
     async for conn in get_db_connection():
-        try:
-            fetcher = ImageBackgroundFetcher(
-                base_url=base_url,
-                batch_size=batch_size,
-                s3_service=await get_s3_objects_service()
-            )
-            fetcher.timeout_seconds = timeout_seconds
-
-            images = await fetcher.fetch_all_images(
-                conn=conn,
-                upload_status=upload_status,
-                modified_since=modified_since,
-                uploaded_since=uploaded_since,
-                limit=limit
-            )
-
-            updated_images = []
-            if images:
-                updated_images = await fetcher.get_images_statuses_from_s3(images)
-            else:
-                logger.warning("    Для заданного фильтра не найдено изображений в базе данных")
-            
-            for image in updated_images:
-                await update_image_upload_status_in_db(
-                    conn,
-                    image_id=image.id,
-                    upload_status=image.upload_status,
-                    server_uploaded_at=image.server_uploaded_at,
+        async with s3_objects_service_ctx() as s3_service:
+            try:
+                fetcher = ImageBackgroundFetcher(
+                    base_url=base_url,
+                    batch_size=batch_size,
+                    s3_service=s3_service
                 )
-        
-        except Exception as e:
-            logger.error(f"  Ошибка в фоновой задаче: {e}", exc_info=True)
+                fetcher.timeout_seconds = timeout_seconds
+
+                images = await fetcher.fetch_all_images(
+                    conn=conn,
+                    upload_status=upload_status,
+                    modified_since=modified_since,
+                    uploaded_since=uploaded_since,
+                    limit=limit
+                )
+
+                updated_images = []
+                if images:
+                    updated_images = await fetcher.get_images_statuses_from_s3(images)
+                else:
+                    logger.warning("    Для заданного фильтра не найдено изображений в базе данных")
+                
+                for image in updated_images:
+                    await update_image_upload_status_in_db(
+                        conn,
+                        image_id=image.id,
+                        upload_status=image.upload_status,
+                        server_uploaded_at=image.server_uploaded_at,
+                    )
+            
+            except Exception as e:
+                logger.error(f"  Ошибка в фоновой задаче: {e}", exc_info=True)
     
     return images
 

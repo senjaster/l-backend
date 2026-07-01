@@ -238,10 +238,14 @@ async def test_fetch_images_background_fetches_and_updates_statuses():
     mock_s3 = MagicMock()
     mock_s3.get_metadata = AsyncMock(return_value={"last_modified": None})
 
+    mock_s3_ctx = MagicMock()
+    mock_s3_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+    mock_s3_ctx.__aexit__ = AsyncMock(return_value=False)
+
     with (
         patch("app.utils.image_routines.check_server_availability", new=AsyncMock(return_value=True)),
         patch("app.utils.image_routines.get_db_connection", side_effect=_fake_get_db),
-        patch("app.utils.image_routines.get_s3_objects_service", new=AsyncMock(return_value=mock_s3)),
+        patch("app.utils.image_routines.s3_objects_service_ctx", return_value=mock_s3_ctx),
         patch("app.utils.image_routines.image_repo") as mock_repo,
     ):
         mock_repo.get_all = AsyncMock(return_value=images)
@@ -265,10 +269,14 @@ async def test_fetch_images_background_skips_update_when_no_images():
 
     mock_s3 = MagicMock()
 
+    mock_s3_ctx = MagicMock()
+    mock_s3_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+    mock_s3_ctx.__aexit__ = AsyncMock(return_value=False)
+
     with (
         patch("app.utils.image_routines.check_server_availability", new=AsyncMock(return_value=True)),
         patch("app.utils.image_routines.get_db_connection", side_effect=_fake_get_db),
-        patch("app.utils.image_routines.get_s3_objects_service", new=AsyncMock(return_value=mock_s3)),
+        patch("app.utils.image_routines.s3_objects_service_ctx", return_value=mock_s3_ctx),
         patch("app.utils.image_routines.image_repo") as mock_repo,
     ):
         mock_repo.get_all = AsyncMock(return_value=[])
@@ -293,10 +301,14 @@ async def test_fetch_images_background_passes_filters_to_fetcher():
     modified_since = datetime(2024, 3, 1, tzinfo=timezone.utc)
     uploaded_since = datetime(2024, 2, 1, tzinfo=timezone.utc)
 
+    mock_s3_ctx = MagicMock()
+    mock_s3_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+    mock_s3_ctx.__aexit__ = AsyncMock(return_value=False)
+
     with (
         patch("app.utils.image_routines.check_server_availability", new=AsyncMock(return_value=True)),
         patch("app.utils.image_routines.get_db_connection", side_effect=_fake_get_db),
-        patch("app.utils.image_routines.get_s3_objects_service", new=AsyncMock(return_value=mock_s3)),
+        patch("app.utils.image_routines.s3_objects_service_ctx", return_value=mock_s3_ctx),
         patch("app.utils.image_routines.image_repo") as mock_repo,
     ):
         mock_repo.get_all = AsyncMock(return_value=[])
@@ -329,10 +341,14 @@ async def test_fetch_images_background_logs_error_on_exception(caplog):
 
     mock_s3 = MagicMock()
 
+    mock_s3_ctx = MagicMock()
+    mock_s3_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+    mock_s3_ctx.__aexit__ = AsyncMock(return_value=False)
+
     with (
         patch("app.utils.image_routines.check_server_availability", new=AsyncMock(return_value=True)),
         patch("app.utils.image_routines.get_db_connection", side_effect=_fake_get_db),
-        patch("app.utils.image_routines.get_s3_objects_service", new=AsyncMock(return_value=mock_s3)),
+        patch("app.utils.image_routines.s3_objects_service_ctx", return_value=mock_s3_ctx),
         patch("app.utils.image_routines.image_repo") as mock_repo,
         caplog.at_level(logging.ERROR, logger="app.utils.image_routines"),
     ):
@@ -356,10 +372,14 @@ async def test_fetch_images_background_update_called_with_correct_args():
     # S3 has the object → UPLOADED
     mock_s3.get_metadata = AsyncMock(return_value={"last_modified": None})
 
+    mock_s3_ctx = MagicMock()
+    mock_s3_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+    mock_s3_ctx.__aexit__ = AsyncMock(return_value=False)
+
     with (
         patch("app.utils.image_routines.check_server_availability", new=AsyncMock(return_value=True)),
         patch("app.utils.image_routines.get_db_connection", side_effect=_fake_get_db),
-        patch("app.utils.image_routines.get_s3_objects_service", new=AsyncMock(return_value=mock_s3)),
+        patch("app.utils.image_routines.s3_objects_service_ctx", return_value=mock_s3_ctx),
         patch("app.utils.image_routines.image_repo") as mock_repo,
     ):
         mock_repo.get_all = AsyncMock(return_value=[image])
