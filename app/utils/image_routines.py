@@ -294,10 +294,11 @@ async def fetch_images_background(
         logger.error(f"  Невозможно запустить загрузку: сервер {base_url} недоступен")
         return []
     
+    images: List[Image] = []
     async for conn in get_db_connection():
         try:
             fetcher = ImageBackgroundFetcher(
-                base_url=base_url, 
+                base_url=base_url,
                 batch_size=batch_size,
                 s3_service=await get_s3_objects_service()
             )
