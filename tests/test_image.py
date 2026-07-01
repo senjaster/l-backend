@@ -1,10 +1,13 @@
 """Integration tests for Image API"""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
 from uuid import uuid4
+
+from app.main import app
+from app.services.s3_objects_service import get_s3_objects_service
 
 
 def test_create_image(client: TestClient, plant_id, seed_test_plant_and_facility):
@@ -483,12 +486,14 @@ def test_put_does_not_overwrite_upload_status(
     cb_resp = client.post("/image/s3-upload-callback", json=callback_payload)
     assert cb_resp.status_code == 200
 
-    # Verify upload_status is now UPLOADED
+    # Verify upload_status is now UPLOADED; capture the new server_modified_at
+    # (the S3 callback bumps server_modified_at via save(force=True))
     get_resp = client.get(f"/image/by_id/{image_id}")
     assert get_resp.status_code == 200
     assert get_resp.json()["upload_status"] == "UPLOADED"
+    server_modified_at = get_resp.json()["server_modified_at"]
 
-    # Now do a regular PUT update
+    # Now do a regular PUT update using the latest server_modified_at
     image_data["server_modified_at"] = server_modified_at
     image_data["original_file_name"] = "updated.jpg"
     update_resp = client.put("/image", json=image_data)
@@ -662,11 +667,14 @@ def test_get_upload_url_returns_presigned_url(
     fake_url = "https://s3.example.com/upload/test"
     fake_expires = datetime.now(timezone.utc) + timedelta(hours=1)
 
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.generate_upload_presigned_url.return_value = (fake_url, fake_expires)
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=(fake_url, fake_expires))
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{image_id}/upload_url")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 200
     data = response.json()
@@ -676,11 +684,14 @@ def test_get_upload_url_returns_presigned_url(
 
 def test_get_upload_url_for_nonexistent_image(client: TestClient):
     """GET /image/{id}/upload_url returns 404 for unknown image"""
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.generate_upload_presigned_url.return_value = None
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{uuid4()}/upload_url")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 404
 
@@ -701,11 +712,14 @@ def test_check_image_exists_true(
     }
     client.put("/image", json=image_data)
 
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.check_exists.return_value = True
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.check_exists = AsyncMock(return_value=True)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{image_id}/exists")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 200
     assert response.json()["exists"] is True
@@ -727,11 +741,14 @@ def test_check_image_exists_false(
     }
     client.put("/image", json=image_data)
 
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.check_exists.return_value = False
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.check_exists = AsyncMock(return_value=False)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{image_id}/exists")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 200
     assert response.json()["exists"] is False
@@ -739,10 +756,336 @@ def test_check_image_exists_false(
 
 def test_check_image_exists_nonexistent_image(client: TestClient):
     """GET /image/{id}/exists returns 404 for unknown image"""
-    with patch("app.routers.image.s3_service") as mock_s3:
-        mock_s3.check_exists.return_value = False
-        mock_s3.generate_presigned_url.return_value = None
-
+    mock_s3 = MagicMock()
+    mock_s3.check_exists = AsyncMock(return_value=False)
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+    try:
         response = client.get(f"/image/{uuid4()}/exists")
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
 
     assert response.status_code == 404
+
+
+# ── GET /image/all tests ──────────────────────────────────────────────────────
+
+
+def _make_image_payload(plant_id, image_type: str = "VISUAL") -> dict:
+    """Helper: build a minimal valid PUT /image payload."""
+    from uuid import uuid4
+
+    return {
+        "id": str(uuid4()),
+        "plant_id": str(plant_id),
+        "original_file_name": f"test_{image_type.lower()}.jpg",
+        "image_type": image_type,
+        "metadata": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+    }
+
+
+def test_get_all_images_returns_image_list_response(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/all returns an ImageListResponse with an 'items' list."""
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+
+    try:
+        payload = _make_image_payload(plant_id)
+        client.put("/image", json=payload)
+
+        response = client.get("/image/all")
+        assert response.status_code == 200
+        body = response.json()
+        assert "items" in body
+        assert isinstance(body["items"], list)
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
+
+
+def test_get_all_images_contains_created_image(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/all includes an image that was just created."""
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+
+    try:
+        payload = _make_image_payload(plant_id)
+        create_resp = client.put("/image", json=payload)
+        assert create_resp.status_code == 200
+        image_id = create_resp.json()["id"]
+
+        response = client.get("/image/all")
+        assert response.status_code == 200
+        ids = [img["id"] for img in response.json()["items"]]
+        assert image_id in ids
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
+
+
+def test_get_all_images_filter_by_upload_status_unknown(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/all?upload_status=UNKNOWN returns only images with UNKNOWN status."""
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+
+    try:
+        payload = _make_image_payload(plant_id)
+        create_resp = client.put("/image", json=payload)
+        assert create_resp.status_code == 200
+        image_id = create_resp.json()["id"]
+
+        response = client.get("/image/all?upload_status=UNKNOWN")
+        assert response.status_code == 200
+        items = response.json()["items"]
+        assert all(img["upload_status"] == "UNKNOWN" for img in items)
+        ids = [img["id"] for img in items]
+        assert image_id in ids
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
+
+
+def test_get_all_images_filter_by_upload_status_uploaded(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/all?upload_status=UPLOADED returns only UPLOADED images."""
+    import time
+
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+
+    try:
+        # Create image and mark it as UPLOADED via S3 callback
+        image_id = uuid4()
+        payload = {
+            "id": str(image_id),
+            "plant_id": str(plant_id),
+            "original_file_name": "uploaded.jpg",
+            "image_type": "VISUAL",
+            "metadata": None,
+            "is_deleted": False,
+            "server_modified_at": "2024-01-01T00:00:00Z",
+        }
+        client.put("/image", json=payload)
+
+        callback_payload = {
+            "messages": [
+                {
+                    "event_metadata": {
+                        "event_id": "evt-all-1",
+                        "event_type": "yandex.cloud.events.storage.ObjectCreate",
+                        "created_at": "2024-06-01T10:00:00Z",
+                        "tracing_context": {},
+                        "cloud_id": "cloud-1",
+                        "folder_id": "folder-1",
+                    },
+                    "details": {
+                        "bucket_id": "my-bucket",
+                        "object_id": str(image_id),
+                    },
+                }
+            ]
+        }
+        cb_resp = client.post("/image/s3-upload-callback", json=callback_payload)
+        assert cb_resp.status_code == 200
+
+        response = client.get("/image/all?upload_status=UPLOADED")
+        assert response.status_code == 200
+        items = response.json()["items"]
+        assert all(img["upload_status"] == "UPLOADED" for img in items)
+        ids = [img["id"] for img in items]
+        assert str(image_id) in ids
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
+
+
+def test_get_all_images_filter_by_modified_since(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/all?modified_since=<ts> excludes images created before that timestamp."""
+    import time
+
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+
+    try:
+        # Create first image
+        payload1 = _make_image_payload(plant_id)
+        resp1 = client.put("/image", json=payload1)
+        assert resp1.status_code == 200
+        ts_after_first = resp1.json()["server_modified_at"]
+        image_id_1 = resp1.json()["id"]
+
+        time.sleep(0.1)
+
+        # Create second image
+        payload2 = _make_image_payload(plant_id)
+        resp2 = client.put("/image", json=payload2)
+        assert resp2.status_code == 200
+        image_id_2 = resp2.json()["id"]
+
+        # Filter: only images modified after the first one's timestamp
+        response = client.get(f"/image/all?modified_since={ts_after_first}")
+        assert response.status_code == 200
+        ids = [img["id"] for img in response.json()["items"]]
+        assert image_id_1 not in ids
+        assert image_id_2 in ids
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
+
+
+def test_get_all_images_filter_by_limit(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/all?limit=1 returns at most 1 image."""
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+
+    try:
+        # Create two images
+        for _ in range(2):
+            client.put("/image", json=_make_image_payload(plant_id))
+
+        response = client.get("/image/all?limit=1")
+        assert response.status_code == 200
+        assert len(response.json()["items"]) <= 1
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
+
+
+def test_get_all_images_filter_by_uploaded_since(
+    client: TestClient, plant_id, seed_test_plant_and_facility
+):
+    """GET /image/all?uploaded_since=<ts> excludes images uploaded before that timestamp."""
+    import time
+
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url = AsyncMock(return_value=None)
+    mock_s3.generate_upload_presigned_url = AsyncMock(return_value=None)
+    app.dependency_overrides[get_s3_objects_service] = lambda: mock_s3
+
+    try:
+        image_id_1 = uuid4()
+        image_id_2 = uuid4()
+
+        for img_id in (image_id_1, image_id_2):
+            client.put(
+                "/image",
+                json={
+                    "id": str(img_id),
+                    "plant_id": str(plant_id),
+                    "original_file_name": "test.jpg",
+                    "image_type": "VISUAL",
+                    "metadata": None,
+                    "is_deleted": False,
+                    "server_modified_at": "2024-01-01T00:00:00Z",
+                },
+            )
+
+        # Upload first image at an earlier time
+        cb1_time = "2024-05-01T10:00:00Z"
+        client.post(
+            "/image/s3-upload-callback",
+            json={
+                "messages": [
+                    {
+                        "event_metadata": {
+                            "event_id": "evt-us-1",
+                            "event_type": "yandex.cloud.events.storage.ObjectCreate",
+                            "created_at": cb1_time,
+                            "tracing_context": {},
+                            "cloud_id": "c",
+                            "folder_id": "f",
+                        },
+                        "details": {"bucket_id": "b", "object_id": str(image_id_1)},
+                    }
+                ]
+            },
+        )
+
+        time.sleep(0.05)
+
+        # Upload second image at a later time
+        cb2_time = "2024-06-01T10:00:00Z"
+        client.post(
+            "/image/s3-upload-callback",
+            json={
+                "messages": [
+                    {
+                        "event_metadata": {
+                            "event_id": "evt-us-2",
+                            "event_type": "yandex.cloud.events.storage.ObjectCreate",
+                            "created_at": cb2_time,
+                            "tracing_context": {},
+                            "cloud_id": "c",
+                            "folder_id": "f",
+                        },
+                        "details": {"bucket_id": "b", "object_id": str(image_id_2)},
+                    }
+                ]
+            },
+        )
+
+        # Verify image_1 server_uploaded_at
+        img1_data = client.get(f"/image/by_id/{image_id_1}").json()
+        ts_after_first_upload = img1_data["server_uploaded_at"]
+
+        response = client.get(f"/image/all?uploaded_since={ts_after_first_upload}")
+        assert response.status_code == 200
+        ids = [img["id"] for img in response.json()["items"]]
+        assert str(image_id_1) not in ids
+        assert str(image_id_2) in ids
+    finally:
+        app.dependency_overrides.pop(get_s3_objects_service, None)
+
+
+# ── POST /image/trigger-images-background-fetch tests ─────────────────────────
+
+
+def test_trigger_images_background_fetch_returns_started(client: TestClient):
+    """POST /image/trigger-images-background-fetch returns a 'started' status message."""
+    response = client.post("/image/trigger-images-background-fetch")
+    assert response.status_code == 200
+    body = response.json()
+    assert "status" in body
+    assert "started" in body["status"].lower()
+    assert "base_url" in body
+    assert "message" in body
+
+
+def test_trigger_images_background_fetch_with_params(client: TestClient):
+    """POST /image/trigger-images-background-fetch accepts optional query parameters."""
+    response = client.post(
+        "/image/trigger-images-background-fetch"
+        "?batch_size=100&timeout_seconds=60&limit=500"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "status" in body
+    assert "100" in body["message"]
+
+
+def test_trigger_images_background_fetch_with_upload_status(client: TestClient):
+    """POST /image/trigger-images-background-fetch accepts upload_status filter."""
+    response = client.post(
+        "/image/trigger-images-background-fetch?upload_status=UNKNOWN"
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] is not None

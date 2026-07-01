@@ -1,10 +1,13 @@
 """FastAPI application entry point"""
 
-from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
-from contextlib import asynccontextmanager
 import asyncpg
 import psycopg2
+import logging
+
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+
+from contextlib import asynccontextmanager
 from app.database import init_db_pool, close_db_pool
 from app.exceptions import (
     asyncpg_exception_handler,
@@ -14,7 +17,23 @@ from app.exceptions import (
 from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
 from app.config import settings
-import logging
+
+# Include routers
+from app.routers import (
+    auth,
+    inspector,
+    image,
+    log,
+    sticker_type,
+    equipment_type,
+    facility_template,
+    defect_type,
+    plant,
+    equipment,
+    inspection,
+    defect,
+)
+
 
 # Initialize logging
 setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
@@ -30,9 +49,13 @@ async def lifespan(app: FastAPI):
     logger.info("Database pool initialized")
     yield
     # Shutdown
-    logger.info("Shutting down application")
-    await close_db_pool()
-    logger.info("Database pool closed")
+    logger.info("Shutting down application...")
+    try:
+        await close_db_pool()
+        logger.info("Database pool closed successfully")
+    except Exception as e:
+        logger.error(f"Error closing database pool: {e}")
+    logger.info("Application shutdown complete")
 
 
 app = FastAPI(
@@ -113,22 +136,6 @@ async def root():
     """Health check endpoint"""
     return {"status": "ok", "message": "L-Inspector Backend API"}
 
-
-# Include routers
-from app.routers import (
-    auth,
-    inspector,
-    image,
-    log,
-    sticker_type,
-    equipment_type,
-    facility_template,
-    defect_type,
-    plant,
-    equipment,
-    inspection,
-    defect,
-)
 
 app.include_router(auth.router)
 app.include_router(inspector.router)

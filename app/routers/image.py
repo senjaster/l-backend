@@ -1,22 +1,67 @@
 """Image router - implements API design principles"""
-from uuid import UUID
-from datetime import datetime
+
+import asyncio
+import json
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Query
+
+from uuid import UUID
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
+
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.image import Image, ImageUploadStatus, PresignedUploadUrlResponse, PutImageRequestBody
-from app.repositories.image import ImageRepository, ConcurrentModificationError
+from app.models.image import (
+    Image, 
+    PresignedUploadUrlResponse, 
+    ImageListResponse, 
+    ImageUploadStatus, 
+    PutImageRequestBody
+)
 from app.models.s3_event import StorageEventPayload
-from app.repositories.image import ConcurrentModificationError
+from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
-from app.services.s3_service import s3_service
+from app.services.s3_objects_service import S3ObjectService, get_s3_objects_service
+
 from app.models.inspector import AccessLevel
+from app.utils.image_routines import fetch_images_background, update_image_upload_status_in_db
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/image", tags=["image"])
 image_repo = ImageRepository()
+
+
+@router.get("/all", response_model=ImageListResponse)
+async def get_all_images(
+    upload_status: Optional[str] = Query(
+        None, description="Filter images by upload status"
+    ),
+    modified_since: datetime = Query(
+        DEFAULT_MODIFIED_SINCE,
+        description="Only return images modified after this timestamp",
+    ),
+    uploaded_since: Optional[datetime] = Query(
+        None,
+        description="Only return images uploaded after this timestamp",
+    ),
+    conn=Depends(get_db_connection),
+    limit: Optional[int] = Query(
+        None, 
+        description="Maximum number of images to return"
+    )
+) -> ImageListResponse:
+    """Get all images (read-only), optionally filtered by modification date"""
+    images = await image_repo.get_all(
+        conn,
+        upload_status=upload_status,
+        modified_since=modified_since, 
+        uploaded_since=uploaded_since, 
+        limit=limit
+    )
+    return ImageListResponse(items=images)
 
 
 @router.get("/by_id/{image_id}", response_model=Image)
@@ -24,7 +69,8 @@ async def get_image_by_id(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+    s3_service: S3ObjectService = Depends(get_s3_objects_service)
+) -> Image:
     """Get specific image by ID"""
     # Check plant access via image
     plant_id = await permission_service.get_plant_id_from_image(image_id)
@@ -37,7 +83,7 @@ async def get_image_by_id(
         raise HTTPException(status_code=404, detail="Image not found")
     
     # Generate presigned URL for the image
-    url_result = s3_service.generate_presigned_url(image.id)
+    url_result = await s3_service.generate_presigned_url(image.id)
     if url_result:
         image.presigned_url, image.presigned_url_expires_at = url_result
     
@@ -53,7 +99,8 @@ async def get_images_by_plant_id(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+    s3_service: S3ObjectService = Depends(get_s3_objects_service)
+) -> list[Image]:
     """Get all images for a plant, optionally filtered by modification date"""
     # Check plant access
     await permission_service.require_plant_access(plant_id)
@@ -64,7 +111,7 @@ async def get_images_by_plant_id(
     
     # Generate presigned URLs for all images
     for image in images:
-        url_result = s3_service.generate_presigned_url(image.id)
+        url_result = await s3_service.generate_presigned_url(image.id)
         if url_result:
             image.presigned_url, image.presigned_url_expires_at = url_result
     
@@ -79,7 +126,8 @@ async def upsert_image(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+    s3_service: S3ObjectService = Depends(get_s3_objects_service)
+) -> Image:
     """
     Create or replace image.
 
@@ -92,49 +140,55 @@ async def upsert_image(
     - Logical deletion via is_deleted flag (not implemented yet)
     - Permission: User must have access to the plant
     """
-    # Convert PutImageRequestBody to Image with default upload status fields.
-    # upload_status and server_uploaded_at are not settable via PUT — the repo
-    # will preserve the existing values for updates, or use defaults for inserts.
-    image = Image(
-        id=image_body.id,
-        plant_id=image_body.plant_id,
-        original_file_name=image_body.original_file_name,
-        image_type=image_body.image_type,
-        metadata=image_body.metadata,
-        is_deleted=image_body.is_deleted,
-        server_modified_at=image_body.server_modified_at,
-        upload_status=ImageUploadStatus.UNKNOWN, # This is correct, see repo query
-    )
     try:
         async with conn.transaction():
             # Check access level (INSPECT required)
             permission_service.require_access_level(AccessLevel.INSPECT)
-            
+
             # Check plant access
-            await permission_service.require_plant_access(image.plant_id)
-            
+            await permission_service.require_plant_access(image_body.plant_id)
+
+            # Fetch existing row first to preserve upload_status and server_uploaded_at.
+            # PUT must never change upload_status — new rows get UNKNOWN, existing rows
+            # keep their current value.
+            existing = await image_repo.get_by_id(conn, image_body.id)
+
+            image = Image(
+                id=image_body.id,
+                plant_id=image_body.plant_id,
+                original_file_name=image_body.original_file_name,
+                image_type=image_body.image_type,
+                metadata=image_body.metadata,
+                is_deleted=image_body.is_deleted,
+                server_modified_at=image_body.server_modified_at,
+                upload_status=existing.upload_status if existing else ImageUploadStatus.UNKNOWN,
+                server_uploaded_at=existing.server_uploaded_at if existing else None,
+            )
+
             result = await image_repo.save(conn, image, force=force)
         
         # Generate upload presigned URL
-        url_result = s3_service.generate_upload_presigned_url(result.id)
+        url_result = await s3_service.generate_upload_presigned_url(result.id)
         if url_result:
             result.presigned_url, result.presigned_url_expires_at = url_result
         
         return result
+    
     except ConcurrentModificationError as e:
         logger.warning(
             "Concurrent modification detected for image",
             extra={
-                "image_id": str(image.id),
+                "image_id": str(image_body.id),
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
         raise HTTPException(
             status_code=409, detail=e.conflict_error.model_dump(mode="json")
         )
+
     except ValueError as e:
         logger.warning(
-            "Invalid image data", extra={"image_id": str(image.id), "error": str(e)}
+            "Invalid image data", extra={"image_id": str(image_body.id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -144,7 +198,8 @@ async def get_upload_url(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+    s3_service: S3ObjectService = Depends(get_s3_objects_service)
+) -> PresignedUploadUrlResponse:
     """
     Get a presigned URL for uploading an image to S3.
     
@@ -168,7 +223,7 @@ async def get_upload_url(
         raise HTTPException(status_code=404, detail="Image not found")
     await permission_service.require_plant_access(plant_id)
     
-    url_result = s3_service.generate_upload_presigned_url(image_id)
+    url_result = await s3_service.generate_upload_presigned_url(image_id)
     if not url_result:
         raise HTTPException(
             status_code=500,
@@ -187,7 +242,8 @@ async def check_image_exists(
     image_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+    s3_service: S3ObjectService = Depends(get_s3_objects_service)
+) -> dict[str, bool]:
     """
     Check if an image file exists in S3 storage.
     
@@ -209,8 +265,41 @@ async def check_image_exists(
         raise HTTPException(status_code=404, detail="Image not found")
     await permission_service.require_plant_access(plant_id)
     
-    exists = s3_service.check_exists(image_id)
+    exists = await s3_service.check_exists(image_id)
     return {"exists": exists}
+
+
+@router.post("/trigger-images-background-fetch")
+async def trigger_images_background_fetch(
+    request: Request,
+    upload_status: Optional[ImageUploadStatus] = None,
+    modified_since: Optional[datetime] = datetime.now() - timedelta(days=2),
+    uploaded_since: Optional[datetime] = datetime.now() - timedelta(days=30),
+    batch_size: int = 500,
+    timeout_seconds: int = 30,
+    limit: Optional[int] = None
+) -> dict[str, str]:
+    """Запуск фоновой загрузки изображений"""
+    base_url = f"{request.url.scheme}://{request.url.hostname}:{request.url.port}"
+    
+    asyncio.create_task(
+        fetch_images_background(
+            base_url=base_url,
+            upload_status=upload_status,
+            modified_since=modified_since,
+            uploaded_since=uploaded_since,
+            batch_size=batch_size,
+            timeout_seconds=timeout_seconds,
+            limit=limit
+        )
+    )
+    
+    return {
+        "status": "Images upload has started in background",
+        "base_url": base_url,
+        "message": f"Images will be uploaded in batches with size of {batch_size}"
+    }
+
 
 @router.post("/s3-upload-callback")
 async def handle_s3_upload_callback(
@@ -250,12 +339,16 @@ async def handle_s3_upload_callback(
                 errors.append(f"Event {idx}: invalid created_at format")
                 continue
             
-            await image_repo.update_upload_status(
-                conn=conn,
-                image_id=UUID(object_id),
-                upload_status=ImageUploadStatus.UPLOADED,
-                server_uploaded_at=server_uploaded_at,
-            )
+            try:
+                result = await update_image_upload_status_in_db(
+                    conn,
+                    image_id=UUID(object_id),
+                    upload_status=ImageUploadStatus.UPLOADED,
+                    server_uploaded_at=server_uploaded_at,
+                )
+            except ValueError:
+                logger.warning(f"Image {object_id} not found, skipping upload status update")
+                continue
             
             processed_count += 1
             logger.info(f"Successfully processed image {object_id} with upload status 'uploaded'")
