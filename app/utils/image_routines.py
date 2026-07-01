@@ -319,7 +319,7 @@ async def fetch_images_background(
                 logger.warning("    Для заданного фильтра не найдено изображений в базе данных")
             
             for image in updated_images:
-                await image_repo.update_upload_status(
+                await update_image_upload_status_in_db(
                     conn,
                     image_id=image.id,
                     upload_status=image.upload_status,
@@ -331,3 +331,36 @@ async def fetch_images_background(
     
     return images
 
+
+async def update_image_upload_status_in_db(
+    conn,
+    image_id: UUID,
+    upload_status: ImageUploadStatus,
+    server_uploaded_at: Optional[datetime] = None,
+) -> Image:
+    """
+    Updates only the upload status of an image.
+    Uses get-update-save pattern with force=True to bypass optimistic locking.
+
+    Args:
+        conn: Database connection
+        image_id: ID of the image to update
+        upload_status: New upload status
+        server_uploaded_at: New server upload timestamp
+
+    Returns:
+        Updated Image record
+
+    Raises:
+        ValueError: If image with given id does not exist
+    """
+    existing_image = await image_repo.get_by_id(conn, image_id)
+    if not existing_image:
+        raise ValueError(f"Image with id {image_id} not found")
+
+    updated_image = existing_image.model_copy(update={
+        "upload_status": upload_status,
+        "server_uploaded_at": server_uploaded_at if server_uploaded_at is not None else existing_image.server_uploaded_at,
+    })
+
+    return await image_repo.save(conn, updated_image, force=True)

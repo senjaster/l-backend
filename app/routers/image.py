@@ -26,7 +26,7 @@ from app.services.permission_service import PermissionService
 from app.services.s3_objects_service import S3ObjectService, get_s3_objects_service
 
 from app.models.inspector import AccessLevel
-from app.utils.image_routines import fetch_images_background
+from app.utils.image_routines import fetch_images_background, update_image_upload_status_in_db
 
 
 logger = logging.getLogger(__name__)
@@ -140,27 +140,31 @@ async def upsert_image(
     - Logical deletion via is_deleted flag (not implemented yet)
     - Permission: User must have access to the plant
     """
-    # Convert PutImageRequestBody to Image with default upload status fields.
-    # upload_status and server_uploaded_at are not settable via PUT — the repo
-    # will preserve the existing values for updates, or use defaults for inserts.
-    image = Image(
-        id=image_body.id,
-        plant_id=image_body.plant_id,
-        original_file_name=image_body.original_file_name,
-        image_type=image_body.image_type,
-        metadata=image_body.metadata,
-        is_deleted=image_body.is_deleted,
-        server_modified_at=image_body.server_modified_at,
-        upload_status=ImageUploadStatus.UNKNOWN, # This is correct, see repo query
-    )
     try:
         async with conn.transaction():
             # Check access level (INSPECT required)
             permission_service.require_access_level(AccessLevel.INSPECT)
-            
+
             # Check plant access
-            await permission_service.require_plant_access(image.plant_id)
-            
+            await permission_service.require_plant_access(image_body.plant_id)
+
+            # Fetch existing row first to preserve upload_status and server_uploaded_at.
+            # PUT must never change upload_status — new rows get UNKNOWN, existing rows
+            # keep their current value.
+            existing = await image_repo.get_by_id(conn, image_body.id)
+
+            image = Image(
+                id=image_body.id,
+                plant_id=image_body.plant_id,
+                original_file_name=image_body.original_file_name,
+                image_type=image_body.image_type,
+                metadata=image_body.metadata,
+                is_deleted=image_body.is_deleted,
+                server_modified_at=image_body.server_modified_at,
+                upload_status=existing.upload_status if existing else ImageUploadStatus.UNKNOWN,
+                server_uploaded_at=existing.server_uploaded_at if existing else None,
+            )
+
             result = await image_repo.save(conn, image, force=force)
         
         # Generate upload presigned URL
@@ -174,14 +178,14 @@ async def upsert_image(
         logger.warning(
             "Concurrent modification detected for image",
             extra={
-                "image_id": str(image.id),
+                "image_id": str(image_body.id),
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
         raise HTTPException(
             status_code=409, detail=e.conflict_error.model_dump(mode="json")
         )
-    
+
     except ValueError as e:
         logger.warning(
             "Invalid image data", extra={"image_id": str(image_body.id), "error": str(e)}
@@ -335,13 +339,14 @@ async def handle_s3_upload_callback(
                 errors.append(f"Event {idx}: invalid created_at format")
                 continue
             
-            result = await image_repo.update_upload_status(
-                conn,
-                image_id=UUID(object_id),
-                upload_status=ImageUploadStatus.UPLOADED,
-                server_uploaded_at=server_uploaded_at,
-            )
-            if not result:
+            try:
+                result = await update_image_upload_status_in_db(
+                    conn,
+                    image_id=UUID(object_id),
+                    upload_status=ImageUploadStatus.UPLOADED,
+                    server_uploaded_at=server_uploaded_at,
+                )
+            except ValueError:
                 logger.warning(f"Image {object_id} not found, skipping upload status update")
                 continue
             

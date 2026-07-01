@@ -245,12 +245,15 @@ async def test_fetch_images_background_fetches_and_updates_statuses():
         patch("app.utils.image_routines.image_repo") as mock_repo,
     ):
         mock_repo.get_all = AsyncMock(return_value=images)
-        mock_repo.update_upload_status = AsyncMock(return_value=updated_images[0])
+        mock_repo.get_by_id = AsyncMock(side_effect=lambda conn, image_id: next(
+            (img for img in images if img.id == image_id), None
+        ))
+        mock_repo.save = AsyncMock(side_effect=lambda conn, img, force=False: img)
 
         result = await fetch_images_background(base_url="http://localhost:8000")
 
-    # update_upload_status must be called once per image
-    assert mock_repo.update_upload_status.await_count == len(images)
+    # save must be called once per image (via update_image_upload_status_in_db)
+    assert mock_repo.save.await_count == len(images)
 
 
 async def test_fetch_images_background_skips_update_when_no_images():
@@ -269,11 +272,12 @@ async def test_fetch_images_background_skips_update_when_no_images():
         patch("app.utils.image_routines.image_repo") as mock_repo,
     ):
         mock_repo.get_all = AsyncMock(return_value=[])
-        mock_repo.update_upload_status = AsyncMock()
+        mock_repo.get_by_id = AsyncMock(return_value=None)
+        mock_repo.save = AsyncMock()
 
         await fetch_images_background(base_url="http://localhost:8000")
 
-    mock_repo.update_upload_status.assert_not_awaited()
+    mock_repo.save.assert_not_awaited()
 
 
 async def test_fetch_images_background_passes_filters_to_fetcher():
@@ -341,7 +345,7 @@ async def test_fetch_images_background_logs_error_on_exception(caplog):
 
 
 async def test_fetch_images_background_update_called_with_correct_args():
-    """update_upload_status receives the image id and resolved status."""
+    """update_image_upload_status_in_db receives the image id and resolved status."""
     image = _make_image(upload_status=ImageUploadStatus.UNKNOWN)
     mock_conn = MagicMock()
 
@@ -359,11 +363,12 @@ async def test_fetch_images_background_update_called_with_correct_args():
         patch("app.utils.image_routines.image_repo") as mock_repo,
     ):
         mock_repo.get_all = AsyncMock(return_value=[image])
-        mock_repo.update_upload_status = AsyncMock(return_value=image)
+        mock_repo.get_by_id = AsyncMock(return_value=image)
+        mock_repo.save = AsyncMock(return_value=image)
 
         await fetch_images_background(base_url="http://localhost:8000")
 
-    mock_repo.update_upload_status.assert_awaited_once()
-    _, kwargs = mock_repo.update_upload_status.call_args
-    assert kwargs["image_id"] == image.id
-    assert kwargs["upload_status"] == ImageUploadStatus.UPLOADED
+    mock_repo.save.assert_awaited_once()
+    saved_image = mock_repo.save.call_args[0][1]  # positional arg: (conn, image, ...)
+    assert saved_image.id == image.id
+    assert saved_image.upload_status == ImageUploadStatus.UPLOADED

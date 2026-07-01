@@ -486,12 +486,14 @@ def test_put_does_not_overwrite_upload_status(
     cb_resp = client.post("/image/s3-upload-callback", json=callback_payload)
     assert cb_resp.status_code == 200
 
-    # Verify upload_status is now UPLOADED
+    # Verify upload_status is now UPLOADED; capture the new server_modified_at
+    # (the S3 callback bumps server_modified_at via save(force=True))
     get_resp = client.get(f"/image/by_id/{image_id}")
     assert get_resp.status_code == 200
     assert get_resp.json()["upload_status"] == "UPLOADED"
+    server_modified_at = get_resp.json()["server_modified_at"]
 
-    # Now do a regular PUT update
+    # Now do a regular PUT update using the latest server_modified_at
     image_data["server_modified_at"] = server_modified_at
     image_data["original_file_name"] = "updated.jpg"
     update_resp = client.put("/image", json=image_data)

@@ -163,30 +163,6 @@ class ImageRepository:
             raise ValueError(f"Image {image_id} not found after save")
         return result
 
-    async def update_upload_status(
-        self,
-        conn,
-        image_id: UUID,
-        upload_status: ImageUploadStatus,
-        server_uploaded_at: Optional[datetime],
-    ) -> Optional[Image]:
-        """Update upload status fields only (called by S3 event callback).
-
-        Returns the updated Image, or None if no row matched the given id.
-        """
-        row = await queries.update_upload_status(
-            conn,
-            id=image_id,
-            upload_status=upload_status.value,
-            server_uploaded_at=server_uploaded_at,
-        )
-        if not row:
-            return None
-        row_dict = dict(row)
-        if row_dict.get("metadata") and isinstance(row_dict["metadata"], str):
-            row_dict["metadata"] = json.loads(row_dict["metadata"])
-        return Image(**row_dict)
-
     async def delete(self, conn, image_id: UUID) -> bool:
         """Delete image (actual delete, no is_deleted flag)"""
         await queries.delete(conn, id=image_id)
