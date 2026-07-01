@@ -44,7 +44,7 @@ async def get_all_images(
         description="Only return images modified after this timestamp",
     ),
     uploaded_since: Optional[datetime] = Query(
-        DEFAULT_MODIFIED_SINCE,
+        None,
         description="Only return images uploaded after this timestamp",
     ),
     conn=Depends(get_db_connection),

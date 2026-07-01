@@ -19,8 +19,8 @@ SELECT
     server_uploaded_at
 FROM lesiv.image
 WHERE server_modified_at > :modified_since 
-AND server_uploaded_at > :uploaded_since
-AND (CAST(:upload_status AS VARCHAR) IS NULL OR upload_status = :upload_status)
+AND (CAST(:uploaded_since AS TIMESTAMPTZ) IS NULL OR server_uploaded_at > CAST(:uploaded_since AS TIMESTAMPTZ))
+AND (CAST(:upload_status AS VARCHAR) IS NULL OR upload_status = CAST(:upload_status AS lesiv.image_upload_status))
 ORDER BY server_modified_at DESC
 LIMIT NULLIF(:limit, 0);
 

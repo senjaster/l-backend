@@ -36,10 +36,10 @@ class ImageRepository:
         """Get all images, optionally filtered by modification date"""
         images = []
         async for row in queries.get_all_images(
-                conn, 
-                upload_status=upload_status.lower() if upload_status else None,
-                modified_since=modified_since, 
-                uploaded_since=uploaded_since, 
+                conn,
+                upload_status=upload_status if upload_status else None,
+                modified_since=modified_since,
+                uploaded_since=uploaded_since,
                 limit=limit
         ):
             row_dict = dict(row)
