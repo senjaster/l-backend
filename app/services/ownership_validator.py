@@ -6,6 +6,7 @@ from app.models.plant import Plant
 from app.models.equipment import Equipment
 from app.models.inspection import Inspection
 from app.models.inspector import Inspector
+from app.models.work_log import WorkLog
 from app.models import ConflictError, ConflictDetail
 from app.repositories.plant import PlantRepository, queries as plant_queries
 from app.repositories.equipment import EquipmentRepository, queries as equipment_queries
@@ -13,6 +14,7 @@ from app.repositories.inspection import (
     InspectionRepository,
     queries as inspection_queries,
 )
+from app.repositories.work_log import WorkLogRepository
 from app.exceptions import ConcurrentModificationError
 from app.utils.claim_utils import is_claim_stale
 
@@ -25,7 +27,7 @@ class OwnershipValidator:
     Checks if a user has the right to modify an aggregate based on claim ownership or creator ownership.
     """
 
-    def __init__(self, conn, current_user: Inspector, device_id: str):
+    def __init__(self, conn, current_user: Inspector, device_id: str) -> None:
         """
         Initialize the ownership validator with a database connection, current user, and device ID.
 
@@ -40,6 +42,7 @@ class OwnershipValidator:
         self.plant_repo = PlantRepository()
         self.equipment_repo = EquipmentRepository()
         self.inspection_repo = InspectionRepository()
+        self.work_log_repo = WorkLogRepository()
 
     async def validate_plant_ownership(self, plant: Plant) -> None:
         """
@@ -182,6 +185,54 @@ class OwnershipValidator:
                         ConflictDetail(
                             field="steps",
                             message=f"Server has {len(extra_step_ids)} extra steps not in client request",
+                        )
+                    ],
+                )
+            )
+    
+    async def validate_work_log_ownership(self, work_log: WorkLog) -> None:
+        """
+        Validate that the work log is owned by the current user.
+        Pessimistic locks are never bypassed, only by anonymous user (when auth is disabled).
+
+        Args:
+            work_log: Work log to validate
+
+        Raises:
+            ConcurrentModificationError: If work log is not owned by current user
+        """
+        # Skip validation only for anonymous user (when auth is disabled)
+        if self.current_user.id == -1:
+            return
+
+        current = await self.work_log_repo.get_by_id(self.conn, work_log.work_log_id)
+        if not current:
+            return  # New work log, no validation needed
+
+        # Check ownership by inspector_id (who created the work log)
+        if current.inspector_id is None:
+            raise ConcurrentModificationError(
+                ConflictError(
+                    message="Work log must have an assigned inspector",
+                    server_modified_at=current.server_modified_at,
+                    conflicts=[
+                        ConflictDetail(
+                            field="inspector_id",
+                            message="Work log has no inspector assigned",
+                        )
+                    ],
+                )
+            )
+
+        if current.inspector_id != self.current_user.id:
+            raise ConcurrentModificationError(
+                ConflictError(
+                    message="Work log is owned by another user",
+                    server_modified_at=current.server_modified_at,
+                    conflicts=[
+                        ConflictDetail(
+                            field="inspector_id",
+                            message=f"Work log is owned by inspector {current.inspector_id}, not by user {self.current_user.id}",
                         )
                     ],
                 )
