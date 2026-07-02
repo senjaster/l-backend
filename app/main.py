@@ -23,7 +23,6 @@ from app.services.s3_connection import S3ConnectionManager
 from app.services.s3_objects_service import S3ObjectService
 from app.services.s3_queue_service import S3QueueService
 
-# Include routers
 from app.routers import (
     auth,
     inspector,
@@ -37,6 +36,7 @@ from app.routers import (
     equipment,
     inspection,
     defect,
+    work_log
 )
 
 
@@ -193,3 +193,4 @@ app.include_router(plant.router)
 app.include_router(equipment.router)
 app.include_router(inspection.router)
 app.include_router(defect.router)
+app.include_router(work_log.router)

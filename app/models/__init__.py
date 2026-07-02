@@ -1,7 +1,7 @@
 """Pydantic models for API and database"""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 from pydantic import BaseModel, Field
 
@@ -29,4 +29,4 @@ class ConflictError(BaseError):
     server_modified_at: datetime
     client_modified_at: Optional[datetime] = None
     conflicts: list[ConflictDetail] = Field(default_factory=list)
-    extra_child_ids: list[UUID] = Field(default_factory=list)
+    extra_child_ids: list[Union[UUID, int]] = Field(default_factory=list)
