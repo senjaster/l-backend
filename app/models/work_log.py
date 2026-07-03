@@ -6,6 +6,13 @@ from uuid import UUID, uuid4
 from typing import Optional
 
 
+class WorkLogInspector(BaseModel):
+    """Work log - inspector relationship model"""
+    
+    work_log_id: UUID
+    inspector_id: int
+
+
 class WorkLog(BaseModel):
     """Work log aggregate root - read model"""
     
@@ -18,18 +25,10 @@ class WorkLog(BaseModel):
     is_deleted: bool = False
     server_modified_at: Optional[datetime] = None
     duration_hours: Optional[float] = None
+    # inspectors: list[WorkLogInspector] = Field(default_factory=list)
 
 
 class WorkLogListResponse(BaseModel):
     """Wrapped response for work log list with items key"""
     
     items: list[WorkLog]
-
-
-class WorkLogInspector(BaseModel):
-    """Work log - inspector relationship model"""
-    
-    work_log_id: UUID
-    inspector_id: int
-    inspector_name: Optional[str] = None
-

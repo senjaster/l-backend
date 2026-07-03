@@ -50,13 +50,11 @@ def inspectors_data(work_log_id, inspector_id_1, inspector_id_2):
     return [
         {
             "work_log_id": str(work_log_id),
-            "inspector_id": inspector_id_1,
-            "inspector_name": "John Doe"
+            "inspector_id": inspector_id_1
         },
         {
             "work_log_id": str(work_log_id),
-            "inspector_id": inspector_id_2,
-            "inspector_name": "Jane Smith"
+            "inspector_id": inspector_id_2
         }
     ]
 
@@ -226,8 +224,7 @@ def test_get_work_logs_by_plant_id(client: TestClient, work_log_data, inspectors
     inspectors_data_2 = [
         {
             "work_log_id": str(work_log_id_2),
-            "inspector_id": 1,
-            "inspector_name": "John Doe"
+            "inspector_id": 1
         }
     ]
     
@@ -308,13 +305,11 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
     inspectors_data_1 = [
         {
             "work_log_id": str(work_log_id_1),
-            "inspector_id": 1,
-            "inspector_name": "John Doe"
+            "inspector_id": 1
         },
         {
             "work_log_id": str(work_log_id_1),
-            "inspector_id": 2,
-            "inspector_name": "Jane Smith"
+            "inspector_id": 2
         }
     ]
     
@@ -338,8 +333,7 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
     inspectors_data_2 = [
         {
             "work_log_id": str(work_log_id_2),
-            "inspector_id": 1,
-            "inspector_name": "John Doe"
+            "inspector_id": 1
         }
     ]
     
@@ -375,13 +369,11 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
     inspectors_data_1 = [
         {
             "work_log_id": str(work_log_id_1),
-            "inspector_id": 1,
-            "inspector_name": "John Doe"
+            "inspector_id": 1
         },
         {
             "work_log_id": str(work_log_id_1),
-            "inspector_id": 2,
-            "inspector_name": "Jane Smith"
+            "inspector_id": 2
         }
     ]
     
@@ -404,8 +396,7 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
     inspectors_data_2 = [
         {
             "work_log_id": str(work_log_id_2),
-            "inspector_id": 1,
-            "inspector_name": "John Doe"
+            "inspector_id": 1
         }
     ]
     
@@ -463,7 +454,6 @@ def test_inspector_mismatch_error(client: TestClient, work_log_data, inspectors_
         {
             "work_log_id": str(uuid4()),  # Different work log ID
             "inspector_id": 3,
-            "inspector_name": "Wrong Inspector"
         }
     ]
     

@@ -23,6 +23,7 @@ from app.models.inspector import AccessLevel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/work_log", tags=["Work Log"])
+work_log_repo = WorkLogRepository()
 
 
 @router.get("/all", response_model=WorkLogListResponse)
@@ -38,8 +39,7 @@ async def get_all_work_logs(
     Get all work logs as lightweight list.
     Optionally filter by modification date and accessible plants.
     """
-    repo = WorkLogRepository()
-    all_work_logs = await repo.get_all(conn, modified_since=modified_since)
+    all_work_logs = await work_log_repo.get_all(conn, modified_since=modified_since)
     
     accessible_work_logs = []
     for wl in all_work_logs.items:
@@ -64,8 +64,7 @@ async def get_work_log_by_id(
         raise HTTPException(status_code=404, detail="Work log not found")
     await permission_service.require_plant_access(plant_id)
     
-    repo = WorkLogRepository()
-    work_log = await repo.get_by_id(conn, work_log_id=work_log_id)
+    work_log = await work_log_repo.get_by_id(conn, work_log_id=work_log_id)
     
     if not work_log:
         raise HTTPException(
@@ -92,8 +91,7 @@ async def get_work_logs_by_plant_id(
     """
     await permission_service.require_plant_access(plant_id)
     
-    repo = WorkLogRepository()
-    work_logs = await repo.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)
+    work_logs = await work_log_repo.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)
     
     if not work_logs:
         raise HTTPException(
@@ -130,7 +128,7 @@ async def upsert_work_log(
     - Permission: User must have access to the plant
     - Ownership validation: Only the user who created the work log can modify it
     """
-    for inspector in inspectors:
+    for inspector in work_log.inspectors:
         if inspector.work_log_id != work_log.id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -147,8 +145,7 @@ async def upsert_work_log(
             
             await ownership_validator.validate_work_log_ownership(work_log)
             
-            repo = WorkLogRepository()
-            result = await repo.save(conn, work_log, inspectors, force=force)
+            result = await work_log_repo.save(conn, work_log, inspectors, force=force)
         
         return result
         

@@ -51,7 +51,6 @@ class WorkLogRepository:
                 WorkLogInspector(
                     work_log_id=work_log_id,
                     inspector_id=row["inspector_id"],
-                    inspector_name=row.get("full_name") or row.get("username"),
                 )
             )
 
@@ -517,3 +516,4 @@ class WorkLogRepository:
                 await queries.delete_work_log_inspector(
                     conn, work_log_id=work_log_id, inspector_id=inspector_id
                 )
+
