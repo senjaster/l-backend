@@ -85,18 +85,6 @@ class WorkLogDetailResponse(BaseModel):
         return None
 
 
-class WorkLogStatistics(BaseModel):
-    """Work log statistics"""
-    
-    total_work_logs: int
-    active_work_logs: int
-    completed_work_logs: int
-    average_duration_hours: Optional[float] = None
-    average_installation_percentage: Optional[float] = None
-    total_by_plant: dict[UUID, int]
-    total_by_inspector: dict[int, int]
-
-
 class WorkLogInspector(BaseModel):
     """Work log - inspector relationship model"""
     
