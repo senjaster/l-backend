@@ -62,29 +62,6 @@ class WorkLogListResponse(BaseModel):
     limit: Optional[int] = None
 
 
-class WorkLogDetailResponse(BaseModel):
-    """Detailed work log response with additional info"""
-    
-    id: UUID
-    started_at: datetime
-    completed_at: Optional[datetime] = None
-    installation_percentage: Optional[float] = None
-    inspector_id: int
-    inspector_name: Optional[str] = None
-    plant_id: UUID
-    plant_name: Optional[str] = None
-    is_deleted: bool
-    server_modified_at: Optional[datetime] = None
-    
-    @property
-    def duration_hours(self) -> Optional[float]:
-        """Calculate duration in hours"""
-        if self.completed_at and self.started_at:
-            delta = self.completed_at - self.started_at
-            return round(delta.total_seconds() / 3600, 2)
-        return None
-
-
 class WorkLogInspector(BaseModel):
     """Work log - inspector relationship model"""
     
