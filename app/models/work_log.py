@@ -20,16 +20,6 @@ class WorkLog(BaseModel):
     duration_hours: Optional[float] = None
 
 
-class WorkLogUpdate(BaseModel):
-    """Work log update model"""
-    
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    installation_percentage: Optional[float] = Field(None, ge=0, le=100)
-    inspector_id: Optional[int] = None
-    plant_id: Optional[UUID] = None
-
-
 class WorkLogListItem(BaseModel):
     """Lightweight work log item for list view"""
     
