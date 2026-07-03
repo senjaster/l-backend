@@ -69,9 +69,3 @@ class WorkLogInspector(BaseModel):
     inspector_id: int
     inspector_name: Optional[str] = None
 
-
-class WorkLogInspectorCreate(BaseModel):
-    """Create relationship between work log and inspector"""
-    
-    work_log_id: UUID
-    inspector_id: int
