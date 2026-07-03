@@ -1,10 +1,10 @@
 -- Create work_log and work_log_inspector tables
 
 CREATE TABLE lesiv.work_log (
-    work_log_id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY,
     started_at TIMESTAMPTZ NOT NULL,
     completed_at TIMESTAMPTZ,
-    installation_percentage FLOAT,
+    installation_percentage DECIMAL(4,1),
     inspector_id INTEGER NOT NULL,
     plant_id UUID NOT NULL,  -- Reference to plant (no FK between aggregates)
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
@@ -22,7 +22,7 @@ CREATE TABLE lesiv.work_log_inspector (
     inspector_id INTEGER NOT NULL,
     PRIMARY KEY (work_log_id, inspector_id),
     CONSTRAINT fk_work_log_inspector_work_log
-        FOREIGN KEY (work_log_id) REFERENCES lesiv.work_log(work_log_id),
+        FOREIGN KEY (work_log_id) REFERENCES lesiv.work_log(id),
     CONSTRAINT fk_work_log_inspector_inspector
         FOREIGN KEY (inspector_id) REFERENCES lesiv.inspector(id)
 );

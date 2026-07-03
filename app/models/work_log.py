@@ -9,7 +9,7 @@ from typing import Optional
 class WorkLog(BaseModel):
     """Work log aggregate root - read model"""
     
-    work_log_id: UUID
+    id: UUID
     started_at: datetime
     completed_at: Optional[datetime] = None
     installation_percentage: Optional[float] = Field(None, ge=0, le=100)
@@ -23,7 +23,7 @@ class WorkLog(BaseModel):
 class WorkLogCreate(BaseModel):
     """Work log creation model"""
     
-    work_log_id: Optional[UUID] = Field(default_factory=uuid4)
+    id: Optional[UUID] = Field(default_factory=uuid4)
     started_at: datetime
     completed_at: Optional[datetime] = None
     installation_percentage: Optional[float] = Field(None, ge=0, le=100)
@@ -44,7 +44,7 @@ class WorkLogUpdate(BaseModel):
 class WorkLogListItem(BaseModel):
     """Lightweight work log item for list view"""
     
-    work_log_id: UUID
+    id: UUID
     started_at: datetime
     completed_at: Optional[datetime] = None
     installation_percentage: Optional[float] = None
@@ -65,7 +65,7 @@ class WorkLogListResponse(BaseModel):
 class WorkLogDetailResponse(BaseModel):
     """Detailed work log response with additional info"""
     
-    work_log_id: UUID
+    id: UUID
     started_at: datetime
     completed_at: Optional[datetime] = None
     installation_percentage: Optional[float] = None

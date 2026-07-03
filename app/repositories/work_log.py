@@ -58,7 +58,7 @@ class WorkLogRepository:
 
         work_log_list = []
         for work_log_row in work_log_rows:
-            work_log_id = work_log_row["work_log_id"]
+            work_log_id = work_log_row["id"]
             work_log_data = {k: v for k, v in work_log_row.items()}
             work_log = WorkLog(**work_log_data)
             work_log_list.append(work_log)
@@ -130,7 +130,7 @@ class WorkLogRepository:
         if not work_log_rows:
             return []
 
-        work_log_ids = [row["work_log_id"] for row in work_log_rows]
+        work_log_ids = [row["id"] for row in work_log_rows]
         inspector_rows = []
         for work_log_id in work_log_ids:
             inspectors = [
@@ -159,7 +159,7 @@ class WorkLogRepository:
         if not work_log_rows:
             return []
 
-        work_log_ids = [row["work_log_id"] for row in work_log_rows]
+        work_log_ids = [row["id"] for row in work_log_rows]
         inspector_rows = []
         for work_log_id in work_log_ids:
             inspectors = [
@@ -195,7 +195,7 @@ class WorkLogRepository:
         if not work_log_rows:
             return []
 
-        work_log_ids = [row["work_log_id"] for row in work_log_rows]
+        work_log_ids = [row["id"] for row in work_log_rows]
         inspector_rows = []
         for work_log_id in work_log_ids:
             inspectors = [
@@ -222,7 +222,7 @@ class WorkLogRepository:
         if not work_log_rows:
             return []
 
-        work_log_ids = [row["work_log_id"] for row in work_log_rows]
+        work_log_ids = [row["id"] for row in work_log_rows]
         inspector_rows = []
         for work_log_id in work_log_ids:
             inspectors = [
@@ -251,7 +251,7 @@ class WorkLogRepository:
             ConcurrentModificationError: If concurrent modification detected (force=False)
         """
         try:
-            work_log_id = work_log.work_log_id
+            work_log_id = work_log.id
 
             current = await self.get_by_id(conn, work_log_id)
 
@@ -319,7 +319,7 @@ class WorkLogRepository:
                 
             await queries.upsert_work_log(
                 conn,
-                work_log_id=work_log_id,
+                id=work_log_id,
                 started_at=work_log.started_at,
                 completed_at=work_log.completed_at,
                 installation_percentage=work_log.installation_percentage,
@@ -384,7 +384,7 @@ class WorkLogRepository:
         if not work_log_rows:
             return []
 
-        work_log_ids = [row["work_log_id"] for row in work_log_rows]
+        work_log_ids = [row["id"] for row in work_log_rows]
         inspector_rows = []
         for work_log_id in work_log_ids:
             inspectors = [
@@ -414,7 +414,7 @@ class WorkLogRepository:
         if not work_log_rows:
             return []
 
-        work_log_ids = [row["work_log_id"] for row in work_log_rows]
+        work_log_ids = [row["id"] for row in work_log_rows]
         inspector_rows = []
         for work_log_id in work_log_ids:
             inspectors = [

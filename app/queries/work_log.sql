@@ -1,7 +1,7 @@
 -- name: get_by_plant_id(plant_id, modified_since)
 -- Get all work logs for plant (full data for aggregates)
 -- :modified_since defaults to 1790-01-01 - only return work logs modified after that timestamp
-SELECT wl.work_log_id, wl.started_at, wl.completed_at, wl.installation_percentage, 
+SELECT wl.id, wl.started_at, wl.completed_at, wl.installation_percentage, 
        wl.inspector_id, wl.plant_id, wl.is_deleted, wl.server_modified_at,
        insp.username as inspector_username
 FROM lesiv.work_log wl
@@ -13,7 +13,7 @@ ORDER BY wl.server_modified_at;
 -- name: get_by_inspector_id(inspector_id, modified_since)
 -- Get all work logs for inspector
 -- :modified_since defaults to 1790-01-01 - only return work logs modified after that timestamp
-SELECT wl.work_log_id, wl.started_at, wl.completed_at, wl.installation_percentage, 
+SELECT wl.id, wl.started_at, wl.completed_at, wl.installation_percentage, 
        wl.inspector_id, wl.plant_id, wl.is_deleted, wl.server_modified_at
 FROM lesiv.work_log wl
 WHERE wl.inspector_id = :inspector_id
@@ -22,23 +22,23 @@ ORDER BY wl.server_modified_at;
 
 -- name: get_by_id(work_log_id)^
 -- Get work log by ID
-SELECT work_log_id, started_at, completed_at, installation_percentage, 
+SELECT id, started_at, completed_at, installation_percentage, 
        inspector_id, plant_id, is_deleted, server_modified_at
 FROM lesiv.work_log
-WHERE work_log_id = :work_log_id;
+WHERE id = :work_log_id;
 
 -- name: get_by_id_with_username(work_log_id)^
 -- Get work log by ID with username of inspector who created it
-SELECT wl.work_log_id, wl.started_at, wl.completed_at, wl.installation_percentage, 
+SELECT wl.id, wl.started_at, wl.completed_at, wl.installation_percentage, 
        wl.inspector_id, wl.plant_id, wl.is_deleted, wl.server_modified_at,
        insp.username as inspector_username
 FROM lesiv.work_log wl
 LEFT JOIN lesiv.inspector insp ON wl.inspector_id = insp.id
-WHERE wl.work_log_id = :work_log_id;
+WHERE wl.id = :work_log_id;
 
 -- name: get_by_date_range(start_date, end_date, plant_id, inspector_id)
 -- Get work logs within date range with optional filters
-SELECT wl.work_log_id, wl.started_at, wl.completed_at, wl.installation_percentage, 
+SELECT wl.id, wl.started_at, wl.completed_at, wl.installation_percentage, 
        wl.inspector_id, wl.plant_id, wl.is_deleted, wl.server_modified_at,
        insp.username as inspector_username
 FROM lesiv.work_log wl
@@ -61,21 +61,21 @@ WHERE wli.work_log_id = :work_log_id
 -- name: get_work_logs_by_inspector_id(inspector_id, modified_since)
 -- Get work logs where inspector is assigned (including through work_log_inspector table)
 -- :modified_since defaults to 1790-01-01
-SELECT wl.work_log_id, wl.started_at, wl.completed_at, wl.installation_percentage, 
+SELECT wl.id, wl.started_at, wl.completed_at, wl.installation_percentage, 
        wl.inspector_id, wl.plant_id, wl.is_deleted, wl.server_modified_at
 FROM lesiv.work_log wl
-JOIN lesiv.work_log_inspector wli ON wl.work_log_id = wli.work_log_id
+JOIN lesiv.work_log_inspector wli ON wl.id = wli.work_log_id
 WHERE wli.inspector_id = :inspector_id
   AND wl.server_modified_at > :modified_since
 ORDER BY wl.server_modified_at;
 
--- name: upsert_work_log(work_log_id, started_at, completed_at, installation_percentage, inspector_id, plant_id, is_deleted, server_modified_at)!
+-- name: upsert_work_log(id, started_at, completed_at, installation_percentage, inspector_id, plant_id, is_deleted, server_modified_at)!
 -- Insert or update work log
-INSERT INTO lesiv.work_log (work_log_id, started_at, completed_at, installation_percentage, 
+INSERT INTO lesiv.work_log (id, started_at, completed_at, installation_percentage, 
                              inspector_id, plant_id, is_deleted, server_modified_at)
-VALUES (:work_log_id, :started_at, :completed_at, :installation_percentage, 
+VALUES (:id, :started_at, :completed_at, :installation_percentage, 
         :inspector_id, :plant_id, :is_deleted, :server_modified_at)
-ON CONFLICT (work_log_id) DO UPDATE SET
+ON CONFLICT (id) DO UPDATE SET
     started_at = EXCLUDED.started_at,
     completed_at = EXCLUDED.completed_at,
     installation_percentage = EXCLUDED.installation_percentage,
@@ -106,13 +106,13 @@ WHERE work_log_id = :work_log_id;
 -- Logically delete work log
 UPDATE lesiv.work_log
 SET is_deleted = true, server_modified_at = CURRENT_TIMESTAMP
-WHERE work_log_id = :work_log_id;
+WHERE id = :work_log_id;
 
 -- name: restore_work_log(work_log_id)!
 -- Restore logically deleted work log
 UPDATE lesiv.work_log
 SET is_deleted = false, server_modified_at = CURRENT_TIMESTAMP
-WHERE work_log_id = :work_log_id;
+WHERE id = :work_log_id;
 
 -- name: update_work_log_status(work_log_id, completed_at, installation_percentage)!
 -- Update work log completion status
@@ -120,11 +120,11 @@ UPDATE lesiv.work_log
 SET completed_at = :completed_at,
     installation_percentage = :installation_percentage,
     server_modified_at = CURRENT_TIMESTAMP
-WHERE work_log_id = :work_log_id;
+WHERE id = :work_log_id;
 
 -- name: get_active_work_logs_by_plant(plant_id)
 -- Get active (not completed) work logs for a plant
-SELECT work_log_id, started_at, installation_percentage, inspector_id, server_modified_at
+SELECT id, started_at, installation_percentage, inspector_id, server_modified_at
 FROM lesiv.work_log
 WHERE plant_id = :plant_id
   AND completed_at IS NULL
@@ -133,7 +133,7 @@ ORDER BY started_at DESC;
 
 -- name: get_completed_work_logs_by_plant(plant_id, start_date, end_date)
 -- Get completed work logs for a plant within date range
-SELECT work_log_id, started_at, completed_at, installation_percentage, inspector_id
+SELECT id, started_at, completed_at, installation_percentage, inspector_id
 FROM lesiv.work_log
 WHERE plant_id = :plant_id
   AND completed_at IS NOT NULL
@@ -216,7 +216,7 @@ GROUP BY inspector_id;
 -- name: get_all_work_logs(modified_since)
 -- Get all work logs (lightweight list)
 -- :modified_since defaults to 1790-01-01 - only return work logs modified after that timestamp
-SELECT work_log_id, started_at, completed_at, installation_percentage, inspector_id, plant_id, is_deleted
+SELECT id, started_at, completed_at, installation_percentage, inspector_id, plant_id, is_deleted
 FROM lesiv.work_log
 WHERE server_modified_at > :modified_since
 ORDER BY server_modified_at;

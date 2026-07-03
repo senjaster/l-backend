@@ -39,7 +39,7 @@ def inspector_id_2():
 @pytest.fixture
 def work_log_data(work_log_id, plant_id, inspector_id_1):
     data = deepcopy(PUT_BODY_TEMPLATE)
-    data["work_log_id"] = str(work_log_id)
+    data["id"] = str(work_log_id)
     data["plant_id"] = str(plant_id)
     data["inspector_id"] = inspector_id_1
     return data
@@ -72,7 +72,7 @@ def test_create_work_log(client: TestClient, work_log_data, inspectors_data, wor
     assert response.status_code == 200
 
     data = response.json()
-    assert data["work_log_id"] == str(work_log_id)
+    assert data["id"] == str(work_log_id)
     assert data["plant_id"] == str(plant_id)
     assert data["inspector_id"] == inspector_id_1
     assert data["started_at"] is not None
@@ -94,7 +94,7 @@ def test_get_work_log(client: TestClient, work_log_data, inspectors_data, work_l
     assert response.status_code == 200
 
     data = response.json()
-    assert data["work_log_id"] == str(work_log_id)
+    assert data["id"] == str(work_log_id)
     assert data["started_at"] is not None
     assert data["completed_at"] is None
 
@@ -150,7 +150,7 @@ def test_sync_inspectors_add_new(client: TestClient, work_log_data, inspectors_d
     assert response.status_code == 200
 
     data = response.json()
-    assert data["work_log_id"] == str(work_log_id)
+    assert data["id"] == str(work_log_id)
 
 
 def test_sync_inspectors_reject_missing_child(client: TestClient, work_log_data, inspectors_data, work_log_id):
@@ -219,7 +219,7 @@ def test_get_work_logs_by_plant_id(client: TestClient, work_log_data, inspectors
     work_log_id_2 = uuid4()
     plant_id_2 = uuid4()
     work_log_data_2 = deepcopy(PUT_BODY_TEMPLATE)
-    work_log_data_2["work_log_id"] = str(work_log_id_2)
+    work_log_data_2["id"] = str(work_log_id_2)
     work_log_data_2["plant_id"] = str(plant_id_2)
     work_log_data_2["inspector_id"] = 1
     
@@ -303,7 +303,7 @@ def test_concurrent_modification_detection(client: TestClient, work_log_data, in
 def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_log_data, inspectors_data):
     """Test filtering work logs by modified_since parameter"""
     work_log_id_1 = uuid4()
-    work_log_data["work_log_id"] = str(work_log_id_1)
+    work_log_data["id"] = str(work_log_id_1)
     
     inspectors_data_1 = [
         {
@@ -331,7 +331,7 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
 
     work_log_id_2 = uuid4()
     work_log_data_2 = deepcopy(PUT_BODY_TEMPLATE)
-    work_log_data_2["work_log_id"] = str(work_log_id_2)
+    work_log_data_2["id"] = str(work_log_id_2)
     work_log_data_2["plant_id"] = str(uuid4())
     work_log_data_2["inspector_id"] = 1
     
@@ -354,7 +354,7 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
     response = client.get("/work_log/all")
     assert response.status_code == 200
     all_work_logs = response.json()["items"]
-    work_log_ids = [i["work_log_id"] for i in all_work_logs]
+    work_log_ids = [i["id"] for i in all_work_logs]
     assert str(work_log_id_1) in work_log_ids
     assert str(work_log_id_2) in work_log_ids
 
@@ -362,7 +362,7 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
     response = client.get(f"/work_log/all?modified_since={timestamp1}")
     assert response.status_code == 200
     filtered_work_logs = response.json()["items"]
-    filtered_ids = [i["work_log_id"] for i in filtered_work_logs]
+    filtered_ids = [i["id"] for i in filtered_work_logs]
     assert str(work_log_id_1) not in filtered_ids
     assert str(work_log_id_2) in filtered_ids
 
@@ -370,7 +370,7 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
 def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, work_log_data, inspectors_data, plant_id):
     """Test filtering work logs by plant and modified_since parameter"""
     work_log_id_1 = uuid4()
-    work_log_data["work_log_id"] = str(work_log_id_1)
+    work_log_data["id"] = str(work_log_id_1)
 
     inspectors_data_1 = [
         {
@@ -397,7 +397,7 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
 
     work_log_id_2 = uuid4()
     work_log_data_2 = deepcopy(PUT_BODY_TEMPLATE)
-    work_log_data_2["work_log_id"] = str(work_log_id_2)
+    work_log_data_2["id"] = str(work_log_id_2)
     work_log_data_2["plant_id"] = str(plant_id)
     work_log_data_2["inspector_id"] = 1
     
@@ -421,7 +421,7 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
     response = client.get(f"/work_log/by_plant_id/{plant_id}")
     assert response.status_code == 200
     all_work_logs = response.json()
-    work_log_ids = [i["work_log_id"] for i in all_work_logs]
+    work_log_ids = [i["id"] for i in all_work_logs]
     assert str(work_log_id_1) in work_log_ids
     assert str(work_log_id_2) in work_log_ids
 
@@ -431,7 +431,7 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
     )
     assert response.status_code == 200
     filtered_work_logs = response.json()
-    filtered_ids = [i["work_log_id"] for i in filtered_work_logs]
+    filtered_ids = [i["id"] for i in filtered_work_logs]
     assert str(work_log_id_1) not in filtered_ids
     assert str(work_log_id_2) in filtered_ids
 
@@ -446,7 +446,7 @@ def test_work_log_without_inspectors(client: TestClient, work_log_data, work_log
     assert response.status_code == 200
 
     data = response.json()
-    assert data["work_log_id"] == str(work_log_id)
+    assert data["id"] == str(work_log_id)
 
 
 def test_inspector_mismatch_error(client: TestClient, work_log_data, inspectors_data, work_log_id):

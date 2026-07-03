@@ -46,7 +46,7 @@ WHERE id = :image_id;
 -- Get plant_id from work_log_id
 SELECT plant_id
 FROM lesiv.work_log
-WHERE work_log_id = :work_log_id;
+WHERE id = :work_log_id;
 
 -- name: grant_plant_access(inspector_id, plant_id)!
 -- Grant plant access to an inspector

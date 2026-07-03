@@ -205,7 +205,7 @@ class OwnershipValidator:
         if self.current_user.id == -1:
             return
 
-        current = await self.work_log_repo.get_by_id(self.conn, work_log.work_log_id)
+        current = await self.work_log_repo.get_by_id(self.conn, work_log.id)
         if not current:
             return  # New work log, no validation needed
 

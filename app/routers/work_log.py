@@ -43,7 +43,7 @@ async def get_all_work_logs(
     
     accessible_work_logs = []
     for wl in all_work_logs.items:
-        plant_id = await permission_service.get_plant_id_from_work_log(wl.work_log_id)
+        plant_id = await permission_service.get_plant_id_from_work_log(wl.id)
         if plant_id and await permission_service.check_plant_access(plant_id):
             accessible_work_logs.append(wl)
     
@@ -164,17 +164,17 @@ async def upsert_work_log(
     - Ownership validation: Only the user who created the work log can modify it
     """
     for inspector in inspectors:
-        if inspector.work_log_id != work_log.work_log_id:
+        if inspector.work_log_id != work_log.id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Inspector {inspector.inspector_id} does not belong to work log {work_log.work_log_id}"
+                detail=f"Inspector {inspector.inspector_id} does not belong to work log {work_log.id}"
             )
     
     try:
         async with conn.transaction():
             permission_service.require_access_level(AccessLevel.INSPECT)
             
-            plant_id = await permission_service.get_plant_id_from_work_log(work_log.work_log_id)
+            plant_id = await permission_service.get_plant_id_from_work_log(work_log.id)
             if plant_id:
                 await permission_service.require_plant_access(plant_id)
             
@@ -189,7 +189,7 @@ async def upsert_work_log(
         logger.warning(
             "Concurrent modification detected for work log",
             extra={
-                "work_log_id": str(work_log.work_log_id),
+                "work_log_id": str(work_log.id),
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
@@ -200,14 +200,14 @@ async def upsert_work_log(
     except ValueError as e:
         logger.warning(
             "Invalid work log data",
-            extra={"work_log_id": str(work_log.work_log_id), "error": str(e)},
+            extra={"work_log_id": str(work_log.id), "error": str(e)},
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(
             f"Unexpected error during work log upsert: {str(e)}",
             exc_info=True,
-            extra={"work_log_id": str(work_log.work_log_id)}
+            extra={"work_log_id": str(work_log.id)}
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
