@@ -70,13 +70,6 @@ class WorkLogInspector(BaseModel):
     inspector_name: Optional[str] = None
 
 
-class WorkLogWithInspectors(BaseModel):
-    """Work log with associated inspectors"""
-    
-    work_log: WorkLog
-    inspectors: list[WorkLogInspector]
-
-
 class WorkLogInspectorCreate(BaseModel):
     """Create relationship between work log and inspector"""
     
