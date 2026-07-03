@@ -75,9 +75,3 @@ class WorkLogInspectorCreate(BaseModel):
     
     work_log_id: UUID
     inspector_id: int
-
-
-class WorkLogInspectorBulkCreate(BaseModel):
-    """Bulk create relationships"""
-    
-    relationships: list[WorkLogInspectorCreate]
