@@ -20,25 +20,10 @@ class WorkLog(BaseModel):
     duration_hours: Optional[float] = None
 
 
-class WorkLogListItem(BaseModel):
-    """Lightweight work log item for list view"""
-    
-    id: UUID
-    started_at: datetime
-    completed_at: Optional[datetime] = None
-    installation_percentage: Optional[float] = None
-    inspector_id: int
-    plant_id: UUID
-    is_deleted: bool
-
-
 class WorkLogListResponse(BaseModel):
     """Wrapped response for work log list with items key"""
     
-    items: list[WorkLogListItem]
-    total: Optional[int] = None
-    skip: Optional[int] = None
-    limit: Optional[int] = None
+    items: list[WorkLog]
 
 
 class WorkLogInspector(BaseModel):

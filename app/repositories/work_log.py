@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.work_log import (
     WorkLog,
-    WorkLogListItem,
     WorkLogListResponse,
     WorkLogInspector,
 )
@@ -113,7 +112,7 @@ class WorkLogRepository:
                 conn, modified_since=modified_since
             )
         ]
-        work_log_list = [WorkLogListItem(**row) for row in work_log_rows]
+        work_log_list = [WorkLog(**row) for row in work_log_rows]
         return WorkLogListResponse(items=work_log_list)
 
     async def get_by_plant_id(
