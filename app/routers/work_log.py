@@ -104,39 +104,6 @@ async def get_work_logs_by_plant_id(
     return work_logs
 
 
-@router.get("/by_inspector_id/{inspector_id}", response_model=List[WorkLog])
-async def get_work_logs_by_inspector_id(
-    inspector_id: int,
-    modified_since: datetime = Query(
-        DEFAULT_MODIFIED_SINCE,
-        description="Only return work logs modified after this timestamp",
-    ),
-    conn=Depends(get_db_connection),
-    permission_service: PermissionService = Depends(get_permission_service),
-) -> List[WorkLog]:
-    """
-    Get all work logs for a specific inspector.
-    Only returns work logs from accessible plants.
-    """
-    repo = WorkLogRepository()
-    all_work_logs = await repo.get_by_inspector_id(
-        conn, inspector_id=inspector_id, modified_since=modified_since
-    )
-    
-    accessible_work_logs = []
-    for wl in all_work_logs:
-        if await permission_service.check_plant_access(wl.plant_id):
-            accessible_work_logs.append(wl)
-    
-    if not accessible_work_logs:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No work logs found for inspector {inspector_id} in accessible plants"
-        )
-    
-    return accessible_work_logs
-
-
 @router.put("", response_model=WorkLog)
 async def upsert_work_log(
     work_log: WorkLog,
