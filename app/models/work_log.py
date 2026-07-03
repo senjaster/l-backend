@@ -20,17 +20,6 @@ class WorkLog(BaseModel):
     duration_hours: Optional[float] = None
 
 
-class WorkLogCreate(BaseModel):
-    """Work log creation model"""
-    
-    id: Optional[UUID] = Field(default_factory=uuid4)
-    started_at: datetime
-    completed_at: Optional[datetime] = None
-    installation_percentage: Optional[float] = Field(None, ge=0, le=100)
-    inspector_id: int = Field(..., gt=0)
-    plant_id: UUID
-
-
 class WorkLogUpdate(BaseModel):
     """Work log update model"""
     
