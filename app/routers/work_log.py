@@ -12,7 +12,6 @@ from app.repositories.work_log import WorkLogRepository
 from app.models.work_log import (
     WorkLog,
     WorkLogListResponse,
-    WorkLogInspector,
 )
 from app.exceptions import ConcurrentModificationError
 from app.dependencies.permissions import get_permission_service
@@ -105,7 +104,6 @@ async def get_work_logs_by_plant_id(
 @router.put("", response_model=WorkLog)
 async def upsert_work_log(
     work_log: WorkLog,
-    inspectors: List[WorkLogInspector],
     force: bool = Query(
         default=False,
         description="If true, ignore server_modified_at and mark extra inspectors as deleted",
@@ -145,7 +143,7 @@ async def upsert_work_log(
             
             await ownership_validator.validate_work_log_ownership(work_log)
             
-            result = await work_log_repo.save(conn, work_log, inspectors, force=force)
+            result = await work_log_repo.save(conn, work_log, force=force)
         
         return result
         

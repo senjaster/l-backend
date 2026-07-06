@@ -58,6 +58,7 @@ class WorkLogRepository:
         for work_log_row in work_log_rows:
             work_log_id = work_log_row["id"]
             work_log_data = {k: v for k, v in work_log_row.items()}
+            work_log_data["inspectors"] = inspectors_by_work_log.get(work_log_id, [])
             work_log = WorkLog(**work_log_data)
             work_log_list.append(work_log)
 
@@ -234,7 +235,7 @@ class WorkLogRepository:
         return self._build_work_log_aggregates(work_log_rows, inspector_rows)
 
     async def save(
-        self, conn, work_log: WorkLog, inspectors: Sequence[WorkLogInspector], force: bool = False
+        self, conn, work_log: WorkLog, force: bool = False
     ) -> WorkLog:
         """
         Save work log with inspector synchronization and optimistic concurrency control.
@@ -289,16 +290,12 @@ class WorkLogRepository:
                         )
                     )
 
-                current_inspector_rows = [
-                    row async for row in queries.get_inspectors_by_work_log(
-                        conn, work_log_id=work_log_id
-                    )
-                ]
-                current_inspector_ids = {row["inspector_id"] for row in current_inspector_rows}
-                incoming_inspector_ids = {inspector.inspector_id for inspector in inspectors}
-
+                current_inspector_ids = {
+                    inspector.inspector_id for inspector in current.inspectors
+                }
+                incoming_inspector_ids = {inspector.inspector_id for inspector in work_log.inspectors}
                 extra_inspector_ids = current_inspector_ids - incoming_inspector_ids
-
+                
                 if extra_inspector_ids:
                     raise ConcurrentModificationError(
                         ConflictError(
@@ -328,7 +325,7 @@ class WorkLogRepository:
             )
 
             await self._sync_inspectors(
-                conn, work_log_id, inspectors, force
+                conn, work_log_id, work_log.inspectors, force
             )
 
             result = await self.get_by_id(conn, work_log_id)

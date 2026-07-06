@@ -1,3 +1,19 @@
+-- name: get_by_id(work_log_id)^
+-- Get work log by ID
+SELECT id, started_at, completed_at, installation_percentage, 
+       inspector_id, plant_id, is_deleted, server_modified_at
+FROM lesiv.work_log
+WHERE id = :work_log_id;
+
+-- name: get_by_id_with_username(work_log_id)^
+-- Get work log by ID with username of inspector who created it
+SELECT wl.id, wl.started_at, wl.completed_at, wl.installation_percentage, 
+       wl.inspector_id, wl.plant_id, wl.is_deleted, wl.server_modified_at,
+       insp.username as inspector_username
+FROM lesiv.work_log wl
+LEFT JOIN lesiv.inspector insp ON wl.inspector_id = insp.id
+WHERE wl.id = :work_log_id;
+
 -- name: get_by_plant_id(plant_id, modified_since)
 -- Get all work logs for plant (full data for aggregates)
 -- :modified_since defaults to 1790-01-01 - only return work logs modified after that timestamp
@@ -19,22 +35,6 @@ FROM lesiv.work_log wl
 WHERE wl.inspector_id = :inspector_id
   AND wl.server_modified_at > :modified_since
 ORDER BY wl.server_modified_at;
-
--- name: get_by_id(work_log_id)^
--- Get work log by ID
-SELECT id, started_at, completed_at, installation_percentage, 
-       inspector_id, plant_id, is_deleted, server_modified_at
-FROM lesiv.work_log
-WHERE id = :work_log_id;
-
--- name: get_by_id_with_username(work_log_id)^
--- Get work log by ID with username of inspector who created it
-SELECT wl.id, wl.started_at, wl.completed_at, wl.installation_percentage, 
-       wl.inspector_id, wl.plant_id, wl.is_deleted, wl.server_modified_at,
-       insp.username as inspector_username
-FROM lesiv.work_log wl
-LEFT JOIN lesiv.inspector insp ON wl.inspector_id = insp.id
-WHERE wl.id = :work_log_id;
 
 -- name: get_by_date_range(start_date, end_date, plant_id, inspector_id)
 -- Get work logs within date range with optional filters

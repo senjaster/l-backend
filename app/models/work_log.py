@@ -25,7 +25,7 @@ class WorkLog(BaseModel):
     is_deleted: bool = False
     server_modified_at: Optional[datetime] = None
     duration_hours: Optional[float] = None
-    # inspectors: list[WorkLogInspector] = Field(default_factory=list)
+    inspectors: list[WorkLogInspector] = Field(default_factory=list)
 
 
 class WorkLogListResponse(BaseModel):
