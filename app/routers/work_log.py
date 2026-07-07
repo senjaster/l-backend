@@ -13,7 +13,7 @@ from app.models.work_log import (
     WorkLog,
     WorkLogListResponse,
 )
-from app.exceptions import ConcurrentModificationError
+from app.exceptions import ConcurrentModificationError, BusinessValidationError
 from app.dependencies.permissions import get_permission_service
 from app.dependencies.ownership import get_ownership_validator
 from app.services.permission_service import PermissionService
@@ -126,13 +126,6 @@ async def upsert_work_log(
     - Permission: User must have access to the plant
     - Ownership validation: Only the user who created the work log can modify it
     """
-    for inspector in work_log.inspectors:
-        if inspector.work_log_id != work_log.id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Inspector {inspector.inspector_id} does not belong to work log {work_log.id}"
-            )
-    
     try:
         async with conn.transaction():
             permission_service.require_access_level(AccessLevel.INSPECT)
@@ -147,6 +140,11 @@ async def upsert_work_log(
         
         return result
         
+    except BusinessValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message
+        )
     except ConcurrentModificationError as e:
         logger.warning(
             "Concurrent modification detected for work log",

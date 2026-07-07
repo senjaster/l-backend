@@ -2,17 +2,20 @@
 
 import pytest
 import time
+
+from datetime import datetime, timezone
 from uuid import uuid4
 from fastapi.testclient import TestClient
 from copy import deepcopy
 
+now = datetime.now(timezone.utc)
 PUT_BODY_TEMPLATE = {
     "inspector_id": 1,
-    "started_at": "2024-01-01T10:00:00Z",
+    "started_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
     "completed_at": None,
     "installation_percentage": None,
     "is_deleted": False,
-    "server_modified_at": "2024-01-01T10:00:00Z",
+    "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
 }
 
 
@@ -49,11 +52,9 @@ def work_log_data(work_log_id, plant_id, inspector_id_1):
 def inspectors_data(work_log_id, inspector_id_1, inspector_id_2):
     return [
         {
-            "work_log_id": str(work_log_id),
             "inspector_id": inspector_id_1
         },
         {
-            "work_log_id": str(work_log_id),
             "inspector_id": inspector_id_2
         }
     ]
@@ -97,14 +98,14 @@ def test_get_nonexistent_work_log(client: TestClient):
     assert response.status_code == 404
 
 
-def test_update_work_log(client: TestClient, work_log_data, inspectors_data, work_log_id):
+def test_update_work_log(client: TestClient, work_log_data, inspectors_data):
     """Test updating work log"""
     work_log_data["inspectors"] = inspectors_data
     create_response = client.put("/work_log", json=work_log_data)
     server_modified_at = create_response.json()["server_modified_at"]
 
     work_log_data["server_modified_at"] = server_modified_at
-    work_log_data["completed_at"] = "2024-01-01T12:00:00Z"
+    work_log_data["completed_at"] = now.isoformat(timespec='seconds').replace('+00:00', 'Z')
     work_log_data["installation_percentage"] = 75.5
 
     response = client.put("/work_log", json=work_log_data)
@@ -115,7 +116,7 @@ def test_update_work_log(client: TestClient, work_log_data, inspectors_data, wor
     assert data["installation_percentage"] == 75.5
 
 
-def test_sync_inspectors_add_new(client: TestClient, work_log_data, inspectors_data, work_log_id, inspector_id_1, inspector_id_2):
+def test_sync_inspectors_add_new(client: TestClient, work_log_data, inspectors_data, inspector_id_1, inspector_id_2):
     """Test adding new inspectors to work log"""
     initial_inspectors = [inspectors_data[0]]
     work_log_data["inspectors"] = initial_inspectors
@@ -134,7 +135,7 @@ def test_sync_inspectors_add_new(client: TestClient, work_log_data, inspectors_d
     assert inspector_id_2 in inspector_ids
 
 
-def test_sync_inspectors_reject_missing_child(client: TestClient, work_log_data, inspectors_data, work_log_id):
+def test_sync_inspectors_reject_missing_child(client: TestClient, work_log_data, inspectors_data):
     """Test rejecting when inspectors are missing without force"""
     work_log_data["inspectors"] = inspectors_data
     create_response = client.put("/work_log", json=work_log_data)
@@ -149,7 +150,7 @@ def test_sync_inspectors_reject_missing_child(client: TestClient, work_log_data,
     assert response.status_code == 409
 
 
-def test_sync_inspectors_force_update(client: TestClient, work_log_data, inspectors_data, work_log_id):
+def test_sync_inspectors_force_update(client: TestClient, work_log_data, inspectors_data):
     """Test marking inspectors as deleted with force=true"""
     work_log_data["inspectors"] = inspectors_data
     create_response = client.put("/work_log", json=work_log_data)
@@ -162,7 +163,7 @@ def test_sync_inspectors_force_update(client: TestClient, work_log_data, inspect
     assert response.status_code == 200
 
 
-def test_get_all_work_logs(client: TestClient, work_log_data, inspectors_data, work_log_id):
+def test_get_all_work_logs(client: TestClient, work_log_data, inspectors_data):
     """Test getting all work logs"""
     work_log_data["inspectors"] = inspectors_data
     client.put("/work_log", json=work_log_data)
@@ -189,7 +190,6 @@ def test_get_work_logs_by_plant_id(client: TestClient, work_log_data, inspectors
     
     inspectors_data_2 = [
         {
-            "work_log_id": str(work_log_id_2),
             "inspector_id": 1
         }
     ]
@@ -205,7 +205,7 @@ def test_get_work_logs_by_plant_id(client: TestClient, work_log_data, inspectors
     assert len(data) >= 1
 
 
-def test_concurrent_modification_detection(client: TestClient, work_log_data, inspectors_data, work_log_id):
+def test_concurrent_modification_detection(client: TestClient, work_log_data, inspectors_data):
     """Test concurrent modification detected when another client modifies work log"""
     # Client A creates work log
     work_log_data["inspectors"] = inspectors_data
@@ -242,11 +242,9 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
     
     inspectors_data_1 = [
         {
-            "work_log_id": str(work_log_id_1),
             "inspector_id": 1
         },
         {
-            "work_log_id": str(work_log_id_1),
             "inspector_id": 2
         }
     ]
@@ -267,7 +265,6 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
     
     inspectors_data_2 = [
         {
-            "work_log_id": str(work_log_id_2),
             "inspector_id": 1
         }
     ]
@@ -300,11 +297,9 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
 
     inspectors_data_1 = [
         {
-            "work_log_id": str(work_log_id_1),
             "inspector_id": 1
         },
         {
-            "work_log_id": str(work_log_id_1),
             "inspector_id": 2
         }
     ]
@@ -324,7 +319,6 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
     
     inspectors_data_2 = [
         {
-            "work_log_id": str(work_log_id_2),
             "inspector_id": 1
         }
     ]
@@ -363,27 +357,26 @@ def test_work_log_without_inspectors(client: TestClient, work_log_data, work_log
     assert data["id"] == str(work_log_id)
 
 
-def test_inspector_mismatch_error(client: TestClient, work_log_data, inspectors_data, work_log_id):
+def test_inspector_mismatch_error(client: TestClient, work_log_data, inspectors_data):
     """Test error when inspector doesn't belong to work log"""
     work_log_data["inspectors"] = inspectors_data
     create_response = client.put("/work_log", json=work_log_data)
+    assert create_response.status_code == 200
 
-    # Try to update with inspector from different work log
-    wrong_inspector = [
-        {
-            "work_log_id": str(uuid4()),
-            "inspector_id": 3,
-        }
-    ]
+    created = create_response.json()
+    work_log_data["server_modified_at"] = created["server_modified_at"]
     
-    work_log_data["inspectors"] = wrong_inspector
+    new_inspectors = inspectors_data + [{"inspector_id": 99999}]
+    work_log_data["inspectors"] = new_inspectors
+    
     response = client.put("/work_log", json=work_log_data)
     
     assert response.status_code == 400
-    assert "does not belong to work log" in response.json()["detail"]
+    error_detail = response.json()["detail"]
+    assert "99999" in error_detail or "do not exist" in error_detail
 
 
-def test_force_update_with_empty_inspectors(client: TestClient, work_log_data, inspectors_data, work_log_id):
+def test_force_update_with_empty_inspectors(client: TestClient, work_log_data, inspectors_data):
     """Test force update removing all inspectors"""
     work_log_data["inspectors"] = inspectors_data
     create_response = client.put("/work_log", json=work_log_data)

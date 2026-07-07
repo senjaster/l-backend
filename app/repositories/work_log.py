@@ -1,10 +1,14 @@
 """Work log repository"""
 import aiosql
+import asyncpg
 import logging
+import re
 
 from typing import Optional, Sequence
 from uuid import UUID
 from datetime import datetime, timezone
+from fastapi import HTTPException, status
+
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.work_log import (
     WorkLog,
@@ -12,7 +16,7 @@ from app.models.work_log import (
     WorkLogInspector,
 )
 from app.models import ConflictError, ConflictDetail
-from app.exceptions import ConcurrentModificationError
+from app.exceptions import ConcurrentModificationError, BusinessValidationError
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.utils.datetime_utils import truncate_to_milliseconds
@@ -174,7 +178,7 @@ class WorkLogRepository:
                             ],
                         )
                     )
-                
+            
             await queries.upsert_work_log(
                 conn,
                 id=work_log_id,
@@ -211,26 +215,37 @@ class WorkLogRepository:
             inspectors: List of inspectors to sync
             force: If True, remove extra inspectors; if False, extras already validated
         """
-        existing_inspectors = [
-            row async for row in queries.get_inspectors_by_work_log(
-                conn, work_log_id=work_log_id
-            )
-        ]
-        existing_ids = {row["inspector_id"] for row in existing_inspectors}
+        try:
+            existing_inspectors = [
+                row async for row in queries.get_inspectors_by_work_log(
+                    conn, work_log_id=work_log_id
+                )
+            ]
+            existing_ids = {row["inspector_id"] for row in existing_inspectors}
 
-        incoming_ids = {inspector.inspector_id for inspector in inspectors}
+            incoming_ids = {inspector.inspector_id for inspector in inspectors}
 
-        for inspector in inspectors:
-            await queries.upsert_work_log_inspector(
-                conn,
-                work_log_id=work_log_id,
-                inspector_id=inspector.inspector_id,
-            )
-
-        if force:
-            to_delete = existing_ids - incoming_ids
-            for inspector_id in to_delete:
-                await queries.delete_work_log_inspector(
-                    conn, work_log_id=work_log_id, inspector_id=inspector_id
+            for inspector in inspectors:
+                await queries.upsert_work_log_inspector(
+                    conn,
+                    work_log_id=work_log_id,
+                    inspector_id=inspector.inspector_id,
                 )
 
+            if force:
+                to_delete = existing_ids - incoming_ids
+                for inspector_id in to_delete:
+                    await queries.delete_work_log_inspector(
+                        conn, work_log_id=work_log_id, inspector_id=inspector_id
+                    )
+        except asyncpg.ForeignKeyViolationError as e:
+            # Извлекаем ID инспектора из ошибки
+            match = re.search(r"\(inspector_id\)=\((\d+)\)", str(e))
+            if match:
+                inspector_id = match.group(1)
+                raise BusinessValidationError(
+                    f"Inspector with ID {inspector_id} does not exist"
+                )
+            raise BusinessValidationError(
+                "One or more inspectors do not exist"
+            )

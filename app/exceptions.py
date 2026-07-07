@@ -20,6 +20,14 @@ class ConcurrentModificationError(Exception):
         super().__init__(conflict_error.message)
 
 
+class BusinessValidationError(Exception):
+    """Исключение для бизнес-валидации"""
+    def __init__(self, message: str, details: dict = None):
+        self.message = message
+        self.details = details or {}
+        super().__init__(message)
+
+
 async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
     """Handle psycopg2 database errors"""
 

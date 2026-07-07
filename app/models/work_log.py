@@ -9,7 +9,6 @@ from typing import Optional
 class WorkLogInspector(BaseModel):
     """Work log - inspector relationship model"""
     
-    work_log_id: UUID
     inspector_id: int
 
 
