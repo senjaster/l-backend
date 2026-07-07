@@ -34,32 +34,13 @@ async def seed_test_data():
     # Run Flyway migrate from the db directory
     # Flyway will read credentials from environment variables
     try:
-        subprocess.run(
-            ['flyway', 'clean'],
-            cwd='db',
-            capture_output=True,
-            text=True,
-            check=False
-        )
-        
         result = subprocess.run(
             ['flyway', 'migrate'],
             cwd='db',
             capture_output=True,
             text=True,
-            check=False
+            check=True
         )
-        
-        if result.returncode != 0:
-            print(f"Migration failed: {result.stderr}")
-            subprocess.run(
-                ['flyway', 'migrate', '-ignoreMigrationPatterns=*:failed'],
-                cwd='db',
-                capture_output=True,
-                text=True,
-                check=False
-            )
-        
         print(f"Flyway migration output: {result.stdout}")
     except subprocess.CalledProcessError as e:
         print(f"Flyway migration failed: {e.stderr}")
