@@ -156,28 +156,6 @@ class WorkLogRepository:
                             ],
                         )
                     )
-
-                current_inspector_ids = {
-                    inspector.inspector_id for inspector in current.inspectors
-                }
-                incoming_inspector_ids = {inspector.inspector_id for inspector in work_log.inspectors}
-                extra_inspector_ids = current_inspector_ids - incoming_inspector_ids
-                
-                if extra_inspector_ids:
-                    raise ConcurrentModificationError(
-                        ConflictError(
-                            message="Extra inspectors exist on server",
-                            server_modified_at=current.server_modified_at,
-                            client_modified_at=work_log.server_modified_at,
-                            extra_child_ids=list(extra_inspector_ids),
-                            conflicts=[
-                                ConflictDetail(
-                                    field="inspectors",
-                                    message=f"Server has {len(extra_inspector_ids)} extra inspectors not in client request",
-                                )
-                            ],
-                        )
-                    )
             
             await queries.upsert_work_log(
                 conn,
@@ -204,7 +182,7 @@ class WorkLogRepository:
         return result
 
     async def _sync_inspectors(
-        self, conn, work_log_id: UUID, inspectors: Sequence[WorkLogInspector], force: bool
+        self, conn, work_log_id: UUID, inspectors: Sequence[WorkLogInspector]
     ):
         """
         Synchronize inspectors: match by inspector_id, add new, remove missing.
@@ -221,9 +199,6 @@ class WorkLogRepository:
                     conn, work_log_id=work_log_id
                 )
             ]
-            existing_ids = {row["inspector_id"] for row in existing_inspectors}
-
-            incoming_ids = {inspector.inspector_id for inspector in inspectors}
 
             for inspector in inspectors:
                 await queries.upsert_work_log_inspector(
@@ -231,13 +206,14 @@ class WorkLogRepository:
                     work_log_id=work_log_id,
                     inspector_id=inspector.inspector_id,
                 )
-
-            if force:
-                to_delete = existing_ids - incoming_ids
-                for inspector_id in to_delete:
-                    await queries.delete_work_log_inspector(
-                        conn, work_log_id=work_log_id, inspector_id=inspector_id
-                    )
+            
+            existing_ids = {row["inspector_id"] for row in existing_inspectors}
+            incoming_ids = {inspector.inspector_id for inspector in inspectors}
+            to_delete = existing_ids - incoming_ids
+            for inspector_id in to_delete:
+                await queries.delete_work_log_inspector(
+                    conn, work_log_id=work_log_id, inspector_id=inspector_id
+                )
         except asyncpg.ForeignKeyViolationError as e:
             # Извлекаем ID инспектора из ошибки
             match = re.search(r"\(inspector_id\)=\((\d+)\)", str(e))
