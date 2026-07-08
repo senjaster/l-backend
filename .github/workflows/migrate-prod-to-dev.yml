@@ -6,73 +6,21 @@ on:
     - cron: '0 3 * * 0'  # Every Sunday at 03:00 UTC (06:00 Moscow)
 
 jobs:
-  # ── Job 1: dump & encrypt prod data ─────────────────────────────────────────
-  dump:
-    name: Dump & encrypt prod
+  migrate:
+    name: Copy prod schema & data to dev
     runs-on: ubuntu-24.04
-    environment: prod
+    environment: dev
 
     env:
       PROD_HOST: rc1b-3rk9341thr2gignd.mdb.yandexcloud.net
       PROD_PORT: 6432
       PROD_DB:   db
-      SCHEMA:    lesiv
 
-    outputs:
-      encryption-key: ${{ steps.keygen.outputs.key }}
+      DEV_HOST:  rc1b-3rk9341thr2gignd.mdb.yandexcloud.net
+      DEV_PORT:  6432
+      DEV_DB:    db_dev
 
-    steps:
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client
-
-      - name: Generate ephemeral encryption key
-        id: keygen
-        run: |
-          KEY=$(openssl rand -hex 32)
-          echo "::add-mask::$KEY"
-          echo "key=$KEY" >> "$GITHUB_OUTPUT"
-
-      - name: Dump schema + data and encrypt
-        env:
-          PGPASSWORD: ${{ secrets.FLYWAY_PASSWORD }}
-          KEY:        ${{ steps.keygen.outputs.key }}
-        run: |
-          {
-            pg_dump \
-              --schema-only \
-              --schema="$SCHEMA" \
-              --no-owner \
-              --no-privileges \
-              "postgresql://${{ vars.FLYWAY_USER }}@$PROD_HOST:$PROD_PORT/$PROD_DB?sslmode=require"
-
-            pg_dump \
-              --data-only \
-              --schema="$SCHEMA" \
-              --exclude-table="$SCHEMA.tokens" \
-              "postgresql://${{ vars.FLYWAY_USER }}@$PROD_HOST:$PROD_PORT/$PROD_DB?sslmode=require"
-          } | openssl enc -aes-256-cbc -pbkdf2 -pass "pass:$KEY" -out /tmp/dump.sql.enc
-
-      - name: Upload encrypted dump
-        uses: actions/upload-artifact@v4
-        with:
-          name: prod-dump-enc
-          path: /tmp/dump.sql.enc
-          retention-days: 1
-
-  # ── Job 2: decrypt, restore to dev & run migrations ─────────────────────────
-  restore:
-    name: Restore to dev & migrate
-    runs-on: ubuntu-24.04
-    environment: dev
-    needs: dump
-
-    env:
-      DEV_HOST: rc1b-3rk9341thr2gignd.mdb.yandexcloud.net
-      DEV_PORT: 6432
-      DEV_DB:   db_dev
-      SCHEMA:   lesiv
+      SCHEMA: lesiv
 
     steps:
       - name: Checkout
@@ -83,14 +31,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client
 
-      - name: Download encrypted dump
-        uses: actions/download-artifact@v4
-        with:
-          name: prod-dump-enc
-          path: /tmp
-
-      - name: Mask encryption key
-        run: echo "::add-mask::${{ needs.dump.outputs.encryption-key }}"
+      # ── 1. Drop schema in dev ─────────────────────────────────────────────────
 
       - name: Drop schema in dev
         env:
@@ -100,15 +41,43 @@ jobs:
             "postgresql://${{ vars.FLYWAY_USER }}@$DEV_HOST:$DEV_PORT/$DEV_DB?sslmode=require" \
             -c "DROP SCHEMA IF EXISTS $SCHEMA CASCADE;"
 
-      - name: Decrypt and restore
+      # ── 2. Copy DDL from prod to dev (piped in memory) ────────────────────────
+
+      - name: Copy DDL from prod to dev
         env:
-          PGPASSWORD: ${{ secrets.FLYWAY_PASSWORD }}
-          KEY:        ${{ needs.dump.outputs.encryption-key }}
+          PGPASSWORD_PROD: ${{ secrets.PROD_DUMP_PASSWORD }}
+          PGPASSWORD_DEV:  ${{ secrets.FLYWAY_PASSWORD }}
         run: |
-          openssl enc -d -aes-256-cbc -pbkdf2 -pass "pass:$KEY" -in /tmp/dump.sql.enc \
-          | psql \
+          PGPASSWORD="$PGPASSWORD_PROD" pg_dump \
+            --schema-only \
+            --schema="$SCHEMA" \
+            --no-owner \
+            --no-privileges \
+            "postgresql://${{ vars.PROD_DUMP_USER }}@$PROD_HOST:$PROD_PORT/$PROD_DB?sslmode=require" \
+          | PGPASSWORD="$PGPASSWORD_DEV" psql \
               --set ON_ERROR_STOP=1 \
               "postgresql://${{ vars.FLYWAY_USER }}@$DEV_HOST:$DEV_PORT/$DEV_DB?sslmode=require"
+
+      # ── 3. Copy data from prod to dev (piped in memory) ───────────────────────
+
+      - name: Copy data from prod to dev
+        env:
+          PGPASSWORD_PROD: ${{ secrets.PROD_DUMP_PASSWORD }}
+          PGPASSWORD_DEV:  ${{ secrets.FLYWAY_PASSWORD }}
+        run: |
+          PGPASSWORD="$PGPASSWORD_PROD" pg_dump \
+            --data-only \
+            --schema="$SCHEMA" \
+            --exclude-table="$SCHEMA.tokens" \
+            "postgresql://${{ vars.PROD_DUMP_USER }}@$PROD_HOST:$PROD_PORT/$PROD_DB?sslmode=require" \
+          | PGPASSWORD="$PGPASSWORD_DEV" psql \
+              --set ON_ERROR_STOP=1 \
+              "postgresql://${{ vars.FLYWAY_USER }}@$DEV_HOST:$DEV_PORT/$DEV_DB?sslmode=require"
+
+      # ── 4. Apply pending Flyway migrations on dev ─────────────────────────────
+      # Applies versioned migrations not yet in prod, and re-applies all
+      # repeatable migrations (R__permissions.sql, R__equipment_detailed_view.sql)
+      # which restores all GRANTs stripped by --no-privileges above.
 
       - name: Install Flyway
         run: |
@@ -117,9 +86,6 @@ jobs:
           echo "$HOME/flyway-12.0.1" >> "$GITHUB_PATH"
 
       - name: Run Flyway migrations on dev
-        # Applies versioned migrations not yet in prod, and re-applies all
-        # repeatable migrations (R__permissions.sql, R__equipment_detailed_view.sql)
-        # which restores all GRANTs stripped by --no-privileges above.
         run: flyway migrate
         working-directory: db
         env:
