@@ -54,6 +54,7 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
+db/flyway.conf
 
 # Temporary files
 *.tmp

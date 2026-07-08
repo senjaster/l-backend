@@ -174,6 +174,19 @@ class PermissionService:
         result = await queries.get_plant_from_image(self.conn, image_id=image_id)
         return result["plant_id"] if result else None
 
+    async def get_plant_id_from_work_log(self, work_log_id: UUID) -> Optional[UUID]:
+        """
+        Get plant_id from work_log_id.
+
+        Args:
+            work_log_id: UUID of the work log
+
+        Returns:
+            UUID of the plant, or None if not found
+        """
+        result = await queries.get_plant_from_work_log(self.conn, work_log_id=work_log_id)
+        return result["plant_id"] if result else None
+
     def check_access_level(self, required_level: AccessLevel) -> bool:
         """
         Check if current user has the required access level.

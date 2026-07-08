@@ -16,6 +16,23 @@ from app.logging_config import setup_logging
 from app.config import settings
 import logging
 
+from app.routers import (
+    auth,
+    inspector,
+    image,
+    log,
+    sticker_type,
+    equipment_type,
+    facility_template,
+    defect_type,
+    plant,
+    equipment,
+    inspection,
+    defect,
+    work_log
+)
+
+
 # Initialize logging
 setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
 logger = logging.getLogger(__name__)
@@ -114,22 +131,6 @@ async def root():
     return {"status": "ok", "message": "L-Inspector Backend API"}
 
 
-# Include routers
-from app.routers import (
-    auth,
-    inspector,
-    image,
-    log,
-    sticker_type,
-    equipment_type,
-    facility_template,
-    defect_type,
-    plant,
-    equipment,
-    inspection,
-    defect,
-)
-
 app.include_router(auth.router)
 app.include_router(inspector.router)
 app.include_router(image.router)
@@ -142,3 +143,4 @@ app.include_router(plant.router)
 app.include_router(equipment.router)
 app.include_router(inspection.router)
 app.include_router(defect.router)
+app.include_router(work_log.router)
