@@ -23,8 +23,10 @@ jobs:
       SCHEMA: lesiv
 
     steps:
-      - name: Checkout
+      - name: Checkout dev branch
         uses: actions/checkout@v7
+        with:
+          ref: dev  # Always use dev migrations; cron fires from main but we need the latest
 
       - name: Install PostgreSQL client
         run: |
