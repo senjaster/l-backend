@@ -29,7 +29,8 @@ from app.routers import (
     equipment,
     inspection,
     defect,
-    work_log
+    work_log,
+    group
 )
 
 
@@ -144,3 +145,4 @@ app.include_router(equipment.router)
 app.include_router(inspection.router)
 app.include_router(defect.router)
 app.include_router(work_log.router)
+app.include_router(group.router)
