@@ -232,12 +232,11 @@ class WorkLogRepository:
                     inspector_id=inspector.inspector_id,
                 )
 
-            if force:
-                to_delete = existing_ids - incoming_ids
-                for inspector_id in to_delete:
-                    await queries.delete_work_log_inspector(
-                        conn, work_log_id=work_log_id, inspector_id=inspector_id
-                    )
+            to_delete = existing_ids - incoming_ids
+            for inspector_id in to_delete:
+                await queries.delete_work_log_inspector(
+                    conn, work_log_id=work_log_id, inspector_id=inspector_id
+                )
         except asyncpg.ForeignKeyViolationError as e:
             # Извлекаем ID инспектора из ошибки
             match = re.search(r"\(inspector_id\)=\((\d+)\)", str(e))
