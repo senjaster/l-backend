@@ -90,15 +90,7 @@ async def get_work_logs_by_plant_id(
     """
     await permission_service.require_plant_access(plant_id)
     
-    work_logs = await work_log_repo.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)
-    
-    if not work_logs:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No work logs found for plant {plant_id}"
-        )
-    
-    return work_logs
+    return await work_log_repo.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)
 
 
 @router.put("", response_model=WorkLog)

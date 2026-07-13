@@ -376,6 +376,14 @@ def test_inspector_mismatch_error(client: TestClient, work_log_data, inspectors_
     assert "99999" in error_detail or "do not exist" in error_detail
 
 
+def test_get_work_logs_by_plant_id_empty(client: TestClient):
+    """Regression test: by_plant_id returns empty list (not 404) when no work logs exist for plant"""
+    nonexistent_plant_id = uuid4()
+    response = client.get(f"/work_log/by_plant_id/{nonexistent_plant_id}")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 def test_force_update_with_empty_inspectors(client: TestClient, work_log_data, inspectors_data):
     """Test force update removing all inspectors"""
     work_log_data["inspectors"] = inspectors_data
