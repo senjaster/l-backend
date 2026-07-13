@@ -79,7 +79,7 @@ jobs:
           revision-network-id: enpaulbnqhiqbshkl7q6
           revision-env: |
             ACCESS_TOKEN_LIFETIME_MIN=10
-            DATABASE_URL=postgresql://l_app_user_dev@rc1b-3rk9341thr2gignd.mdb.yandexcloud.net:6432/db_dev
+            DATABASE_URL=postgresql://l_app_user_dev@c-c9q6gvice4kl9f6mkpht.rw.mdb.yandexcloud.net:6432/db_dev
             DB_DRIVER=asyncpg
             REFRESH_TOKEN_LIFETIME_DAYS=30
             REQUIRE_AUTH=true
