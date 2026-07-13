@@ -80,7 +80,7 @@ jobs:
           revision-min-instances: 1
           revision-env: |
             ACCESS_TOKEN_LIFETIME_MIN=1440
-            DATABASE_URL=postgresql://l_app_user@rc1b-3rk9341thr2gignd.mdb.yandexcloud.net:6432/db
+            DATABASE_URL=postgresql://l_app_user@c-c9q6gvice4kl9f6mkpht.rw.mdb.yandexcloud.net:6432/db
             DB_DRIVER=asyncpg
             REFRESH_TOKEN_LIFETIME_DAYS=30
             REQUIRE_AUTH=true
