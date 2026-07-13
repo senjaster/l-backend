@@ -128,6 +128,15 @@ GRANT SELECT, INSERT, UPDATE ON lesiv.inspection_image_link TO l_app_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON lesiv.image TO l_app_role;
 
 -- ============================================================================
+-- Work Log aggregate
+-- ============================================================================
+
+-- image: SELECT, INSERT, UPDATE, DELETE (full CRUD including hard delete)
+GRANT SELECT, INSERT, UPDATE, DELETE ON lesiv.work_log TO l_app_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON lesiv.work_log_inspector TO l_app_role;
+
+
+-- ============================================================================
 -- Views
 -- ============================================================================
 
