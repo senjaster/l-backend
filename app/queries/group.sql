@@ -122,6 +122,12 @@ WHERE p.group_id = :group_id
   AND p.is_deleted = false
 ORDER BY p.name;
 
+-- name: get_plant_group_id(plant_id)^
+-- Get the group_id for a plant (to check ownership)
+SELECT group_id
+FROM lesiv.plant
+WHERE id = :plant_id AND is_deleted = false;
+
 -- name: check_plants_exist(plant_ids)
 -- Check which plants exist
 SELECT id
@@ -168,6 +174,19 @@ VALUES (:id, :name, :parent_group_id, :is_deleted, :server_modified_at)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     parent_group_id = EXCLUDED.parent_group_id,
+    is_deleted = EXCLUDED.is_deleted,
+    server_modified_at = EXCLUDED.server_modified_at;
+
+-- name: upsert_plant(id, group_id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)!
+-- Insert or update plant (claim fields are managed separately via claim/release endpoints)
+INSERT INTO lesiv.plant (id, group_id, name, claimed_by_device_id, claimed_by_user_id, claimed_at, is_deleted, server_modified_at)
+VALUES (:id, :group_id, :name, :claimed_by_device_id, :claimed_by_user_id, :claimed_at, :is_deleted, :server_modified_at)
+ON CONFLICT (id) DO UPDATE SET
+    group_id = COALESCE(EXCLUDED.group_id, plant.group_id),
+    name = EXCLUDED.name,
+    claimed_by_device_id = EXCLUDED.claimed_by_device_id,
+    claimed_by_user_id = EXCLUDED.claimed_by_user_id,
+    claimed_at = EXCLUDED.claimed_at,
     is_deleted = EXCLUDED.is_deleted,
     server_modified_at = EXCLUDED.server_modified_at;
 
@@ -222,6 +241,20 @@ WHERE id = :plant_id
 -- Remove all plants from group (set group_id to NULL)
 UPDATE lesiv.plant
 SET group_id = NULL,
+    server_modified_at = CURRENT_TIMESTAMP
+WHERE group_id = :group_id AND is_deleted = false;
+
+-- name: mark_plant_deleted(id)!
+-- Mark plant as deleted (logical deletion)
+UPDATE lesiv.plant
+SET is_deleted = true,
+    server_modified_at = CURRENT_TIMESTAMP
+WHERE id = :id AND is_deleted = false;
+
+-- name: mark_all_plants_deleted_in_group(group_id)!
+-- Mark all plants in a group as deleted (logical deletion)
+UPDATE lesiv.plant
+SET is_deleted = true,
     server_modified_at = CURRENT_TIMESTAMP
 WHERE group_id = :group_id AND is_deleted = false;
 

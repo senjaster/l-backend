@@ -18,7 +18,6 @@ class Group(BaseModel):
     server_modified_at: datetime
     children: List[Group] = Field(default_factory=list)
     plants: List[Plant] = Field(default_factory=list)
-    plant_ids: List[UUID] = Field(default_factory=list)
 
 # List models
 class GroupListItem(BaseModel):

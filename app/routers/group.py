@@ -87,81 +87,78 @@ async def update_group(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# @router.put("", response_model=Group)
-# async def upsert_group(
-#     group: Group,
-#     force: bool = Query(
-#         default=False,
-#         description="If true, ignore server_modified_at and force update",
-#     ),
-#     conn=Depends(get_db_connection),
-#     permission_service: PermissionService = Depends(get_permission_service),
-# ):
-#     """
-#     Create or replace group.
+@router.put("", response_model=Group)
+async def upsert_group(
+    group: Group,
+    force: bool = Query(
+        default=False,
+        description="If true, ignore server_modified_at and force update",
+    ),
+    conn=Depends(get_db_connection),
+    permission_service: PermissionService = Depends(get_permission_service),
+):
+    """
+    Create or replace group.
 
-#     Rules:
-#     - force=false (default):
-#       - Validates server_modified_at for existing groups
-#       - Rejects if modified_at doesn't match (409)
-#       - Ignores server_modified_at for new groups
-#     - force=true:
-#       - Ignores server_modified_at validation
-#       - Forces update even if concurrent modification detected
-#     - Prevents cyclic dependencies when moving groups
-#     - Permission: User must have MODIFY access
-#     """
-#     try:
-#         async with conn.transaction():
-#             # Check access level (MODIFY required)
-#             permission_service.require_access_level(AccessLevel.MODIFY)
+    Rules:
+    - force=false (default):
+      - Validates server_modified_at for existing groups
+      - Rejects if modified_at doesn't match (409)
+      - Ignores server_modified_at for new groups
+    - force=true:
+      - Ignores server_modified_at validation
+      - Forces update even if concurrent modification detected
+    - Prevents cyclic dependencies when moving groups
+    - Permission: User must have MODIFY access
+    """
+    try:
+        async with conn.transaction():
+            # Check access level (MODIFY required)
+            permission_service.require_access_level(AccessLevel.MODIFY)
             
-#             # Check if group exists
-#             existing_group = await group_repo.get_by_id(conn, group.id)
-#             is_new_group = existing_group is None
+            # Check if group exists
+            existing_group = await group_repo.get_by_id(conn, group.id)
+            is_new_group = existing_group is None
             
-#             # For existing groups, check group access
-#             if not is_new_group:
-#                 await permission_service.require_group_access(group.id)
+            # For existing groups, check group access
+            if not is_new_group:
+                await permission_service.require_group_access(group.id)
             
-#             # Validate no cyclic dependency
-#             if group.parent_group_id and group.parent_group_id == group.id:
-#                 raise ValueError("Group cannot be its own parent")
+            # Validate no cyclic dependency
+            if group.parent_group_id and group.parent_group_id == group.id:
+                raise ValueError("Group cannot be its own parent")
             
-#             if group.parent_group_id:
-#                 # Check if moving would create a cycle
-#                 would_create_cycle = await group_repo.check_cyclic_dependency(
-#                     conn, 
-#                     group_id=group.id, 
-#                     new_parent_id=group.parent_group_id
-#                 )
-#                 if would_create_cycle:
-#                     raise ValueError("Moving this group would create a cyclic dependency")
+            if group.parent_group_id:
+                # Check if moving would create a cycle
+                would_create_cycle = await group_repo._check_cyclic_dependency(
+                    conn, 
+                    group_id=group.id, 
+                    new_parent_id=group.parent_group_id
+                )
+                if would_create_cycle:
+                    raise ValueError("Moving this group would create a cyclic dependency")
             
-#             # Save group
-#             result = await group_repo.save(conn, group, force=force)
-            
-#             # Grant access to creator for new groups
-#             if is_new_group:
-#                 await permission_service.grant_group_access(group.id)
-        
-#         return result
-#     except ConcurrentModificationError as e:
-#         logger.warning(
-#             "Concurrent modification detected for group",
-#             extra={
-#                 "group_id": str(group.id),
-#                 "conflict": e.conflict_error.model_dump(mode="json"),
-#             },
-#         )
-#         raise HTTPException(
-#             status_code=409, detail=e.conflict_error.model_dump(mode="json")
-#         )
-#     except ValueError as e:
-#         logger.warning(
-#             "Invalid group data", extra={"group_id": str(group.id), "error": str(e)}
-#         )
-#         raise HTTPException(status_code=400, detail=str(e))
+            # Save group
+            result = await group_repo.save(conn, group, force=force)
+
+        return result
+
+    except ConcurrentModificationError as e:
+        logger.warning(
+            "Concurrent modification detected for group",
+            extra={
+                "group_id": str(group.id),
+                "conflict": e.conflict_error.model_dump(mode="json"),
+            },
+        )
+        raise HTTPException(
+            status_code=409, detail=e.conflict_error.model_dump(mode="json")
+        )
+    except ValueError as e:
+        logger.warning(
+            "Invalid group data", extra={"group_id": str(group.id), "error": str(e)}
+        )
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/{group_id}/plants")

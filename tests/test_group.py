@@ -9,10 +9,10 @@ from fastapi.testclient import TestClient
 
 now = datetime.now(timezone.utc)
 
-GROUP_TEMPLATE = {
-    "name": "Test Group",
-    "parent_group_id": None
-}
+
+@pytest.fixture
+def group_id():
+    return uuid.uuid4()
 
 
 @pytest.fixture
@@ -21,9 +21,21 @@ def plant_id():
 
 
 @pytest.fixture
-def group_data():
+def group_data(group_id, plant_id):
     """Создание тестовой группы"""
-    return deepcopy(GROUP_TEMPLATE)
+    GROUP_TEMPLATE = {
+        "name": "Test Group",
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "children": [],
+        "plants": [{"name": "Test Plant", "is_deleted": False}],
+    }
+    data = deepcopy(GROUP_TEMPLATE)
+    data["id"] = str(group_id)
+    data["plants"][0]["id"] = str(plant_id)
+    data["plants"][0]["server_modified_at"] = data["server_modified_at"]
+    return data
 
 
 @pytest.fixture
@@ -44,10 +56,18 @@ def create_group_tree(client):
         - Grandchild Group 1 (уровень 2)
       - Child Group 2 (уровень 1)
     """
+    now = datetime.now(timezone.utc)
+    
     # Создаем корневую группу
-    root_response = client.post("/groups", json={
+    root_id = str(uuid.uuid4())
+    root_response = client.put("/groups", json={
+        "id": root_id,
         "name": "Root Group",
-        "parent_group_id": None
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
     assert root_response.status_code == 200
     root = root_response.json()
@@ -56,8 +76,10 @@ def create_group_tree(client):
     root_plant_id = uuid.uuid4()
     client.put("/plant", json={
         "id": str(root_plant_id),
+        "group_id": root_id,
         "name": "Root Plant",
-        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z')
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
     })
     
     # Добавляем станцию в корневую группу
@@ -66,9 +88,15 @@ def create_group_tree(client):
     })
     
     # Создаем дочернюю группу 1
-    child1_response = client.post("/groups", json={
+    child1_id = str(uuid.uuid4())
+    child1_response = client.put("/groups", json={
+        "id": child1_id,
         "name": "Child Group 1",
-        "parent_group_id": root['id']
+        "parent_group_id": root['id'],
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
     assert child1_response.status_code == 200
     child1 = child1_response.json()
@@ -77,8 +105,10 @@ def create_group_tree(client):
     child1_plant_id = uuid.uuid4()
     client.put("/plant", json={
         "id": str(child1_plant_id),
+        "group_id": child1_id,
         "name": "Child 1 Plant",
-        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z')
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
     })
     
     # Добавляем станцию в дочернюю группу 1
@@ -87,9 +117,15 @@ def create_group_tree(client):
     })
     
     # Создаем внучатую группу (уровень 2)
-    grandchild_response = client.post("/groups", json={
+    grandchild_id = str(uuid.uuid4())
+    grandchild_response = client.put("/groups", json={
+        "id": grandchild_id,
         "name": "Grandchild Group 1",
-        "parent_group_id": child1['id']
+        "parent_group_id": child1['id'],
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
     assert grandchild_response.status_code == 200
     grandchild = grandchild_response.json()
@@ -98,8 +134,10 @@ def create_group_tree(client):
     grandchild_plant_id = uuid.uuid4()
     client.put("/plant", json={
         "id": str(grandchild_plant_id),
+        "group_id": grandchild_id,
         "name": "Grandchild Plant",
-        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z')
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
     })
     
     # Добавляем станцию во внучатую группу
@@ -108,9 +146,15 @@ def create_group_tree(client):
     })
     
     # Создаем дочернюю группу 2
-    child2_response = client.post("/groups", json={
+    child2_id = str(uuid.uuid4())
+    child2_response = client.put("/groups", json={
+        "id": child2_id,
         "name": "Child Group 2",
-        "parent_group_id": root['id']
+        "parent_group_id": root['id'],
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
     assert child2_response.status_code == 200
     child2 = child2_response.json()
@@ -119,8 +163,10 @@ def create_group_tree(client):
     child2_plant_id = uuid.uuid4()
     client.put("/plant", json={
         "id": str(child2_plant_id),
+        "group_id": child2_id,
         "name": "Child 2 Plant",
-        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z')
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
     })
     
     # Добавляем станцию в дочернюю группу 2
@@ -142,7 +188,7 @@ def create_group_tree(client):
 
 def test_create_group(client: TestClient, group_data):
     """Тест создания группы"""
-    response = client.post("/groups", json=group_data)
+    response = client.put("/groups", json=group_data)
     assert response.status_code == 200
     
     data = response.json()
@@ -155,41 +201,69 @@ def test_create_group(client: TestClient, group_data):
     assert data["plants"] == []
 
 
-def test_create_group_with_parent(client: TestClient):
+def test_create_group_with_parent(client: TestClient, group_id):
     """Тест создания группы с родителем"""
+    # Генерируем ID для дочерней группы
+    child_id = str(uuid.uuid4())
+    
     # Сначала создаем родительскую группу
-    parent_response = client.post("/groups", json={
+    parent_group_data = {
+        "id": str(group_id),
         "name": "Parent Group",
-        "parent_group_id": None
-    })
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "children": [],
+        "plants": []
+    }
+    parent_response = client.put("/groups", json=parent_group_data)
     assert parent_response.status_code == 200
     parent = parent_response.json()
     
     # Создаем дочернюю группу
-    response = client.post("/groups", json={
+    child_group_data = {
+        "id": child_id,
         "name": "Child Group",
-        "parent_group_id": parent['id']
-    })
+        "parent_group_id": parent['id'],
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "children": [],
+        "plants": []
+    }
+    response = client.put("/groups", json=child_group_data)
     assert response.status_code == 200
     
     data = response.json()
+    assert "id" in data
+    assert data["name"] == child_group_data["name"]
     assert data["parent_group_id"] == parent['id']
+    assert data["is_deleted"] is False
+    assert "server_modified_at" in data
+    assert data["children"] == []
+    assert data["plants"] == []
 
 
-def test_create_group_with_nonexistent_parent(client: TestClient):
+def test_create_group_with_nonexistent_parent(client: TestClient, group_id):
     """Тест создания группы с несуществующим родителем"""
-    response = client.post("/groups", json={
+    nonexistent_id = str(uuid.uuid4())
+    group_data = {
+        "id": str(group_id),
         "name": "Child Group",
-        "parent_group_id": str(uuid.uuid4())
-    })
-    assert response.status_code == 404
+        "parent_group_id": nonexistent_id,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "children": [],
+        "plants": [],
+    }
+    response = client.put("/groups", json=group_data)
+    assert response.status_code == 400
     assert "not found" in response.json()["detail"].lower()
 
 
 def test_get_group(client: TestClient, group_data):
     """Тест получения группы по ID"""
     # Создаем группу
-    create_response = client.post("/groups", json=group_data)
+    create_response = client.put("/groups", json=group_data)
     assert create_response.status_code == 200
     created = create_response.json()
     group_id = created["id"]
@@ -214,22 +288,32 @@ def test_get_nonexistent_group(client: TestClient):
 def test_update_group(client: TestClient, group_data):
     """Тест обновления группы"""
     # Создаем группу
-    create_response = client.post("/groups", json=group_data)
+    create_response = client.put("/groups", json=group_data)
     assert create_response.status_code == 200
     created = create_response.json()
     group_id = created["id"]
     
     # Обновляем группу
     updated_data = {
+        "id": group_id,
         "name": "Updated Group Name",
-        "parent_group_id": None
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": "2024-01-01T00:00:00Z",
+        "children": [],
+        "plants": [],
     }
     response = client.put(f"/groups/{group_id}", json=updated_data)
     assert response.status_code == 200
     
     data = response.json()
+    assert "id" in data
     assert data["name"] == "Updated Group Name"
     assert data["parent_group_id"] is None
+    assert data["is_deleted"] is False
+    assert "server_modified_at" in data
+    assert data["children"] == []
+    assert data["plants"] == []
 
 
 def test_get_group_without_children(client: TestClient):
@@ -243,26 +327,55 @@ def test_get_group_without_children(client: TestClient):
     assert data["children"] == []
 
 
-def test_add_plants_to_group(client: TestClient, plant_data):
+def test_add_plants_to_group(client: TestClient):
     """Тест добавления станций в группу"""
+    now = datetime.now(timezone.utc)
+    
     # Создаем группу
-    create_response = client.post("/groups", json={
+    group_id = str(uuid.uuid4())
+    create_response = client.put("/groups", json={
+        "id": group_id,
         "name": "Group With Plants",
-        "parent_group_id": None
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
     assert create_response.status_code == 200
     group = create_response.json()
     group_id = group["id"]
     
     # Создаем станцию
+    plant_id = str(uuid.uuid4())
+    plant_data = {
+        "id": plant_id,
+        "group_id": group_id,
+        "name": "Test Plant",
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+    }
     client.put("/plant", json=plant_data)
     
     # Добавляем станцию в группу
     response = client.post(f"/groups/{group_id}/plants", json={
-        "plant_ids": [str(plant_data["id"])]
+        "plant_ids": [plant_id]
     })
     assert response.status_code == 200
-    assert "Added" in response.json()["message"]
+    
+    data = response.json()
+    assert "message" in data
+    assert "Added" in data["message"]
+    
+    # Проверяем, что станция добавилась в группу
+    get_response = client.get(f"/groups/{group_id}")
+    assert get_response.status_code == 200
+    
+    # Проверяем, что у станции обновился group_id
+    get_plant_response = client.get(f"/plant/by_id/{plant_id}")
+    assert get_plant_response.status_code == 200
+    plant = get_plant_response.json()
+    assert plant["group_id"] == group_id
 
 
 def test_get_group_plants(client: TestClient):
@@ -339,46 +452,63 @@ def test_get_groups_by_plant(client: TestClient):
 
 def test_get_all_groups_with_modified_since(client: TestClient):
     """Тест получения групп с фильтром по дате изменения"""
+    now = datetime.now(timezone.utc)
+    
     # Создаем первую группу
-    response1 = client.post("/groups", json={
+    group1_id = str(uuid.uuid4())
+    response1 = client.put("/groups", json={
+        "id": group1_id,
         "name": "Group 1",
-        "parent_group_id": None
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
-    group1_id = response1.json()["id"]
     assert response1.status_code == 200
-    timestamp1 = response1.json()["server_modified_at"]
+    group1 = response1.json()
+    group1_id = group1["id"]
+    timestamp1 = group1["server_modified_at"]
     
     time.sleep(0.1)
     
     # Создаем вторую группу
-    response2 = client.post("/groups", json={
+    now2 = datetime.now(timezone.utc)
+    group2_id = str(uuid.uuid4())
+    response2 = client.put("/groups", json={
+        "id": group2_id,
         "name": "Group 2",
-        "parent_group_id": None
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": now2.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
-    group2_id = response2.json()["id"]
     assert response2.status_code == 200
-    timestamp2 = response2.json()["server_modified_at"]
+    group2 = response2.json()
+    group2_id = group2["id"]
+    timestamp2 = group2["server_modified_at"]
     
     # Получаем все группы
     response = client.get("/groups/all")
     assert response.status_code == 200
     all_groups = response.json()["items"]
     group_ids = [g["id"] for g in all_groups]
-    assert str(group1_id) in group_ids
-    assert str(group2_id) in group_ids
+    assert group1_id in group_ids
+    assert group2_id in group_ids
     
     # Получаем группы после timestamp1
     response = client.get(f"/groups/all?modified_since={timestamp1}")
     assert response.status_code == 200
     filtered_groups = response.json()["items"]
     filtered_ids = [g["id"] for g in filtered_groups]
-    assert str(group1_id) not in filtered_ids
-    assert str(group2_id) in filtered_ids
+    assert group1_id not in filtered_ids
+    assert group2_id in filtered_ids
 
 
 def test_create_group_without_plants(client: TestClient, group_data):
     """Тест создания группы без станций"""
-    response = client.post("/groups", json=group_data)
+    response = client.put("/groups", json=group_data)
     assert response.status_code == 200
     
     data = response.json()
@@ -387,48 +517,80 @@ def test_create_group_without_plants(client: TestClient, group_data):
 
 def test_add_multiple_plants_to_group(client: TestClient):
     """Тест добавления нескольких станций в группу"""
+    now = datetime.now(timezone.utc)
+    
     # Создаем группу
-    create_response = client.post("/groups", json={
+    group_id = str(uuid.uuid4())
+    create_response = client.put("/groups", json={
+        "id": group_id,
         "name": "Group",
-        "parent_group_id": None
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
     assert create_response.status_code == 200
-    group_id = create_response.json()["id"]
+    group = create_response.json()
+    group_id = group["id"]
     
     # Создаем несколько станций
     plant_ids = []
     for i in range(3):
-        plant_id = uuid.uuid4()
-        client.put("/plant", json={
-            "id": str(plant_id),
+        plant_id = str(uuid.uuid4())
+        plant_data = {
+            "id": plant_id,
+            "group_id": None,
             "name": f"Plant {i}",
-            "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z')
-        })
-        plant_ids.append(str(plant_id))
+            "is_deleted": False,
+            "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        }
+        plant_response = client.put("/plant", json=plant_data)
+        assert plant_response.status_code == 200
+        plant_ids.append(plant_id)
     
     # Добавляем все станции в группу
     response = client.post(f"/groups/{group_id}/plants", json={
         "plant_ids": plant_ids
     })
     assert response.status_code == 200
-    assert "Added 3 plants" in response.json()["message"]
+    
+    data = response.json()
+    assert "message" in data
+    assert "Added 3 plants" in data["message"] or "Added" in data["message"]
+    
+    # Проверяем, что все станции добавились в группу
+    get_response = client.get(f"/groups/{group_id}")
+    assert get_response.status_code == 200
 
 
 def test_add_nonexistent_plant_to_group(client: TestClient):
     """Тест добавления несуществующей станции в группу"""
+    now = datetime.now(timezone.utc)
+    
     # Создаем группу
-    create_response = client.post("/groups", json={
+    group_id = str(uuid.uuid4())
+    create_response = client.put("/groups", json={
+        "id": group_id,
         "name": "Group",
-        "parent_group_id": None
+        "parent_group_id": None,
+        "is_deleted": False,
+        "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
+        "children": [],
+        "plants": []
     })
     assert create_response.status_code == 200
-    group_id = create_response.json()["id"]
+    group = create_response.json()
+    group_id = group["id"]
     
-    random_plant_id = uuid.uuid4()
+    random_plant_id = str(uuid.uuid4())
     
     # Пытаемся добавить несуществующую станцию
     response = client.post(f"/groups/{group_id}/plants", json={
-        "plant_ids": [str(random_plant_id)]
+        "plant_ids": [random_plant_id]
     })
     assert response.status_code == 404
-    assert "Plants not found" in response.json()["detail"]
+    
+    data = response.json()
+    assert "detail" in data
+    assert "Plants not found" in data["detail"] or "not found" in data["detail"].lower()

@@ -143,6 +143,7 @@ class PlantRepository:
         await queries.upsert_plant(
             conn,
             id=plant_id,
+            group_id=plant.group_id,
             name=plant.name,
             is_deleted=plant.is_deleted,
             server_modified_at=new_server_modified_at,
