@@ -395,3 +395,44 @@ def test_force_update_with_empty_inspectors(client: TestClient, work_log_data, i
     work_log_data["inspectors"] = []
     response = client.put("/work_log?force=true", json=work_log_data)
     assert response.status_code == 200
+
+
+def test_sync_inspectors_removes_extra_with_force(
+    client: TestClient, work_log_data, inspectors_data, inspector_id_1, inspector_id_2
+):
+    """Regression test: extra inspectors are actually removed when force=true.
+
+    Previously, _sync_inspectors() guarded the deletion with `if force:` but the
+    force parameter was never passed as True from _sync_inspectors when called via
+    save() — the deletion block was dead code. The bug meant that a force=true update
+    with a reduced inspector list would succeed (200) but silently keep the removed
+    inspector in the DB.
+    """
+    # Create work log with two inspectors
+    work_log_data["inspectors"] = inspectors_data
+    create_response = client.put("/work_log", json=work_log_data)
+    assert create_response.status_code == 200
+
+    created_data = create_response.json()
+    assert len(created_data["inspectors"]) == 2
+
+    # Force-update keeping only the first inspector (skips optimistic locking check)
+    work_log_data["server_modified_at"] = created_data["server_modified_at"]
+    work_log_data["inspectors"] = [{"inspector_id": inspector_id_1}]
+    response = client.put("/work_log?force=true", json=work_log_data)
+    assert response.status_code == 200
+
+    # The second inspector must no longer be present in the response
+    data = response.json()
+    inspector_ids = [insp["inspector_id"] for insp in data["inspectors"]]
+    assert inspector_id_1 in inspector_ids
+    assert inspector_id_2 not in inspector_ids
+    assert len(data["inspectors"]) == 1
+
+    # Verify via GET that the deletion is persisted
+    get_response = client.get(f"/work_log/by_id/{work_log_data['id']}")
+    assert get_response.status_code == 200
+    get_data = get_response.json()
+    get_inspector_ids = [insp["inspector_id"] for insp in get_data["inspectors"]]
+    assert inspector_id_2 not in get_inspector_ids
+    assert len(get_data["inspectors"]) == 1
