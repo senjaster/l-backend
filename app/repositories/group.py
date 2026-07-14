@@ -81,97 +81,6 @@ class GroupRepository:
         groups = [GroupListItem(**row) for row in group_rows]
         return GroupListResponse(items=groups)
 
-    async def create(
-        self, conn, name: str, parent_group_id: Optional[UUID] = None
-    ) -> Group:
-        """
-        Create a new group
-        
-        Args:
-            conn: Database connection
-            name: Group name
-            parent_group_id: Parent group ID (optional)
-        """
-        group_id = uuid4()
-        now = datetime.now(timezone.utc)
-        
-        # Validate parent exists if provided
-        if parent_group_id:
-            parent = await queries.get_by_id(conn, id=parent_group_id)
-            if not parent:
-                raise ValueError(f"Parent group {parent_group_id} not found")
-        
-        await queries.upsert_group(
-            conn,
-            id=group_id,
-            name=name,
-            parent_group_id=parent_group_id,
-            is_deleted=False,
-            server_modified_at=now,
-        )
-        
-        return await self.get_by_id(conn, group_id)
-    
-    async def update(
-        self, conn, group_id: UUID, name: Optional[str] = None, 
-        parent_group_id: Optional[UUID] = None, force: bool = False
-    ) -> Group:
-        """
-        Update a group with optimistic concurrency control
-        
-        Args:
-            conn: Database connection
-            group_id: Group ID
-            name: New name (optional)
-            parent_group_id: New parent (optional)
-            force: If True, ignore concurrency checks
-            
-        Raises:
-            ConcurrentModificationError: If concurrent modification detected (force=False)
-            ValueError: If validation fails
-        """
-        # Get current state
-        current = await self.get_by_id(conn, group_id, include_children=False)
-        if not current:
-            raise ValueError(f"Group {group_id} not found")
-        
-        # Validate parent if provided
-        if parent_group_id is not None:
-            # Check self-reference
-            if parent_group_id == group_id:
-                raise ValueError("Group cannot be its own parent")
-            
-            # Check parent exists
-            if parent_group_id:
-                parent = await queries.get_by_id(conn, id=parent_group_id)
-                if not parent:
-                    raise ValueError(f"Parent group {parent_group_id} not found")
-                
-                # Check cyclic dependency
-                result = await queries.check_cyclic_dependency(
-                    conn, group_id=group_id, new_parent_id=parent_group_id
-                )
-                
-                if result and result.get("would_create_cycle", False):
-                    raise ValueError("Cyclic dependency detected")
-                
-        # Build update data
-        new_name = name if name is not None else current.name
-        new_parent = parent_group_id if parent_group_id is not None else current.parent_group_id
-        
-        now = datetime.now(timezone.utc)
-        
-        await queries.upsert_group(
-            conn,
-            id=group_id,
-            name=new_name,
-            parent_group_id=new_parent,
-            is_deleted=current.is_deleted,
-            server_modified_at=now,
-        )
-        
-        return await self.get_by_id(conn, group_id)
-
     async def save(self, conn, group: Group, force: bool = False) -> Group:
         """Save group with conflict detection
         Must be called within transaction.
@@ -421,11 +330,10 @@ class GroupRepository:
             plants: List of plants to sync
             force: If True, mark extra plants as deleted; if False, extras already validated
         """
-        # Get existing plant IDs for this group
-        existing_rows = [
-            row async for row in queries.get_plant_ids_by_group(conn, group_id=group_id)
-        ]
-        existing_ids = {row["id"] for row in existing_rows}
+        result = queries.get_plant_ids_by_group(conn, group_id=group_id)
+        existing_rows = [row async for row in result]
+        
+        existing_ids = {row['plant_id'] for row in existing_rows}
 
         incoming_ids = {f.id for f in plants}
 

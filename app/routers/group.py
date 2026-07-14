@@ -16,7 +16,7 @@ from app.services.permission_service import PermissionService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/groups", tags=["groups"])
+router = APIRouter(prefix="/group", tags=["group"])
 group_repo = GroupRepository()
 
 
@@ -29,7 +29,7 @@ async def get_all_groups(
     return await group_repo.get_all(conn, modified_since=modified_since)
 
 
-@router.get("/{group_id}", response_model=Group)
+@router.get("/by_id/{group_id}", response_model=Group)
 async def get_group(
     group_id: UUID,
     include_children: bool = Query(True, description="Include children groups"),
@@ -48,43 +48,6 @@ async def get_group(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     return group
-
-
-@router.post("", response_model=Group)
-async def create_group(
-    group_data: GroupRequest,
-    conn = Depends(get_db_connection)
-):
-    """Создание новой группы"""
-    try:
-        group = await group_repo.create(
-            conn,
-            name=group_data.name,
-            parent_group_id=group_data.parent_group_id
-        )
-        return group
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@router.put("/{group_id}", response_model=Group)
-async def update_group(
-    group_id: UUID,
-    group_data: GroupRequest,
-    conn = Depends(get_db_connection)
-):
-    """Полное обновление группы"""
-    try:
-        group = await group_repo.update(
-            conn,
-            group_id=group_id,
-            name=group_data.name,
-            parent_group_id=group_data.parent_group_id,
-            force=False
-        )
-        return group
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("", response_model=Group)
@@ -118,11 +81,6 @@ async def upsert_group(
             
             # Check if group exists
             existing_group = await group_repo.get_by_id(conn, group.id)
-            is_new_group = existing_group is None
-            
-            # For existing groups, check group access
-            if not is_new_group:
-                await permission_service.require_group_access(group.id)
             
             # Validate no cyclic dependency
             if group.parent_group_id and group.parent_group_id == group.id:
@@ -161,7 +119,7 @@ async def upsert_group(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{group_id}/plants")
+@router.get("/by_id/{group_id}/plants")
 async def get_group_plants(
     group_id: UUID,
     include_subgroups: bool = Query(True, description="Include plants from subgroups"),
@@ -176,7 +134,7 @@ async def get_group_plants(
     return {"items": plant_ids}
 
 
-@router.post("/{group_id}/plants")
+@router.post("/by_id/{group_id}/plants")
 async def add_plants_to_group(
     group_id: UUID,
     request: AddPlantsToGroup,
