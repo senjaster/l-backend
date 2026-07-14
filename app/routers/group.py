@@ -6,12 +6,13 @@ from datetime import datetime
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.group import Group, GroupListResponse
 from app.models.inspector import AccessLevel
-from app.repositories.group import GroupRepository, ConcurrentModificationError
+from app.repositories.group import GroupRepository
 from app.database import get_db_connection
 from app.dependencies.auth import get_token_payload
 from app.dependencies.permissions import get_permission_service
 from app.dependencies.ownership import get_ownership_validator
 from app.services.permission_service import PermissionService
+from app.utils.db_utils import ConcurrentModificationError
 
 logger = logging.getLogger(__name__)
 

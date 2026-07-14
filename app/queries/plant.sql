@@ -86,12 +86,11 @@ SET claimed_by_device_id = :device_id,
     group_id = :group_id
 WHERE id = :id;
 
--- name: release_plant(id, server_modified_at, group_id)!
+-- name: release_plant(id, server_modified_at)!
 -- Release plant (updates server_modified_at for sync)
 UPDATE lesiv.plant
 SET claimed_by_device_id = NULL,
     claimed_by_user_id = NULL,
     claimed_at = NULL,
-    server_modified_at = :server_modified_at,
-    group_id = :group_id
+    server_modified_at = :server_modified_at
 WHERE id = :id;
