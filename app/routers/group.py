@@ -4,14 +4,13 @@ from uuid import UUID
 from datetime import datetime
 
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.group import Group, GroupListResponse, AddPlantsToGroup, GroupRequest
+from app.models.group import Group, GroupListResponse
 from app.models.inspector import AccessLevel
 from app.repositories.group import GroupRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.auth import get_token_payload
 from app.dependencies.permissions import get_permission_service
 from app.dependencies.ownership import get_ownership_validator
-from app.services.ownership_validator import OwnershipValidator
 from app.services.permission_service import PermissionService
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ group_repo = GroupRepository()
 async def get_all_groups(
     modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Filter by modification date"),
     conn = Depends(get_db_connection)
-):
+) -> GroupListResponse:
     """Получение списка групп (синхронизация)"""
     return await group_repo.get_all(conn, modified_since=modified_since)
 
@@ -32,17 +31,13 @@ async def get_all_groups(
 @router.get("/by_id/{group_id}", response_model=Group)
 async def get_group(
     group_id: UUID,
-    include_children: bool = Query(True, description="Include children groups"),
-    include_plants: bool = Query(False, description="Include plants in group"),
     include_deleted: bool = Query(False, description="Include deleted groups"),
     conn = Depends(get_db_connection)
-):
+) -> Group:
     """Получение группы по ID"""
     group = await group_repo.get_by_id(
         conn,
         group_id=group_id,
-        include_children=include_children,
-        include_plants=include_plants,
         include_deleted=include_deleted
     )
     if not group:
@@ -59,7 +54,7 @@ async def upsert_group(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-):
+) -> Group:
     """
     Create or replace group.
 
@@ -76,10 +71,8 @@ async def upsert_group(
     """
     try:
         async with conn.transaction():
-            # Check access level (MODIFY required)
             permission_service.require_access_level(AccessLevel.MODIFY)
             
-            # Check if group exists
             existing_group = await group_repo.get_by_id(conn, group.id)
             
             # Validate no cyclic dependency
@@ -96,7 +89,6 @@ async def upsert_group(
                 if would_create_cycle:
                     raise ValueError("Moving this group would create a cyclic dependency")
             
-            # Save group
             result = await group_repo.save(conn, group, force=force)
 
         return result
@@ -118,48 +110,3 @@ async def upsert_group(
         )
         raise HTTPException(status_code=400, detail=str(e))
 
-
-@router.get("/by_id/{group_id}/plants")
-async def get_group_plants(
-    group_id: UUID,
-    include_subgroups: bool = Query(True, description="Include plants from subgroups"),
-    conn = Depends(get_db_connection)
-):
-    """Получение всех станций в группе (и подгруппах)"""
-    group = await group_repo.get_by_id(conn, group_id, include_children=False)
-    if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
-    
-    plant_ids = await group_repo.get_plants_in_group(conn, group_id, include_subgroups)
-    return {"items": plant_ids}
-
-
-@router.post("/by_id/{group_id}/plants")
-async def add_plants_to_group(
-    group_id: UUID,
-    request: AddPlantsToGroup,
-    conn = Depends(get_db_connection)
-):
-    """Добавление станций в группу"""
-    if not request.plant_ids:
-        raise HTTPException(status_code=400, detail="Plant IDs list cannot be empty")
-    
-    try:
-        added_count = await group_repo.add_plants_to_group(
-            conn,
-            group_id=group_id,
-            plant_ids=request.plant_ids
-        )
-        return {"message": f"Added {added_count} plants to group"}
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@router.get("/by-plant/{plant_id}")
-async def get_groups_by_plant(
-    plant_id: UUID,
-    conn = Depends(get_db_connection)
-):
-    """Получение всех групп, содержащих станцие"""
-    groups = await group_repo.get_groups_by_plant(conn, plant_id=plant_id)
-    return {"items": groups}
