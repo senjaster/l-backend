@@ -85,55 +85,7 @@ class GroupRepository:
             new_server_modified_at = datetime.now(timezone.utc)
             
             if current and not (force or settings.disable_optimistic_locking):
-                # Validate server_modified_at
-                if current.server_modified_at != group.server_modified_at:
-                    raise ConcurrentModificationError(
-                        conflict_error=ConflictError(
-                            server_modified_at=current.server_modified_at,
-                            client_modified_at=group.server_modified_at
-                        )
-                    )
-                
-                if truncate_to_milliseconds(
-                    group.server_modified_at
-                ) != truncate_to_milliseconds(current.server_modified_at):
-                    raise ConcurrentModificationError(
-                        ConflictError(
-                            message="Group was modified by another client",
-                            server_modified_at=current.server_modified_at,
-                            client_modified_at=group.server_modified_at,
-                            conflicts=[
-                                ConflictDetail(
-                                    field="server_modified_at",
-                                    message="Timestamp mismatch",
-                                    server_value=current.server_modified_at.isoformat(),
-                                    client_value=group.server_modified_at.isoformat(),
-                                )
-                            ],
-                        )
-                    )
-
-                current_plant_ids = {
-                    f.id for f in current.plants if not f.is_deleted
-                }
-                incoming_plant_ids = {f.id for f in group.plants}
-                extra_plant_ids = current_plant_ids - incoming_plant_ids
-
-                if extra_plant_ids:
-                    raise ConcurrentModificationError(
-                        ConflictError(
-                            message="Extra child plants exist on server",
-                            server_modified_at=current.server_modified_at,
-                            client_modified_at=group.server_modified_at,
-                            extra_child_ids=list(extra_plant_ids),
-                            conflicts=[
-                                ConflictDetail(
-                                    field="plants",
-                                    message=f"Server has {len(extra_plant_ids)} extra plants not in client request",
-                                )
-                            ],
-                        )
-                    )
+                await self._validate_optimistic_locking(current, group) 
             
             await queries.upsert_group(
                 conn, 
@@ -159,6 +111,67 @@ class GroupRepository:
         except Exception as e:
             raise
 
+    async def _validate_optimistic_locking(self, current: Group, group: Group) -> None:
+        """Validate optimistic locking constraints between current and incoming group data.
+        
+        Args:
+            current: Current group state from database
+            group: Incoming group data to validate
+            
+        Raises:
+            ConcurrentModificationError: If concurrent modification detected
+        """
+        # Validate server_modified_at
+        if current.server_modified_at != group.server_modified_at:
+            raise ConcurrentModificationError(
+                conflict_error=ConflictError(
+                    server_modified_at=current.server_modified_at,
+                    client_modified_at=group.server_modified_at
+                )
+            )
+        
+        if truncate_to_milliseconds(
+            group.server_modified_at
+        ) != truncate_to_milliseconds(current.server_modified_at):
+            raise ConcurrentModificationError(
+                ConflictError(
+                    message="Group was modified by another client",
+                    server_modified_at=current.server_modified_at,
+                    client_modified_at=group.server_modified_at,
+                    conflicts=[
+                        ConflictDetail(
+                            field="server_modified_at",
+                            message="Timestamp mismatch",
+                            server_value=current.server_modified_at.isoformat(),
+                            client_value=group.server_modified_at.isoformat(),
+                        )
+                    ],
+                )
+            )
+
+        # Validate child plants
+        current_plant_ids = {
+            f.id for f in current.plants if not f.is_deleted
+        }
+        incoming_plant_ids = {f.id for f in group.plants}
+        extra_plant_ids = current_plant_ids - incoming_plant_ids
+
+        if extra_plant_ids:
+            raise ConcurrentModificationError(
+                ConflictError(
+                    message="Extra child plants exist on server",
+                    server_modified_at=current.server_modified_at,
+                    client_modified_at=group.server_modified_at,
+                    extra_child_ids=list(extra_plant_ids),
+                    conflicts=[
+                        ConflictDetail(
+                            field="plants",
+                            message=f"Server has {len(extra_plant_ids)} extra plants not in client request",
+                        )
+                    ],
+                )
+            )
+    
     async def _check_cyclic_dependency(
         self, conn, group_id: UUID, new_parent_id: UUID
     ) -> bool:
