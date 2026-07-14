@@ -18,10 +18,4 @@ CREATE INDEX idx_group_name ON lesiv."group"(name);
 ALTER TABLE lesiv.plant 
 ADD COLUMN group_id UUID NULL;
 
-ALTER TABLE lesiv.plant 
-ADD CONSTRAINT fk_plant_group 
-FOREIGN KEY (group_id) 
-REFERENCES lesiv."group"(id) 
-ON DELETE SET NULL;
-
 CREATE INDEX idx_plant_group ON lesiv.plant(group_id);
