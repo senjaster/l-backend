@@ -67,7 +67,7 @@ jobs:
         uses: yc-actions/yc-sls-container-deploy@v4
         with:
           yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_KEY }}
-          container-name: t-app-backend
+          container-name: l-inspector-container
           folder-id: ${{ vars.YC_FOLDER_ID }}
           revision-service-account-id: ${{ vars.YC_SA_ID }}
           revision-cores: 2
