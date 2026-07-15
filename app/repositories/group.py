@@ -12,7 +12,6 @@ from app.config import settings
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.group import Group, GroupListItem, GroupListResponse
 from app.utils.async_wrapper import AsyncWrapper
-from app.utils.datetime_utils import truncate_to_milliseconds
 from app.utils.db_utils import OptimisticLockingValidator, CollectionConfig
 
 
@@ -32,7 +31,7 @@ class GroupRepository:
         include_deleted: bool = False
     ) -> Optional[Group]:
         """
-        Get group by ID with optional children and plants
+        Get group by ID with optional children
         
         Args:
             conn: Database connection
@@ -87,15 +86,7 @@ class GroupRepository:
             if current and not (force or settings.disable_optimistic_locking):
                 OptimisticLockingValidator.validate_object(
                     server_obj=current,
-                    client_obj=group,
-                    truncate_func=truncate_to_milliseconds,
-                    collection_configs=[
-                        CollectionConfig(
-                            server_collection=current.plants,
-                            client_collection=group.plants,
-                            collection_name="plants"
-                        )
-                    ]
+                    client_obj=group
                 )
             
             await queries.upsert_group(

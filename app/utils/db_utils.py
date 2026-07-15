@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from app.exceptions import ConcurrentModificationError
 from app.models import ConflictError, ConflictDetail
+from app.utils.datetime_utils import truncate_to_milliseconds
+
 
 T = TypeVar('T')
 
@@ -27,36 +29,25 @@ class OptimisticLockingValidator:
     def validate_timestamps(
         server_modified_at: datetime,
         client_modified_at: datetime,
-        truncate_func: Optional[Callable[[datetime], datetime]] = None,
         object_name: str = "object"
     ) -> None:
         """Validate timestamps"""
-        if server_modified_at != client_modified_at:
+        if truncate_to_milliseconds(client_modified_at) != truncate_to_milliseconds(server_modified_at):
             raise ConcurrentModificationError(
-                conflict_error=ConflictError(
+                ConflictError(
                     message=f"{object_name} was modified by another client",
                     server_modified_at=server_modified_at,
-                    client_modified_at=client_modified_at
+                    client_modified_at=client_modified_at,
+                    conflicts=[
+                        ConflictDetail(
+                            field="server_modified_at",
+                            message="Timestamp mismatch",
+                            server_value=server_modified_at.isoformat(),
+                            client_value=client_modified_at.isoformat(),
+                        )
+                    ],
                 )
             )
-        
-        if truncate_func:
-            if truncate_func(client_modified_at) != truncate_func(server_modified_at):
-                raise ConcurrentModificationError(
-                    ConflictError(
-                        message=f"{object_name} was modified by another client",
-                        server_modified_at=server_modified_at,
-                        client_modified_at=client_modified_at,
-                        conflicts=[
-                            ConflictDetail(
-                                field="server_modified_at",
-                                message="Timestamp mismatch",
-                                server_value=server_modified_at.isoformat(),
-                                client_value=client_modified_at.isoformat(),
-                            )
-                        ],
-                    )
-                )
     
     @staticmethod
     def validate_extra_ids(
@@ -98,17 +89,16 @@ class OptimisticLockingValidator:
         cls,
         server_obj: Any,
         client_obj: Any,
-        truncate_func: Optional[Callable] = None,
         collection_configs: Optional[List[CollectionConfig]] = None
     ) -> None:
         """Universal object validation"""
-        if hasattr(server_obj, 'server_modified_at') and hasattr(client_obj, 'server_modified_at'):
-            cls.validate_timestamps(
-                server_modified_at=server_obj.server_modified_at,
-                client_modified_at=client_obj.server_modified_at,
-                truncate_func=truncate_func,
-                object_name=server_obj.__class__.__name__
-            )
+        if (hasattr(server_obj, 'server_modified_at') and server_obj.server_modified_at is not None and
+            hasattr(client_obj, 'server_modified_at') and client_obj.server_modified_at is not None):
+                cls.validate_timestamps(
+                    server_modified_at=server_obj.server_modified_at,
+                    client_modified_at=client_obj.server_modified_at,
+                    object_name=server_obj.__class__.__name__
+                )
         
         if collection_configs:
             cls.validate_collections(collection_configs)

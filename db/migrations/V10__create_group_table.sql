@@ -7,9 +7,7 @@ CREATE TABLE lesiv."group" (
     CONSTRAINT fk_group_parent_group 
         FOREIGN KEY (parent_group_id) 
         REFERENCES lesiv."group"(id)
-        ON DELETE SET NULL,
-    CONSTRAINT chk_group_not_self_reference 
-        CHECK (id != parent_group_id)
+        ON DELETE SET NULL
 );
 
 CREATE INDEX idx_group_parent_group ON lesiv."group"(parent_group_id);

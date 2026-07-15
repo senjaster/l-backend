@@ -82,7 +82,6 @@ class PlantRepository:
             OptimisticLockingValidator.validate_object(
                 server_obj=current,
                 client_obj=plant,
-                truncate_func=truncate_to_milliseconds,
                 collection_configs=[
                     CollectionConfig(
                         server_collection=current.facilities,
