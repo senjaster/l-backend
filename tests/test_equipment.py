@@ -124,7 +124,7 @@ def test_update_equipment(client: TestClient, equipment_data):
     data = response.json()
     assert data["name"] == "Updated Name"
     assert data["control_points"][0]["point_count"] == 15
-    assert data["control_points"][0]["is_deleted"] == True
+    assert data["control_points"][0]["is_deleted"]
     assert len(data["defects"]) == 0  # Always empty
 
 
@@ -202,8 +202,8 @@ def test_sync_control_points_force_update(client: TestClient, equipment_data):
     data = response.json()
     assert len(data["control_points"]) == 2
     # This might be flaky:
-    assert data["control_points"][0]["is_deleted"] == True
-    assert data["control_points"][1]["is_deleted"] == False
+    assert data["control_points"][0]["is_deleted"]
+    assert not data["control_points"][1]["is_deleted"]
 
 
 # DEPRECATED: Defect sync tests removed - defects are now managed via separate defect router
@@ -590,7 +590,6 @@ def test_get_equipment_by_plant_id(
 
     # Create another equipment for different plant
     equipment_id_2 = uuid4()
-    plant_id_2 = uuid4()
     facility_id_2 = uuid4()
 
     equipment_data_2 = deepcopy(PUT_BODY_TEMPLATE)

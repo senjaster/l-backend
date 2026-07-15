@@ -237,7 +237,6 @@ def test_defect_update_with_stale_timestamp_when_enabled(
     }
     response = client.put("/defect", json=defect_data)
     assert response.status_code == 200
-    created_defect = response.json()
 
     # Update defect with stale timestamp (should fail when optimistic locking is enabled)
     defect_data["status"] = "RESOLVED"

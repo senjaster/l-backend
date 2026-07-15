@@ -221,7 +221,6 @@ def test_concurrent_modification_detection(client: TestClient, work_log_data, in
     work_log_data_b["inspectors"] = inspectors_data
     client_b_response = client.put("/work_log", json=work_log_data_b)
     assert client_b_response.status_code == 200
-    client_b_timestamp = client_b_response.json()["server_modified_at"]
 
     # Client A tries to update with old timestamp
     work_log_data["server_modified_at"] = client_a_timestamp
@@ -272,7 +271,6 @@ def test_get_all_work_logs_with_modified_since_filter(client: TestClient, work_l
     work_log_data_2["inspectors"] = inspectors_data_2
     response2 = client.put("/work_log", json=work_log_data_2)
     assert response2.status_code == 200
-    timestamp2 = response2.json()["server_modified_at"]
 
     response = client.get("/work_log/all")
     assert response.status_code == 200
@@ -326,7 +324,6 @@ def test_get_work_logs_by_plant_with_modified_since_filter(client: TestClient, w
     work_log_data_2["inspectors"] = inspectors_data_2
     response2 = client.put("/work_log", json=work_log_data_2)
     assert response2.status_code == 200
-    timestamp2 = response2.json()["server_modified_at"]
 
     # Get all work logs for plant without filter - should return both
     response = client.get(f"/work_log/by_plant_id/{plant_id}")

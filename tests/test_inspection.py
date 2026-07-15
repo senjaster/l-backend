@@ -370,8 +370,6 @@ def test_get_inspections_by_plant_id(client: TestClient, inspection_data, plant_
     # Create another inspection for different equipment in different plant
     inspection_id_2 = uuid4()
     equipment_id_2 = uuid4()
-    plant_id_2 = uuid4()
-    facility_id_2 = uuid4()
 
     inspection_data_2 = deepcopy(PUT_BODY_TEMPLATE)
     inspection_data_2["id"] = str(inspection_id_2)
