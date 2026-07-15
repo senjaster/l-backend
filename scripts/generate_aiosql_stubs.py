@@ -26,8 +26,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-import aiosql
-from aiosql.types import SQLOperationType
+import aiosql  # noqa: E402
+from aiosql.types import SQLOperationType  # noqa: E402
 
 QUERIES_DIR = ROOT / "app" / "queries"
 OUT_FILE = ROOT / "stubs" / "aiosql" / "queries.pyi"
