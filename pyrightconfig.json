@@ -1,0 +1,16 @@
+{
+    "include": [
+        "app",
+        "tests"
+    ],
+    "ignore": [
+        "app/repositories",
+        "app/services/ownership_validator.py",
+        "app/services/permission_service.py",
+        "app/utils/async_wrapper.py"
+    ],
+    "typeCheckingMode": "basic",
+    "pythonVersion": "3.14",
+    "reportMissingImports": "error",
+    "reportMissingModuleSource": "none"
+}

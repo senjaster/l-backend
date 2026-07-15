@@ -116,9 +116,9 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # Register exception handlers for both database drivers
-app.add_exception_handler(asyncpg.PostgresError, asyncpg_exception_handler)
-app.add_exception_handler(psycopg2.Error, psycopg2_exception_handler)
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(asyncpg.PostgresError, asyncpg_exception_handler)  # pyright: ignore[reportArgumentType]
+app.add_exception_handler(psycopg2.Error, psycopg2_exception_handler)  # pyright: ignore[reportArgumentType]
+app.add_exception_handler(RequestValidationError, validation_exception_handler)  # pyright: ignore[reportArgumentType]
 
 
 # Register authentication middleware (applies to all routes except /auth)
