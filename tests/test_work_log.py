@@ -147,7 +147,7 @@ def test_sync_inspectors_reject_missing_child(client: TestClient, work_log_data,
     
     response = client.put("/work_log", json=work_log_data)
     
-    assert response.status_code == 409
+    assert response.status_code == 400
 
 
 def test_sync_inspectors_force_update(client: TestClient, work_log_data, inspectors_data):

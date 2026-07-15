@@ -20,6 +20,7 @@ from app.exceptions import ConcurrentModificationError, BusinessValidationError
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.utils.datetime_utils import truncate_to_milliseconds
+from app.utils.db_utils import OptimisticLockingValidator, CollectionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -124,60 +125,17 @@ class WorkLogRepository:
             new_server_modified_at = datetime.now(timezone.utc)
 
             if current and not (force or settings.disable_optimistic_locking):
-                if work_log.server_modified_at is None:
-                    raise ConcurrentModificationError(
-                        ConflictError(
-                            message="server_modified_at is required for updating existing work log",
-                            server_modified_at=current.server_modified_at,
-                            conflicts=[
-                                ConflictDetail(
-                                    field="server_modified_at",
-                                    message="Missing server_modified_at in request",
-                                )
-                            ],
+                OptimisticLockingValidator.validate_object(
+                    server_obj=current,
+                    client_obj=work_log,
+                    collection_configs=[
+                        CollectionConfig(
+                            server_collection=current.inspectors,
+                            client_collection=work_log.inspectors,
+                            collection_name="inspectors"
                         )
-                    )
-
-                if truncate_to_milliseconds(
-                    work_log.server_modified_at
-                ) != truncate_to_milliseconds(current.server_modified_at):
-                    raise ConcurrentModificationError(
-                        ConflictError(
-                            message="Work log was modified by another client",
-                            server_modified_at=current.server_modified_at,
-                            client_modified_at=work_log.server_modified_at,
-                            conflicts=[
-                                ConflictDetail(
-                                    field="server_modified_at",
-                                    message="Timestamp mismatch",
-                                    server_value=current.server_modified_at.isoformat(),
-                                    client_value=work_log.server_modified_at.isoformat(),
-                                )
-                            ],
-                        )
-                    )
-
-                current_inspector_ids = {
-                    inspector.inspector_id for inspector in current.inspectors
-                }
-                incoming_inspector_ids = {inspector.inspector_id for inspector in work_log.inspectors}
-                extra_inspector_ids = current_inspector_ids - incoming_inspector_ids
-                
-                if extra_inspector_ids:
-                    raise ConcurrentModificationError(
-                        ConflictError(
-                            message="Extra inspectors exist on server",
-                            server_modified_at=current.server_modified_at,
-                            client_modified_at=work_log.server_modified_at,
-                            extra_child_ids=list(extra_inspector_ids),
-                            conflicts=[
-                                ConflictDetail(
-                                    field="inspectors",
-                                    message=f"Server has {len(extra_inspector_ids)} extra inspectors not in client request",
-                                )
-                            ],
-                        )
-                    )
+                    ]
+                )
             
             await queries.upsert_work_log(
                 conn,
@@ -225,6 +183,8 @@ class WorkLogRepository:
 
             incoming_ids = {inspector.inspector_id for inspector in inspectors}
 
+            to_delete = existing_ids - incoming_ids
+            
             for inspector in inspectors:
                 await queries.upsert_work_log_inspector(
                     conn,
@@ -232,12 +192,18 @@ class WorkLogRepository:
                     inspector_id=inspector.inspector_id,
                 )
 
-            if force:
-                to_delete = existing_ids - incoming_ids
-                for inspector_id in to_delete:
-                    await queries.delete_work_log_inspector(
-                        conn, work_log_id=work_log_id, inspector_id=inspector_id
+            if to_delete:
+                if force:
+                    for inspector_id in to_delete:
+                        await queries.delete_work_log_inspector(
+                            conn, work_log_id=work_log_id, inspector_id=inspector_id
+                        )
+                else:
+                    raise BusinessValidationError(
+                        f"Cannot remove inspectors with IDs: {', '.join(map(str, to_delete))}. "
+                        f"Use force=True to confirm removal."
                     )
+        
         except asyncpg.ForeignKeyViolationError as e:
             # Извлекаем ID инспектора из ошибки
             match = re.search(r"\(inspector_id\)=\((\d+)\)", str(e))
