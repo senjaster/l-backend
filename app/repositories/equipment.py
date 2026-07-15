@@ -9,7 +9,6 @@ from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.equipment import (
     Equipment,
     ControlPoint,
-    Defect,
     EquipmentListItem,
     EquipmentListResponse,
 )

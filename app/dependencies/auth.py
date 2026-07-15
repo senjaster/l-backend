@@ -1,7 +1,7 @@
 """Authentication dependencies for FastAPI"""
 
 from typing import Annotated, Optional
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 import asyncpg
 from app.models.inspector import Inspector

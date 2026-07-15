@@ -4,8 +4,7 @@ import asyncpg
 import psycopg2
 import psycopg2.extras
 from psycopg2 import pool
-from typing import Optional, Union
-from uuid import UUID
+from typing import Optional
 from app.config import settings
 from app.utils.async_wrapper import AsyncConnectionWrapper
 

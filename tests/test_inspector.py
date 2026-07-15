@@ -1,6 +1,5 @@
 """Integration tests for Inspector API"""
 
-import pytest
 from fastapi.testclient import TestClient
 
 

@@ -1,7 +1,7 @@
 """Inspector repository"""
 
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime
 import aiosql
 from aiosql.queries import Queries
 from app.config import settings

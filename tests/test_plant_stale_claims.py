@@ -111,8 +111,7 @@ def test_fresh_claim_is_not_stale(client: TestClient, plant_data, plant_id):
 
 def test_claim_from_yesterday_is_stale(client: TestClient, plant_data, plant_id):
     """Test that a claim from yesterday (before 3:00 AM) is stale"""
-    from datetime import datetime, timezone, timedelta
-    from unittest.mock import patch
+    from datetime import timedelta
 
     # Create plant
     client.put("/plant", json=plant_data)
@@ -157,8 +156,7 @@ def test_unclaimed_plant_is_stale(client: TestClient, plant_data, plant_id):
 def test_reclaim_stale_plant_by_different_user(client: TestClient, plant_data, plant_id):
     """Test that a different user can claim a stale plant"""
     from app.services.auth import AuthService
-    from datetime import datetime, timezone, timedelta
-    from unittest.mock import patch
+    from datetime import timedelta
 
     # Create plant
     client.put("/plant", json=plant_data)
@@ -272,8 +270,7 @@ def test_same_user_can_reclaim_own_plant(client: TestClient, plant_data, plant_i
 async def test_can_modify_plant_with_stale_claim(client: TestClient, plant_data, plant_id, grant_plant_access):
     """Test that modifying a plant with a stale claim requires re-claiming"""
     from app.services.auth import AuthService
-    from datetime import datetime, timezone, timedelta
-    from unittest.mock import patch
+    from datetime import timedelta
 
     # Create plant
     create_response = client.put("/plant", json=plant_data)
@@ -330,8 +327,7 @@ def test_can_modify_after_reclaiming_stale_plant(
 ):
     """Test that after re-claiming a stale plant, user can modify it"""
     from app.services.auth import AuthService
-    from datetime import datetime, timezone, timedelta
-    from unittest.mock import patch
+    from datetime import timedelta
 
     # Create plant
     create_response = client.put("/plant", json=plant_data)
@@ -385,8 +381,7 @@ def test_can_modify_after_reclaiming_stale_plant(
 
 def test_stale_claim_persists_in_database(client: TestClient, plant_data, plant_id):
     """Test that stale claims are not removed from database, just marked as stale"""
-    from datetime import datetime, timezone, timedelta
-    from unittest.mock import patch
+    from datetime import timedelta
     from app.services.auth import AuthService
 
     # Create plant
@@ -428,8 +423,7 @@ async def test_equipment_modification_with_stale_plant_claim(
 ):
     """Test that equipment cannot be modified if parent plant has stale claim"""
     from app.services.auth import AuthService
-    from datetime import datetime, timezone, timedelta
-    from unittest.mock import patch
+    from datetime import timedelta
 
     # Create plant with facility
     facility_id = uuid4()
@@ -504,8 +498,7 @@ async def test_equipment_modification_with_stale_plant_claim(
 
 def test_claim_expiration_at_3am_moscow_time(client: TestClient, plant_data, plant_id):
     """Test that claims expire at 3:00 AM Moscow time (00:00 UTC)"""
-    from datetime import datetime, timezone, time
-    from unittest.mock import patch
+    from datetime import time
     from app.services.auth import AuthService
 
     # Create plant

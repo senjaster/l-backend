@@ -643,7 +643,6 @@ def test_multiple_facility_operations_in_single_request(
 
 def test_get_all_plants_with_modified_since_filter(client: TestClient, plant_data):
     """Test filtering plants by modified_since parameter"""
-    from datetime import datetime, timezone, timedelta
 
     # Create first plant
     plant_id_1 = uuid4()

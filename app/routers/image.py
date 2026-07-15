@@ -7,7 +7,6 @@ from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.image import Image, ImageUploadStatus, PresignedUploadUrlResponse, PutImageRequestBody
 from app.repositories.image import ImageRepository, ConcurrentModificationError
 from app.models.s3_event import StorageEventPayload
-from app.repositories.image import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService

@@ -2,7 +2,6 @@
 
 from typing import Any
 from contextlib import asynccontextmanager
-import inspect
 
 
 class AsyncIteratorWrapper:

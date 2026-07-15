@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class DefectStatus(str, Enum):

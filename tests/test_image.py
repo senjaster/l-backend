@@ -1,7 +1,7 @@
 """Integration tests for Image API"""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
 from uuid import uuid4

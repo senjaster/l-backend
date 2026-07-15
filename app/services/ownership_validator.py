@@ -1,6 +1,5 @@
 """Ownership validation service for plant, equipment, and inspection aggregates"""
 
-from uuid import UUID
 import logging
 from app.models.plant import Plant
 from app.models.equipment import Equipment
@@ -8,15 +7,13 @@ from app.models.inspection import Inspection
 from app.models.inspector import Inspector
 from app.models.work_log import WorkLog
 from app.models import ConflictError, ConflictDetail
-from app.repositories.plant import PlantRepository, queries as plant_queries
+from app.repositories.plant import PlantRepository
 from app.repositories.equipment import EquipmentRepository, queries as equipment_queries
 from app.repositories.inspection import (
     InspectionRepository,
-    queries as inspection_queries,
 )
 from app.repositories.work_log import WorkLogRepository
 from app.exceptions import ConcurrentModificationError
-from app.utils.claim_utils import is_claim_stale
 
 logger = logging.getLogger(__name__)
 

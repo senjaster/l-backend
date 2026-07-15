@@ -1,7 +1,5 @@
 """Tests for RequestValidationError handler"""
 
-import pytest
-from fastapi.testclient import TestClient
 
 
 # Use the client fixture from conftest.py which has auth disabled
@@ -208,7 +206,6 @@ def test_validation_error_content_type(client):
 
 def test_validation_error_different_endpoints(client):
     """Test validation error handling across different endpoints"""
-    from uuid import uuid4
 
     # Test on refresh endpoint
     response1 = client.post("/auth/refresh", json={})  # Missing refresh_token

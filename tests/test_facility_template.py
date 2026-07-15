@@ -1,6 +1,5 @@
 """Integration tests for FacilityTemplate API"""
 
-import pytest
 from fastapi.testclient import TestClient
 
 

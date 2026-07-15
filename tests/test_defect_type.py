@@ -1,6 +1,5 @@
 """Integration tests for DefectType API"""
 
-import pytest
 from fastapi.testclient import TestClient
 
 

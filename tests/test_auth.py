@@ -408,7 +408,6 @@ def test_middleware_authentication_flow(enable_auth, client, test_inspector):
 def test_token_validation_with_auth_service(test_inspector):
     """Test that AuthService properly validates tokens it creates"""
     from app.services.auth import AuthService
-    from uuid import UUID
 
     auth_service = AuthService()
     device_id = uuid4()

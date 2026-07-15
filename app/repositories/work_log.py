@@ -8,7 +8,6 @@ import re
 from typing import Optional, Sequence
 from uuid import UUID
 from datetime import datetime, timezone
-from fastapi import HTTPException, status
 
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.work_log import (

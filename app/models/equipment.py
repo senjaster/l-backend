@@ -5,7 +5,6 @@ from typing import Optional
 from uuid import UUID
 from enum import Enum
 from pydantic import BaseModel, Field
-from app.models import ConflictDetail, ConflictError
 
 
 class DefectStatus(str, Enum):

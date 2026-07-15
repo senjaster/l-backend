@@ -1,7 +1,6 @@
 """Authentication service with business logic"""
 
 import base64
-import os
 import secrets
 import hashlib
 import logging

@@ -1,6 +1,6 @@
 """Authentication middleware for global route protection"""
 
-from fastapi import Request, HTTPException, status
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.services.auth import AuthService

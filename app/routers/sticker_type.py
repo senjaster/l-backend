@@ -1,7 +1,7 @@
 """StickerType router"""
 
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.sticker_type import StickerTypeListResponse
 from app.repositories.sticker_type import StickerTypeRepository

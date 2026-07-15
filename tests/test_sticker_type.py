@@ -1,6 +1,5 @@
 """Integration tests for StickerType API"""
 
-import pytest
 from fastapi.testclient import TestClient
 
 

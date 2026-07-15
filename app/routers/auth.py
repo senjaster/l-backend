@@ -1,8 +1,7 @@
 """Authentication router"""
 
 from typing import Annotated
-from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status
 import asyncpg
 from app.models.auth import (
     LoginRequest,

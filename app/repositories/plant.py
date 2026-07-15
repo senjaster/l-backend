@@ -12,7 +12,6 @@ from app.models.plant import Plant, Facility, PlantListItem, PlantListResponse
 from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.utils.datetime_utils import truncate_to_milliseconds
-from app.utils.claim_utils import is_claim_stale
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/plant.sql", settings.db_driver)
