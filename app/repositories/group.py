@@ -4,13 +4,14 @@ import logging
 
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 from dataclasses import dataclass
 from asyncpg.exceptions import ForeignKeyViolationError, UniqueViolationError
 
 from app.config import settings
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.group import Group, GroupListItem, GroupListResponse
+from app.routers import group
 from app.utils.async_wrapper import AsyncWrapper
 from app.utils.db_utils import OptimisticLockingValidator, CollectionConfig
 
@@ -97,6 +98,9 @@ class GroupRepository:
                 is_deleted=group.is_deleted, 
                 server_modified_at=new_server_modified_at
             )
+
+            if group.children:
+                await self.save_children(conn, group_id, group.children, force=force)
             
             result = await self.get_by_id(conn, group_id)
             if result is None:
@@ -113,6 +117,84 @@ class GroupRepository:
         except Exception as e:
             raise
 
+    async def get_children(self, conn, parent_id: UUID) -> List[Group]:
+        """Get immediate children of a group
+        
+        Args:
+            conn: Database connection
+            parent_id: Parent group ID
+            
+        Returns:
+            List of child groups (non-deleted only)
+        """
+        children_rows = [
+            row async for row in queries.get_children(conn, group_id=parent_id)
+        ]
+        
+        children = []
+        for row in children_rows:
+            children.append(Group(
+                id=row['id'],
+                name=row['name'],
+                parent_group_id=row['parent_group_id'],
+                is_deleted=row['is_deleted'],
+                server_modified_at=row['server_modified_at'],
+                children=[]
+            ))
+        
+        return children
+
+    async def save_children(self, conn, parent_id: UUID, children: List[Group], force: bool = False):
+        """Save all children of a group"""
+        if not children:
+            return
+        
+        current_children = await self.get_children(conn, parent_id)
+        current_child_ids = {child.id for child in current_children}
+        new_child_ids = {child.id for child in children}
+        
+        # Handle deletions - children that are in DB but not in the new list
+        children_to_delete = current_child_ids - new_child_ids
+        
+        if force:
+            # Hard delete removed children
+            for child_id in children_to_delete:
+                logger.info(f"[SAVE_CHILDREN] Hard deleting child {child_id}")
+                await queries.delete_group(conn, child_id)
+        else:
+            # Soft delete removed children - mark as deleted directly
+            for child in current_children:
+                if child.id in children_to_delete and not child.is_deleted:
+                    logger.info(f"[SAVE_CHILDREN] Soft deleting child {child.id}")
+                    # Update the child directly in DB without calling save()
+                    # This avoids the get_by_id issue with deleted groups
+                    await queries.upsert_group(
+                        conn,
+                        id=child.id,
+                        name=child.name,
+                        parent_group_id=parent_id,
+                        is_deleted=True,
+                        server_modified_at=datetime.now(timezone.utc)
+                    )
+        
+        # Save or update each child from the new list
+        for child in children:
+            if child.id not in children_to_delete:  # Only save if not marked for deletion
+                logger.info(f"[SAVE_CHILDREN] Saving child {child.id}")
+                # Ensure child has correct parent
+                child.parent_group_id = parent_id
+                
+                # Create a copy without children to avoid recursion
+                child_to_save = Group(
+                    id=child.id,
+                    name=child.name,
+                    parent_group_id=parent_id,
+                    is_deleted=child.is_deleted,
+                    server_modified_at=child.server_modified_at,
+                    children=[]  # Don't pass children to avoid deep recursion
+                )
+                await self.save(conn, child_to_save, force=force)
+    
     async def _check_cyclic_dependency(
         self, conn, group_id: UUID, new_parent_id: UUID
     ) -> bool:
