@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Generate aiosql stubs
+        run: python scripts/generate_aiosql_stubs.py
+
       - name: Run pyright
         run: pyright
 

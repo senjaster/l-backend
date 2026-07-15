@@ -4,3 +4,4 @@ pytest-asyncio
 pip-tools
 ruff
 pyright
+pre-commit
