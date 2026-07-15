@@ -9,18 +9,17 @@ Reads all SQL files from app/queries/, inspects each query's operation type
 and parameters via aiosql, then writes stubs/aiosql/queries.pyi so that
 pyright can type-check calls to the Queries object.
 
-Return type mapping (asyncpg driver):
-    INSERT_RETURNING        -> Coroutine[Any, Any, asyncpg.Record]
+Return type mapping:
+    INSERT_RETURNING        -> Coroutine[Any, Any, dict[str, Any]]
     INSERT_UPDATE_DELETE    -> Coroutine[Any, Any, str]
     INSERT_UPDATE_DELETE_MANY -> Coroutine[Any, Any, str]
     SCRIPT                  -> Coroutine[Any, Any, str]
-    SELECT                  -> Coroutine[Any, Any, list[asyncpg.Record]]
-    SELECT_ONE              -> Coroutine[Any, Any, asyncpg.Record | None]
+    SELECT                  -> AsyncIterator[dict[str, Any]]
+    SELECT_ONE              -> Coroutine[Any, Any, dict[str, Any] | None]
     SELECT_VALUE            -> Coroutine[Any, Any, Any]
 """
 
 import sys
-import textwrap
 from pathlib import Path
 
 # Ensure project root is on path
@@ -33,8 +32,9 @@ from aiosql.types import SQLOperationType
 QUERIES_DIR = ROOT / "app" / "queries"
 OUT_FILE = ROOT / "stubs" / "aiosql" / "queries.pyi"
 
-# Use dict[str, Any] instead of asyncpg.Record so that **row unpacking
-# is accepted by pyright (asyncpg.Record is not declared as Mapping[str, Any]).
+# Use dict[str, Any] instead of a driver-specific record type so that **row
+# unpacking is accepted by pyright, and so the stub works with both asyncpg
+# and psycopg2 (via AsyncConnectionWrapper).
 RETURN_TYPE: dict[SQLOperationType, str] = {
     SQLOperationType.INSERT_RETURNING: "dict[str, Any]",
     SQLOperationType.INSERT_UPDATE_DELETE: "str",
@@ -78,10 +78,12 @@ def generate() -> None:
 
         # SELECT queries are iterated with `async for` directly (not awaited),
         # so they must be declared as non-async methods returning AsyncIterator.
+        # conn is typed as Any because it can be either asyncpg.Connection or
+        # AsyncConnectionWrapper (psycopg2) depending on the active DB driver.
         if op == SQLOperationType.SELECT:
-            sig = f"    def {name}(self, conn: asyncpg.Connection, {kw_params}) -> AsyncIterator[asyncpg.Record]: ..."
+            sig = f"    def {name}(self, conn: Any, {kw_params}) -> AsyncIterator[dict[str, Any]]: ..."
         else:
-            sig = f"    async def {name}(self, conn: asyncpg.Connection, {kw_params}) -> {ret}: ..."
+            sig = f"    async def {name}(self, conn: Any, {kw_params}) -> {ret}: ..."
         lines.append(sig)
 
     lines.append("")  # trailing newline
