@@ -30,12 +30,9 @@ def group_data(group_id, plant_id):
         "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z",
         "children": [],
-        "plants": [{"name": "Test Plant", "is_deleted": False}],
     }
     data = deepcopy(GROUP_TEMPLATE)
     data["id"] = str(group_id)
-    data["plants"][0]["id"] = str(plant_id)
-    data["plants"][0]["server_modified_at"] = data["server_modified_at"]
     return data
 
 
@@ -68,7 +65,6 @@ def create_group_tree(client):
         "is_deleted": False,
         "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
         "children": [],
-        "plants": []
     })
     assert root_response.status_code == 200
     root = root_response.json()
@@ -92,7 +88,6 @@ def create_group_tree(client):
         "is_deleted": False,
         "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
         "children": [],
-        "plants": []
     })
     assert child1_response.status_code == 200
     child1 = child1_response.json()
@@ -116,7 +111,6 @@ def create_group_tree(client):
         "is_deleted": False,
         "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
         "children": [],
-        "plants": []
     })
     assert grandchild_response.status_code == 200
     grandchild = grandchild_response.json()
@@ -140,7 +134,6 @@ def create_group_tree(client):
         "is_deleted": False,
         "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
         "children": [],
-        "plants": []
     })
     assert child2_response.status_code == 200
     child2 = child2_response.json()
@@ -179,7 +172,6 @@ def test_create_group(client: TestClient, group_data):
     assert data["is_deleted"] is False
     assert "server_modified_at" in data
     assert data["children"] == []
-    assert data["plants"] == []
 
 
 def test_create_group_with_parent(client: TestClient, group_id):
@@ -195,7 +187,6 @@ def test_create_group_with_parent(client: TestClient, group_id):
         "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z",
         "children": [],
-        "plants": []
     }
     parent_response = client.put("/group", json=parent_group_data)
     assert parent_response.status_code == 200
@@ -209,7 +200,6 @@ def test_create_group_with_parent(client: TestClient, group_id):
         "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z",
         "children": [],
-        "plants": []
     }
     response = client.put("/group", json=child_group_data)
     assert response.status_code == 200
@@ -221,7 +211,6 @@ def test_create_group_with_parent(client: TestClient, group_id):
     assert data["is_deleted"] is False
     assert "server_modified_at" in data
     assert data["children"] == []
-    assert data["plants"] == []
 
 
 def test_create_group_with_nonexistent_parent(client: TestClient, group_id):
@@ -234,7 +223,6 @@ def test_create_group_with_nonexistent_parent(client: TestClient, group_id):
         "is_deleted": False,
         "server_modified_at": "2024-01-01T00:00:00Z",
         "children": [],
-        "plants": [],
     }
     response = client.put("/group", json=group_data)
     assert response.status_code == 400
@@ -284,7 +272,6 @@ def test_update_group(client: TestClient, group_data):
         "is_deleted": False,
         "server_modified_at": server_modified_at,
         "children": [],
-        "plants": [],
     }
     response = client.put(f"/group", json=updated_data)
     assert response.status_code == 200
@@ -296,7 +283,6 @@ def test_update_group(client: TestClient, group_data):
     assert data["is_deleted"] is False
     assert "server_modified_at" in data
     assert data["children"] == []
-    assert data["plants"] == []
 
 
 def test_get_all_groups_with_modified_since(client: TestClient):
@@ -312,7 +298,6 @@ def test_get_all_groups_with_modified_since(client: TestClient):
         "is_deleted": False,
         "server_modified_at": now.isoformat(timespec='seconds').replace('+00:00', 'Z'),
         "children": [],
-        "plants": []
     })
     assert response1.status_code == 200
     group1 = response1.json()
@@ -331,7 +316,6 @@ def test_get_all_groups_with_modified_since(client: TestClient):
         "is_deleted": False,
         "server_modified_at": now2.isoformat(timespec='seconds').replace('+00:00', 'Z'),
         "children": [],
-        "plants": []
     })
     assert response2.status_code == 200
     group2 = response2.json()
