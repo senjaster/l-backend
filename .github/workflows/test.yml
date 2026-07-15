@@ -6,6 +6,28 @@ on:
       - '**'
 
 jobs:
+  lint:
+    name: Run ruff
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14.3'
+          cache: 'pip'
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff
+        run: ruff check .
+
   test:
     name: Run pytest
     runs-on: ubuntu-24.04
