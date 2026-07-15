@@ -82,7 +82,7 @@ class _AsyncCallableWrapper:
 
         async def _execute():
             # Call the sync function
-            result = self._sync_callable(*self._args, **self._kwargs)
+            result = self._sync_callable(*self._args, **self._kwargs)  # type: ignore
 
             # If result is an iterator/generator, wrap it for async iteration
             if hasattr(result, "__iter__") and not isinstance(
@@ -97,7 +97,7 @@ class _AsyncCallableWrapper:
     def __aiter__(self):
         """Make this directly iterable with async for"""
         # Call the sync function immediately
-        result = self._sync_callable(*self._args, **self._kwargs)
+        result = self._sync_callable(*self._args, **self._kwargs)  # type: ignore
 
         # Wrap the result as an async iterator
         if hasattr(result, "__iter__") and not isinstance(

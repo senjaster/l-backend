@@ -3,6 +3,7 @@
 from typing import List
 from datetime import datetime
 import aiosql
+from aiosql.queries import Queries
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from itertools import groupby
@@ -11,7 +12,7 @@ from app.models.facility_template import FacilityTemplate, FacilityTemplateEquip
 
 # Load queries
 _queries = aiosql.from_path("app/queries/facility_template.sql", settings.db_driver)
-queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 class FacilityTemplateRepository:

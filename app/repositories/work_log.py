@@ -1,5 +1,6 @@
 """Work log repository"""
 import aiosql
+from aiosql.queries import Queries
 import asyncpg
 import logging
 import re
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/work_log.sql", settings.db_driver)
-queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 class WorkLogRepository:

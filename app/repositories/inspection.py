@@ -4,6 +4,7 @@ from typing import Optional, Sequence
 from uuid import UUID
 from datetime import datetime, timezone
 import aiosql
+from aiosql.queries import Queries
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.inspection import (
     Inspection,
@@ -20,7 +21,7 @@ from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/inspection.sql", settings.db_driver)
-queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 class InspectionRepository:

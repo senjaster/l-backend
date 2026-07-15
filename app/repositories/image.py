@@ -5,6 +5,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 import json
 import aiosql
+from aiosql.queries import Queries
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.constants import DEFAULT_MODIFIED_SINCE
@@ -15,7 +16,7 @@ from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/image.sql", settings.db_driver)
-queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 class ImageRepository:

@@ -22,7 +22,7 @@ class ConcurrentModificationError(Exception):
 
 class BusinessValidationError(Exception):
     """Исключение для бизнес-валидации"""
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: dict = None):  # type: ignore
         self.message = message
         self.details = details or {}
         super().__init__(message)

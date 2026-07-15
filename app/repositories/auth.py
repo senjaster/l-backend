@@ -3,13 +3,14 @@
 from typing import Optional
 from uuid import UUID
 import aiosql
+from aiosql.queries import Queries
 from app.models.auth import Token, InspectorWithPassword
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/auth.sql", settings.db_driver)
-queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 class AuthRepository:

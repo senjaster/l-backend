@@ -6,6 +6,7 @@ import logging
 from fastapi import HTTPException, status
 import asyncpg
 import aiosql
+from aiosql.queries import Queries
 from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.models.inspector import Inspector, AccessLevel
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Load SQL queries
 _queries = aiosql.from_path("app/queries/permission.sql", settings.db_driver)
-queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 # Access level hierarchy for comparison
