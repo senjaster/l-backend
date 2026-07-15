@@ -105,39 +105,28 @@ class AuthService:
             expected_access_key = settings.s3_access_key_id
             expected_secret_key = settings.s3_secret_access_key
             
-            logger.info(f"Got token: {token}")
             if not expected_access_key or not expected_secret_key:
                 logger.error("  S3 credentials not found in environment variables")
                 return None
             
-            if not token.startswith('Basic '):
-                logger.warning("  Invalid token format: expected Basic auth")
-                return None
-            
-            encoded_credentials = token.split(' ')[1]
-            decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+            decoded_credentials = base64.b64decode(token).decode('utf-8')
             
             if ':' not in decoded_credentials:
                 logger.warning("  Invalid Basic auth format: missing colon separator")
                 return None
                 
-            access_key, secret_key = decoded_credentials.split(':', 1)
+            inspector_id, access_key, secret_key = decoded_credentials.split(':')
             
             current_time = int(time.time())
             if access_key == expected_access_key and secret_key == expected_secret_key:
-                logger.info("  S3 credentials match")
-                original_payload = jwt.decode(
-                    token,
-                    options={"verify_signature": False}
-                )
                 return TokenPayload(
-                    sub=int(access_key),
-                    dev=original_payload.get('dev', True),
-                    scope=original_payload.get('scope', ["s3:upload"]),
-                    exp=original_payload.get('exp', current_time + 3600),
-                    iat=original_payload.get('iat', current_time),
-                    iss=original_payload.get('iss', "s3-auth"),
-                    aud=original_payload.get('aud', "s3-service")
+                    sub=int(inspector_id),
+                    dev="s3-trigger",
+                    scope="s3-scope",
+                    exp=current_time + 3600,
+                    iat=current_time,
+                    iss="s3-auth",
+                    aud="s3-service"
                 )
             else:
                 logger.warning("  S3 credentials don't match")
@@ -176,16 +165,12 @@ class AuthService:
         """
         self._load_keys()
         
-        logger.info("  Попытка авторизации через JWT...")
         jwt_payload = self._jwt_verify_access_token(token)
         if jwt_payload:
-            logger.info("  Авторизация через JWT успешна")
             return jwt_payload
         
-        logger.info("  JWT не прошел, пробуем авторизацию через S3 (Basic Auth)...")
         s3_payload = self._yc_verify_access_token(token)
         if s3_payload:
-            logger.info("  Авторизация через S3 (Basic Auth) успешна")
             return s3_payload
         
         logger.warning("  Авторизация не удалась: ни JWT, ни S3 проверка не прошли")

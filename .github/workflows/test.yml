@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     name: Run pytest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
@@ -46,17 +46,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.14'
+          python-version: '3.14.3'
           cache: 'pip'
+          cache-dependency-path: requirements-dev.txt
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt -r requirements_dev.txt
+          pip install -r requirements-dev.txt
 
       - name: Generate RSA key pair for auth tests
         run: |
           openssl genrsa -out private.pem 2048
           openssl rsa -in private.pem -pubout -out public.pem
+
+      - name: Create l_app_role in test database
+        run: |
+          psql postgresql://lesiv_admin:lesiv_test_password@localhost:5432/lesiv_test \
+            -c "CREATE ROLE l_app_role;"
 
       - name: Install Flyway
         run: |

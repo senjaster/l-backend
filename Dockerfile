@@ -1,5 +1,5 @@
 # Use Python 3.11 slim image as base
-FROM python:3.14-slim
+FROM python:3.14.3-slim
 
 # Set working directory
 WORKDIR /app
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements file
 COPY ./requirements.txt ./requirements.txt
 
-# Install Python dependencies
+# Install Python dependencies (exact pinned versions)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy entrypoint script

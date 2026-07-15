@@ -42,8 +42,15 @@ SELECT plant_id
 FROM lesiv.image
 WHERE id = :image_id;
 
+-- name: get_plant_from_work_log(work_log_id)^
+-- Get plant_id from work_log_id
+SELECT plant_id
+FROM lesiv.work_log
+WHERE id = :work_log_id;
+
 -- name: grant_plant_access(inspector_id, plant_id)!
 -- Grant plant access to an inspector
 INSERT INTO lesiv.inspector_plant_access (inspector_id, plant_id)
 VALUES (:inspector_id, :plant_id)
 ON CONFLICT (inspector_id, plant_id) DO NOTHING;
+

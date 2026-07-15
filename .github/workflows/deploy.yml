@@ -13,7 +13,7 @@ env:
 jobs:
   deploy:
     name: Build, Migrate & Deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: prod
 
     steps:
@@ -63,25 +63,32 @@ jobs:
 
       # ── Yandex Cloud deployment ───────────────────────────────────────────
 
-      - name: Install Yandex Cloud CLI
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | \
-            bash -s -- -i "$HOME/yc" -n
-          echo "$HOME/yc/bin" >> "$GITHUB_PATH"
-
-      - name: Authenticate with Yandex Cloud
-        run: |
-          echo '${{ secrets.YC_SA_JSON_KEY }}' > /tmp/sa-key.json
-          yc config set service-account-key /tmp/sa-key.json
-          yc config set folder-id ${{ vars.YC_FOLDER_ID }}
-
-      - name: Deploy new container revision
-        run: |
-          yc serverless container revision deploy \
-            --container-id ${{ vars.CONTAINER_ID }} \
-            --image $REGISTRY/$REGISTRY_ID/$IMAGE_NAME:${{ steps.tag.outputs.VERSION }} \
-            --service-account-id ${{ vars.YC_SA_ID }}
-
-      - name: Clean up credentials
-        if: always()
-        run: rm -f /tmp/sa-key.json
+      - name: Deploy Serverless Container
+        uses: yc-actions/yc-sls-container-deploy@v4
+        with:
+          yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_KEY }}
+          container-name: t-app-backend
+          folder-id: ${{ vars.YC_FOLDER_ID }}
+          revision-service-account-id: ${{ vars.YC_SA_ID }}
+          revision-cores: 2
+          revision-memory: 4096Mb
+          revision-core-fraction: 100
+          revision-concurrency: 1
+          revision-image-url: ${{ env.REGISTRY }}/${{ env.REGISTRY_ID }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.VERSION }}
+          revision-execution-timeout: 10
+          revision-network-id: enpaulbnqhiqbshkl7q6
+          revision-min-instances: 1
+          revision-env: |
+            ACCESS_TOKEN_LIFETIME_MIN=1440
+            DATABASE_URL=postgresql://l_app_user@c-c9q6gvice4kl9f6mkpht.rw.mdb.yandexcloud.net:6432/db
+            DB_DRIVER=asyncpg
+            REFRESH_TOKEN_LIFETIME_DAYS=30
+            REQUIRE_AUTH=true
+            S3_BUCKET_NAME=l-inspector-photos
+            TRUST_INVALID_TOKENS=true
+          revision-secrets: |
+            DATABASE_PASSWORD=e6qh0rkr8452ut3r72jh/e6q1n1fesev60cs8nj6h/PG_PASSWORD
+            PRIVATE_KEY=e6qdsc0p78mm1oh0ttks/e6qappn009l2hcq2mb66/PRIVATE_KEY
+            PUBLIC_KEY=e6qdsc0p78mm1oh0ttks/e6qappn009l2hcq2mb66/PUBLIC_KEY
+            S3_ACCESS_KEY_ID=e6q09e1a3rdj6olrcpki/e6q3fvcldtv68ol014n1/S3_ACCESS_KEY_ID
+            S3_SECRET_ACCESS_KEY=e6q09e1a3rdj6olrcpki/e6q3fvcldtv68ol014n1/S3_SECRET_ACCESS_KEY
