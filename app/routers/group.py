@@ -8,9 +8,7 @@ from app.models.group import Group, GroupListResponse
 from app.models.inspector import AccessLevel
 from app.repositories.group import GroupRepository
 from app.database import get_db_connection
-from app.dependencies.auth import get_token_payload
 from app.dependencies.permissions import get_permission_service
-from app.dependencies.ownership import get_ownership_validator
 from app.services.permission_service import PermissionService
 from app.utils.db_utils import ConcurrentModificationError
 
@@ -32,15 +30,10 @@ async def get_all_groups(
 @router.get("/by_id/{group_id}", response_model=Group)
 async def get_group(
     group_id: UUID,
-    include_deleted: bool = Query(False, description="Include deleted groups"),
     conn = Depends(get_db_connection)
 ) -> Group:
     """Получение группы по ID"""
-    group = await group_repo.get_by_id(
-        conn,
-        group_id=group_id,
-        include_deleted=include_deleted
-    )
+    group = await group_repo.get_by_id(conn, group_id=group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     return group
@@ -73,23 +66,6 @@ async def upsert_group(
     try:
         async with conn.transaction():
             permission_service.require_access_level(AccessLevel.MODIFY)
-            
-            existing_group = await group_repo.get_by_id(conn, group.id)
-            
-            # Validate no cyclic dependency
-            if group.parent_group_id and group.parent_group_id == group.id:
-                raise ValueError("Group cannot be its own parent")
-            
-            if group.parent_group_id:
-                # Check if moving would create a cycle
-                would_create_cycle = await group_repo._check_cyclic_dependency(
-                    conn, 
-                    group_id=group.id, 
-                    new_parent_id=group.parent_group_id
-                )
-                if would_create_cycle:
-                    raise ValueError("Moving this group would create a cyclic dependency")
-            
             result = await group_repo.save(conn, group, force=force)
 
         return result
