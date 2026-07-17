@@ -29,7 +29,7 @@ async def get_all_plants(
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-) -> PlantListResponse:
+):
     """Get all plant IDs (lightweight list), optionally filtered by modification date and accessible to current user"""
     all_plants = await plant_repo.get_all(conn, modified_since=modified_since)
     
@@ -47,8 +47,9 @@ async def get_plant_by_id(
     plant_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-) -> Plant:
+):
     """Get specific plant with facilities and equipment IDs"""
+    # Check plant access
     await permission_service.require_plant_access(plant_id)
     
     plant = await plant_repo.get_by_id(conn, plant_id)
@@ -67,7 +68,7 @@ async def upsert_plant(
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
     ownership_validator: OwnershipValidator = Depends(get_ownership_validator),
-) -> Plant:
+):
     """
     Create or replace plant with facilities.
 
@@ -85,15 +86,19 @@ async def upsert_plant(
     """
     try:
         async with conn.transaction():
+            # Check access level (MODIFY required)
             permission_service.require_access_level(AccessLevel.MODIFY)
             
+            # Check if plant exists
             existing_plant = await plant_repo.get_by_id(conn, plant.id)
             is_new_plant = existing_plant is None
             
             # For existing plants, check plant access
+            # For new plants, we'll grant access after creation
             if not is_new_plant:
                 await permission_service.require_plant_access(plant.id)
             
+            # Validate ownership before saving
             await ownership_validator.validate_plant_ownership(plant)
             result = await plant_repo.save(conn, plant, force=force)
             
@@ -126,7 +131,7 @@ async def claim_plant(
     token_payload: TokenPayload = Depends(get_token_payload),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-) -> Plant:
+):
     """
     Claim plant for editing (user_id and device_id extracted from auth token).
     
@@ -139,6 +144,7 @@ async def claim_plant(
     Returns the updated plant state with claim information.
     Permission: User must have access to the plant.
     """
+    # Check access level (MODIFY required)
     permission_service.require_access_level(AccessLevel.MODIFY)
     
     # Check if user has plant access, if not grant it
@@ -191,7 +197,7 @@ async def release_plant(
     plant_id: UUID,
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-) -> Plant:
+):
     """
     Release plant claim.
     
