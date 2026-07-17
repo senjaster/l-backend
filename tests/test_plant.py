@@ -38,20 +38,20 @@ def facility_id_3():
 
 
 @pytest.fixture
-def group_id():
+def plant_group_id():
     return uuid4()
 
 
 @pytest.fixture
-def plant_data(plant_id, facility_id_1, group_id):
+def plant_data(plant_id, facility_id_1, plant_group_id):
     data = deepcopy(PUT_BODY_TEMPLATE)
     data["id"] = str(plant_id)
-    data["group_id"] = str(group_id)
+    data["plant_group_id"] = str(plant_group_id)
     data["facilities"][0]["id"] = str(facility_id_1)
     return data
 
 
-def test_create_plant(client: TestClient, plant_data, plant_id, facility_id_1, group_id):
+def test_create_plant(client: TestClient, plant_data, plant_id, facility_id_1, plant_group_id):
     """Test creating a new plant with facilities (server_modified_at ignored for new plants)"""
     response = client.put("/plant", json=plant_data)
     assert response.status_code == 200
@@ -59,13 +59,13 @@ def test_create_plant(client: TestClient, plant_data, plant_id, facility_id_1, g
     data = response.json()
     assert data["id"] == str(plant_id)
     assert data["name"] == "Test Power Plant"
-    assert data["group_id"] == str(group_id)
+    assert data["plant_group_id"] == str(plant_group_id)
     assert len(data["facilities"]) == 1
     assert data["facilities"][0]["id"] == str(facility_id_1)
     assert "server_modified_at" in data
 
 
-def test_get_plant(client: TestClient, plant_data, plant_id, group_id):
+def test_get_plant(client: TestClient, plant_data, plant_id, plant_group_id):
     """Test retrieving a plant using new by_id endpoint"""
     client.put("/plant", json=plant_data)
 
@@ -76,7 +76,7 @@ def test_get_plant(client: TestClient, plant_data, plant_id, group_id):
     data = response.json()
     assert data["id"] == str(plant_id)
     assert data["name"] == "Test Power Plant"
-    assert data["group_id"] == str(group_id)  # Verify group_id
+    assert data["plant_group_id"] == str(plant_group_id) 
     assert len(data["facilities"]) == 1
 
 
@@ -87,16 +87,16 @@ def test_get_nonexistent_plant(client: TestClient):
     assert response.status_code == 404
 
 
-def test_get_all_plants(client: TestClient, plant_data, group_id):
+def test_get_all_plants(client: TestClient, plant_data, plant_group_id):
     """Test retrieving all plants using new /all endpoint"""
     plant_id_2 = uuid4()
     facility_id_2 = uuid4()
-    group_id_2 = uuid4()
+    plant_group_id_2 = uuid4()
 
     plant_data_2 = deepcopy(PUT_BODY_TEMPLATE)
     plant_data_2["id"] = str(plant_id_2)
     plant_data_2["name"] = "Plant Two"
-    plant_data_2["group_id"] = str(group_id_2)
+    plant_data_2["plant_group_id"] = str(plant_group_id_2)
     plant_data_2["facilities"][0]["id"] = str(facility_id_2)
 
     client.put("/plant", json=plant_data)
@@ -117,7 +117,7 @@ def test_get_all_plants(client: TestClient, plant_data, group_id):
 
 
 def test_update_plant_with_correct_timestamp(
-    client: TestClient, plant_data, facility_id_1, group_id
+    client: TestClient, plant_data, facility_id_1, plant_group_id
 ):
     """Test updating a plant with correct server_modified_at"""
     create_response = client.put("/plant", json=plant_data)
@@ -127,7 +127,7 @@ def test_update_plant_with_correct_timestamp(
     # Update with correct timestamp
     plant_data["server_modified_at"] = server_modified_at
     plant_data["name"] = "Updated Name"
-    plant_data["group_id"] = str(group_id)  # Keep group_id
+    plant_data["plant_group_id"] = str(plant_group_id) 
     plant_data["facilities"][0]["name"] = "Updated Facility"
 
     response = client.put("/plant", json=plant_data)
@@ -135,7 +135,7 @@ def test_update_plant_with_correct_timestamp(
 
     data = response.json()
     assert data["name"] == "Updated Name"
-    assert data["group_id"] == str(group_id)  # Verify group_id unchanged
+    assert data["plant_group_id"] == str(plant_group_id) 
     assert data["facilities"][0]["name"] == "Updated Facility"
     assert data["server_modified_at"] != server_modified_at  # Should be updated
 
@@ -237,7 +237,7 @@ def test_missing_timestamp_for_update(client: TestClient, plant_data):
     assert "modified by another client" in error_data["message"].lower()
 
 
-def test_claim_plant(client: TestClient, plant_data, plant_id, group_id):
+def test_claim_plant(client: TestClient, plant_data, plant_id):
     """Test claiming a plant using new by_id path (user_id and device_id from token)"""
     from app.services.auth import AuthService
 
@@ -260,13 +260,12 @@ def test_claim_plant(client: TestClient, plant_data, plant_id, group_id):
     # Response should contain the updated plant
     data = response.json()
     assert data["id"] == str(plant_id)
-    assert data["group_id"] == str(group_id)
     assert data["claimed_by_device_id"] == str(device_id)
     assert data["claimed_by_user_id"] == user_id
     assert data["claimed_at"] is not None
 
 
-def test_release_plant(client: TestClient, plant_data, plant_id, group_id):
+def test_release_plant(client: TestClient, plant_data, plant_id):
     """Test releasing a plant using new by_id path"""
     device_id = uuid4()
     plant_data["facilities"] = []
@@ -288,17 +287,17 @@ def test_release_plant(client: TestClient, plant_data, plant_id, group_id):
     assert data["claimed_at"] is None
 
 
-def test_facility_transfer_not_allowed(client: TestClient, plant_data, facility_id_1, group_id):
+def test_facility_transfer_not_allowed(client: TestClient, plant_data, facility_id_1, plant_group_id):
     """Test that transferring a facility from one plant to another is not allowed (never allow stealing)"""
     client.put("/plant", json=plant_data)
 
     # Try to create second plant and "steal" the facility
     plant_id_2 = uuid4()
-    group_id_2 = uuid4()
+    plant_group_id_2 = uuid4()
     plant_data_2 = deepcopy(PUT_BODY_TEMPLATE)
     plant_data_2["id"] = str(plant_id_2)
     plant_data_2["name"] = "Plant Two"
-    plant_data_2["group_id"] = str(group_id_2)
+    plant_data_2["plant_group_id"] = str(plant_group_id_2)
     plant_data_2["facilities"][0]["id"] = str(
         facility_id_1
     )  # Same facility ID from plant 1
@@ -324,7 +323,7 @@ def test_force_mode_ignores_timestamp(client: TestClient, plant_data):
     assert data["name"] == "Updated Name"
 
 
-def test_is_deleted_honored_for_plant(client: TestClient, plant_data, group_id):
+def test_is_deleted_honored_for_plant(client: TestClient, plant_data, plant_group_id):
     """Test that is_deleted value is honored for plants"""
     plant_data["name"] = "Deleted Plant"
     plant_data["is_deleted"] = True
@@ -335,7 +334,7 @@ def test_is_deleted_honored_for_plant(client: TestClient, plant_data, group_id):
 
     data = response.json()
     assert data["is_deleted"] is True
-    assert data["group_id"] == str(group_id)
+    assert data["plant_group_id"] == str(plant_group_id)
 
     # Verify by retrieving
     get_response = client.get(f"/plant/by_id/{plant_data['id']}")
@@ -343,7 +342,7 @@ def test_is_deleted_honored_for_plant(client: TestClient, plant_data, group_id):
     assert get_response.json()["is_deleted"] is True
 
 
-def test_is_deleted_honored_for_facility(client: TestClient, plant_data, facility_id_2, group_id):
+def test_is_deleted_honored_for_facility(client: TestClient, plant_data, facility_id_2, plant_group_id):
     """Test that is_deleted value is honored for facilities"""
     # Add second facility marked as deleted
     plant_data["facilities"].append(
@@ -402,7 +401,7 @@ def test_is_deleted_honored_for_facility(client: TestClient, plant_data, facilit
 
 
 def test_child_aggregate_ids_in_get_response(
-    client: TestClient, plant_data, plant_id, facility_id_1, group_id
+    client: TestClient, plant_data, plant_id, facility_id_1, plant_group_id
 ):
     """Test #1: GET response includes child aggregate IDs (equipment_ids)"""
     # Create plant with facility
@@ -459,7 +458,7 @@ def test_child_aggregate_ids_in_get_response(
 
 
 def test_mismatched_child_ids_rejection(
-    client: TestClient, plant_data, facility_id_1, facility_id_2, facility_id_3, group_id
+    client: TestClient, plant_data, facility_id_1, facility_id_2, facility_id_3, plant_group_id
 ):
     """Test #2: Reject when server and client have same count but different IDs"""
     # Create plant with 3 facilities [A, B, C]
@@ -493,7 +492,7 @@ def test_mismatched_child_ids_rejection(
 
 
 def test_deleted_children_persist_through_updates(
-    client: TestClient, plant_data, facility_id_2, group_id
+    client: TestClient, plant_data, facility_id_2, plant_group_id
 ):
     """Test #3: Deleted children remain in GET response after updates"""
     # Add second facility
@@ -534,18 +533,18 @@ def test_deleted_children_persist_through_updates(
 
 
 def test_force_mode_with_stealing_attempt(
-    client: TestClient, plant_data, facility_id_1, group_id
+    client: TestClient, plant_data, facility_id_1
 ):
     """Test #4: Stealing never allowed even with force=true"""
     client.put("/plant", json=plant_data)
 
     # Try to steal facility with force=true
     plant_id_2 = uuid4()
-    group_id_2 = uuid4()
+    plant_group_id_2 = uuid4()
     plant_data_2 = deepcopy(PUT_BODY_TEMPLATE)
     plant_data_2["id"] = str(plant_id_2)
     plant_data_2["name"] = "Plant Two"
-    plant_data_2["group_id"] = str(group_id_2)
+    plant_data_2["plant_group_id"] = str(plant_group_id_2)
     plant_data_2["facilities"][0]["id"] = str(facility_id_1)
 
     response = client.put("/plant?force=true", json=plant_data_2)
@@ -554,7 +553,7 @@ def test_force_mode_with_stealing_attempt(
 
 
 def test_empty_facilities_list_without_force(
-    client: TestClient, plant_data, facility_id_2, group_id
+    client: TestClient, plant_data, facility_id_2
 ):
     """Test #5a: Updating from non-empty to empty facilities with force=false should reject"""
     # Add second facility
@@ -579,7 +578,7 @@ def test_empty_facilities_list_without_force(
 
 
 def test_empty_facilities_list_with_force(
-    client: TestClient, plant_data, facility_id_1, facility_id_2, group_id
+    client: TestClient, plant_data, facility_id_2
 ):
     """Test #5b: Updating from non-empty to empty facilities with force=true should mark all as deleted"""
     # Add second facility
@@ -604,7 +603,7 @@ def test_empty_facilities_list_with_force(
 
 
 def test_multiple_facility_operations_in_single_request(
-    client: TestClient, plant_data, facility_id_1, facility_id_2, facility_id_3, group_id
+    client: TestClient, plant_data, facility_id_1, facility_id_2, facility_id_3,
 ):
     """Test #6: Simultaneously add, update, and delete facilities in one PUT"""
     # Start with 2 facilities
@@ -660,7 +659,7 @@ def test_multiple_facility_operations_in_single_request(
 # Tests for modified_since filter
 
 
-def test_get_all_plants_with_modified_since_filter(client: TestClient, plant_data, group_id):
+def test_get_all_plants_with_modified_since_filter(client: TestClient, plant_data, plant_group_id):
     """Test filtering plants by modified_since parameter"""
     from datetime import datetime, timezone, timedelta
 
@@ -679,11 +678,11 @@ def test_get_all_plants_with_modified_since_filter(client: TestClient, plant_dat
 
     plant_id_2 = uuid4()
     facility_id_2 = uuid4()
-    group_id_2 = uuid4()
+    plant_group_id_2 = uuid4()
     plant_data_2 = deepcopy(PUT_BODY_TEMPLATE)
     plant_data_2["id"] = str(plant_id_2)
     plant_data_2["name"] = "Plant Two"
-    plant_data_2["group_id"] = str(group_id_2)
+    plant_data_2["plant_group_id"] = str(plant_group_id_2)
     plant_data_2["facilities"][0]["id"] = str(facility_id_2)
     response2 = client.put("/plant", json=plant_data_2)
     assert response2.status_code == 200
@@ -714,7 +713,7 @@ def test_get_all_plants_with_modified_since_filter(client: TestClient, plant_dat
     assert str(plant_id_2) not in filtered_ids
 
 
-def test_get_all_plants_modified_since_default(client: TestClient, plant_data, group_id):
+def test_get_all_plants_modified_since_default(client: TestClient, plant_data):
     """Test that without modified_since parameter, all plants are returned"""
     # Create a plant
     response = client.put("/plant", json=plant_data)

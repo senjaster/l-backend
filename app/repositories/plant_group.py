@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from app.config import settings
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.group import Group, GroupListResponse
+from app.models.plant_group import PlantGroup, PlantGroupListResponse
 from app.utils.async_wrapper import AsyncWrapper
 from app.utils.db_utils import OptimisticLockingValidator
 
@@ -17,39 +17,39 @@ logger = logging.getLogger(__name__)
 
 
 # Load queries from single file
-_queries = aiosql.from_path("app/queries/group.sql", settings.db_driver)
+_queries = aiosql.from_path("app/queries/plant_group.sql", settings.db_driver)
 queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
 
 
-class GroupRepository:
+class PlantGroupRepository:
     """Repository for Group aggregate"""
 
-    async def get_by_id(self, conn, group_id: UUID) -> Optional[Group]:
+    async def get_by_id(self, conn, group_id: UUID) -> Optional[PlantGroup]:
         """Get group by ID"""
         group_row = await queries.get_by_id(conn, id=group_id)
         if not group_row:
             return None
 
-        return Group(
+        return PlantGroup(
             id=group_row["id"],
             name=group_row["name"],
-            parent_group_id=group_row["parent_group_id"],
+            parent_id=group_row["parent_id"],
             is_deleted=group_row["is_deleted"],
             server_modified_at=group_row["server_modified_at"],
         )
 
     async def get_all(
         self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE
-    ) -> GroupListResponse:
+    ) -> PlantGroupListResponse:
         """Get all groups as lightweight list, optionally filtered by modification date"""
         group_rows = [
             row
             async for row in queries.get_all_groups(conn, modified_since=modified_since)
         ]
-        groups = [Group(**row) for row in group_rows]
-        return GroupListResponse(items=groups)
+        groups = [PlantGroup(**row) for row in group_rows]
+        return PlantGroupListResponse(items=groups)
 
-    async def save(self, conn, group: Group, force: bool = False) -> Group:
+    async def save(self, conn, group: PlantGroup, force: bool = False) -> PlantGroup:
         """Save group with conflict detection.
         Must be called within a transaction.
 
@@ -62,8 +62,8 @@ class GroupRepository:
             ConcurrentModificationError: If concurrent modification detected (force=False)
             ValueError: If group structure is invalid (self-reference or cyclic dependency)
         """
-        group_id = group.id
-        current = await self.get_by_id(conn, group_id)
+        id = group.id
+        current = await self.get_by_id(conn, id)
 
         new_server_modified_at = datetime.now(timezone.utc)
 
@@ -74,26 +74,26 @@ class GroupRepository:
             )
 
         # Guard: self-reference
-        if group.parent_group_id == group_id:
+        if group.parent_id == id:
             raise ValueError("Group cannot be its own parent")
 
         # Guard: cycle in tree (only relevant when a parent is set and the group already exists)
-        if group.parent_group_id and current:
-            if await self._check_cyclic_dependency(conn, group_id, group.parent_group_id):
+        if group.parent_id and current:
+            if await self._check_cyclic_dependency(conn, id, group.parent_id):
                 raise ValueError("Moving this group would create a cyclic dependency")
 
         await queries.upsert_group(
             conn,
-            id=group_id,
+            id=id,
             name=group.name,
-            parent_group_id=group.parent_group_id,
+            parent_id=group.parent_id,
             is_deleted=group.is_deleted,
             server_modified_at=new_server_modified_at,
         )
 
-        result = await self.get_by_id(conn, group_id)
+        result = await self.get_by_id(conn, id)
         if result is None:
-            raise ValueError(f"Group {group_id} not found after save")
+            raise ValueError(f"Group {id} not found after save")
 
         return result
 
@@ -113,7 +113,7 @@ class GroupRepository:
         try:
             result = await queries.check_cyclic_dependency(
                 conn,
-                group_id=group_id,
+                id=group_id,
                 new_parent_id=new_parent_id,
             )
 

@@ -100,7 +100,7 @@ class PlantRepository:
         await queries.upsert_plant(
             conn,
             id=plant_id,
-            group_id=plant.group_id,
+            plant_group_id=plant.plant_group_id,
             name=plant.name,
             is_deleted=plant.is_deleted,
             server_modified_at=new_server_modified_at,
@@ -155,7 +155,7 @@ class PlantRepository:
             user_id=user_id,
             claimed_at=now,
             server_modified_at=now,
-            group_id=current.group_id
+            plant_group_id=current.plant_group_id
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):

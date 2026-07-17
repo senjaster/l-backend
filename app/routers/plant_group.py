@@ -4,9 +4,9 @@ from uuid import UUID
 from datetime import datetime
 
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.group import Group, GroupListResponse
+from app.models.plant_group import PlantGroup, PlantGroupListResponse
 from app.models.inspector import AccessLevel
-from app.repositories.group import GroupRepository
+from app.repositories.plant_group import PlantGroupRepository
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
 from app.services.permission_service import PermissionService
@@ -14,41 +14,41 @@ from app.utils.db_utils import ConcurrentModificationError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/group", tags=["group"])
-group_repo = GroupRepository()
+router = APIRouter(prefix="/plant-group", tags=["plant", "plant_group"])
+plant_group_repo = PlantGroupRepository()
 
 
-@router.get("/all", response_model=GroupListResponse)
+@router.get("/all", response_model=PlantGroupListResponse)
 async def get_all_groups(
     modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Filter by modification date"),
     conn = Depends(get_db_connection)
-) -> GroupListResponse:
+) -> PlantGroupListResponse:
     """Получение списка групп (синхронизация)"""
-    return await group_repo.get_all(conn, modified_since=modified_since)
+    return await plant_group_repo.get_all(conn, modified_since=modified_since)
 
 
-@router.get("/by_id/{group_id}", response_model=Group)
+@router.get("/by_id/{group_id}", response_model=PlantGroup)
 async def get_group(
     group_id: UUID,
     conn = Depends(get_db_connection)
-) -> Group:
+) -> PlantGroup:
     """Получение группы по ID"""
-    group = await group_repo.get_by_id(conn, group_id=group_id)
+    group = await plant_group_repo.get_by_id(conn, group_id=group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     return group
 
 
-@router.put("", response_model=Group)
+@router.put("", response_model=PlantGroup)
 async def upsert_group(
-    group: Group,
+    group: PlantGroup,
     force: bool = Query(
         default=False,
         description="If true, ignore server_modified_at and force update",
     ),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
-) -> Group:
+) -> PlantGroup:
     """
     Create or replace group.
 
@@ -66,7 +66,7 @@ async def upsert_group(
     try:
         async with conn.transaction():
             permission_service.require_access_level(AccessLevel.MODIFY)
-            result = await group_repo.save(conn, group, force=force)
+            result = await plant_group_repo.save(conn, group, force=force)
 
         return result
 

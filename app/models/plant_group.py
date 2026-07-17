@@ -4,17 +4,17 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 
-class Group(BaseModel):
+class PlantGroup(BaseModel):
     """Hierarchical group"""
 
     id: UUID
     name: str
-    parent_group_id: Optional[UUID] = None
+    parent_id: Optional[UUID] = None
     is_deleted: bool = False
     server_modified_at: datetime
 
 
-class GroupListResponse(BaseModel):
+class PlantGroupListResponse(BaseModel):
     """Wrapped response for group list with items key"""
 
-    items: List[Group]
+    items: List[PlantGroup]
