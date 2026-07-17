@@ -231,7 +231,7 @@ class WorkLogRepository:
                     work_log_id=work_log_id,
                     inspector_id=inspector.inspector_id,
                 )
-                
+
             if force:
                 to_delete = existing_ids - incoming_ids
                 for inspector_id in to_delete:

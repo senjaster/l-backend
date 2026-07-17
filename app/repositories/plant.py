@@ -25,16 +25,19 @@ class PlantRepository:
 
     async def get_by_id(self, conn, plant_id: UUID) -> Optional[Plant]:
         """Get plant by ID with facilities and equipment IDs"""
+        # Get plant
         plant_row = await queries.get_by_id(conn, id=plant_id)
         if not plant_row:
             return None
-
+        
+        # Get facilities
         facility_rows = [
             row async for row in queries.get_facilities(conn, plant_id=plant_id)
         ]
         facilities = []
 
         for facility_row in facility_rows:
+            # Get equipment IDs for this facility
             equipment_rows = [
                 row
                 async for row in queries.get_equipment_ids_by_facility(
@@ -74,8 +77,10 @@ class PlantRepository:
             ConcurrentModificationError: If concurrent modification detected (force=False)
         """
         plant_id = plant.id
+        # Get current state if exists
         current = await self.get_by_id(conn, plant_id)
 
+        # New server_modified_at timestamp
         new_server_modified_at = datetime.now(timezone.utc)
 
         if current and not (force or settings.disable_optimistic_locking):
