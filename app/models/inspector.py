@@ -9,11 +9,12 @@ from pydantic import BaseModel, Field
 class AccessLevel(str, Enum):
     """
     Access level for inspectors.
-    
+
     - READ: Can only perform GET operations
     - INSPECT: Can perform GET operations and add inspections/defects
     - MODIFY: Can perform all operations including claiming plants and modifying equipment
     """
+
     READ = "READ"
     INSPECT = "INSPECT"
     MODIFY = "MODIFY"

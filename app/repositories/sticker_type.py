@@ -12,7 +12,9 @@ from itertools import groupby
 
 # Load queries
 _queries = aiosql.from_path("app/queries/sticker_type.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class StickerTypeRepository:

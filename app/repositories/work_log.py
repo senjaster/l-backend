@@ -1,4 +1,5 @@
 """Work log repository"""
+
 import aiosql
 from aiosql.queries import Queries
 import asyncpg
@@ -26,7 +27,9 @@ logger = logging.getLogger(__name__)
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/work_log.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class WorkLogRepository:
@@ -39,17 +42,16 @@ class WorkLogRepository:
             return None
 
         inspector_rows = [
-            row async for row in queries.get_inspectors_by_work_log(
+            row
+            async for row in queries.get_inspectors_by_work_log(
                 conn, work_log_id=work_log_id
             )
         ]
-        
-        inspectors = [
-            WorkLogInspector(**row) for row in inspector_rows
-        ]
+
+        inspectors = [WorkLogInspector(**row) for row in inspector_rows]
 
         work_log_data = dict(work_log_row)
-        work_log_data['inspectors'] = inspectors
+        work_log_data["inspectors"] = inspectors
         return WorkLog(**work_log_data)
 
     async def get_all(
@@ -80,11 +82,12 @@ class WorkLogRepository:
             return []
 
         work_log_ids = [row["id"] for row in work_log_rows]
-        
+
         all_inspectors = {}
         for work_log_id in work_log_ids:
             inspector_rows = [
-                row async for row in queries.get_inspectors_by_work_log(
+                row
+                async for row in queries.get_inspectors_by_work_log(
                     conn, work_log_id=work_log_id
                 )
             ]
@@ -95,15 +98,13 @@ class WorkLogRepository:
         work_log_list = []
         for work_log_row in work_log_rows:
             work_log_data = dict(work_log_row)
-            work_log_data['inspectors'] = all_inspectors.get(work_log_row["id"], [])
+            work_log_data["inspectors"] = all_inspectors.get(work_log_row["id"], [])
             work_log = WorkLog(**work_log_data)
             work_log_list.append(work_log)
 
         return work_log_list
 
-    async def save(
-        self, conn, work_log: WorkLog, force: bool = False
-    ) -> WorkLog:
+    async def save(self, conn, work_log: WorkLog, force: bool = False) -> WorkLog:
         """
         Save work log with inspector synchronization and optimistic concurrency control.
         Must be called within transaction.
@@ -160,9 +161,11 @@ class WorkLogRepository:
                 current_inspector_ids = {
                     inspector.inspector_id for inspector in current.inspectors
                 }
-                incoming_inspector_ids = {inspector.inspector_id for inspector in work_log.inspectors}
+                incoming_inspector_ids = {
+                    inspector.inspector_id for inspector in work_log.inspectors
+                }
                 extra_inspector_ids = current_inspector_ids - incoming_inspector_ids
-                
+
                 if extra_inspector_ids:
                     raise ConcurrentModificationError(
                         ConflictError(
@@ -178,7 +181,7 @@ class WorkLogRepository:
                             ],
                         )
                     )
-            
+
             await queries.upsert_work_log(
                 conn,
                 id=work_log_id,
@@ -191,9 +194,7 @@ class WorkLogRepository:
                 server_modified_at=new_server_modified_at,
             )
 
-            await self._sync_inspectors(
-                conn, work_log_id, work_log.inspectors, force
-            )
+            await self._sync_inspectors(conn, work_log_id, work_log.inspectors, force)
 
             result = await self.get_by_id(conn, work_log_id)
             if result is None:
@@ -204,7 +205,11 @@ class WorkLogRepository:
         return result
 
     async def _sync_inspectors(
-        self, conn, work_log_id: UUID, inspectors: Sequence[WorkLogInspector], force: bool
+        self,
+        conn,
+        work_log_id: UUID,
+        inspectors: Sequence[WorkLogInspector],
+        force: bool,
     ):
         """
         Synchronize inspectors: match by inspector_id, add new, remove missing.
@@ -217,7 +222,8 @@ class WorkLogRepository:
         """
         try:
             existing_inspectors = [
-                row async for row in queries.get_inspectors_by_work_log(
+                row
+                async for row in queries.get_inspectors_by_work_log(
                     conn, work_log_id=work_log_id
                 )
             ]
@@ -245,6 +251,4 @@ class WorkLogRepository:
                 raise BusinessValidationError(
                     f"Inspector with ID {inspector_id} does not exist"
                 )
-            raise BusinessValidationError(
-                "One or more inspectors do not exist"
-            )
+            raise BusinessValidationError("One or more inspectors do not exist")

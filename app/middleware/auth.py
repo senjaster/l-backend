@@ -14,20 +14,20 @@ def extract_token_from_header(header_value: str) -> str:
     Supports both formats:
     - "Bearer <token>" (with Bearer prefix)
     - "<token>" (without Bearer prefix)
-    
+
     Returns the token string.
     Raises ValueError if format is invalid.
     """
     parts = header_value.split()
-    
+
     # Format: "Bearer <token>"
     if len(parts) == 2 and parts[0].lower() in ("bearer", "basic"):
         return parts[1]
-    
+
     # Format: "<token>" (no Bearer prefix)
     if len(parts) == 1:
         return parts[0]
-    
+
     # Invalid format
     raise ValueError("Invalid token format")
 
@@ -90,19 +90,23 @@ class AuthMiddleware(BaseHTTPMiddleware):
         try:
             async for conn in get_db_connection():
                 inspector = await self.auth_service.get_current_inspector(conn, token)
-                
+
                 # If token is invalid but TRUST_INVALID_TOKENS is enabled, try to decode without validation
                 if not inspector and settings.trust_invalid_tokens:
                     payload = self.auth_service.decode_token_without_validation(token)
                     if payload:
                         # Get inspector from database using the token's sub claim
                         from app.repositories.auth import AuthRepository
+
                         auth_repo = AuthRepository()
-                        inspector_with_password = await auth_repo.get_inspector_by_id(conn, payload.sub)
-                        
+                        inspector_with_password = await auth_repo.get_inspector_by_id(
+                            conn, payload.sub
+                        )
+
                         if inspector_with_password:
                             # Use the inspector from database (trusting expired/revoked token)
                             from app.models.inspector import Inspector
+
                             inspector = Inspector(
                                 id=inspector_with_password.id,
                                 username=inspector_with_password.username,

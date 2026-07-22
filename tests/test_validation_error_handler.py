@@ -1,7 +1,6 @@
 """Tests for RequestValidationError handler"""
 
 
-
 # Use the client fixture from conftest.py which has auth disabled
 # No need to define a separate client fixture here
 
@@ -81,7 +80,8 @@ def test_validation_error_empty_request_body(client):
 def test_validation_error_multiple_invalid_fields(client):
     """Test validation error with multiple invalid fields"""
     response = client.post(
-        "/auth/refresh", json={"refresh_token": 12345}  # Should be string
+        "/auth/refresh",
+        json={"refresh_token": 12345},  # Should be string
     )
 
     assert response.status_code == 422

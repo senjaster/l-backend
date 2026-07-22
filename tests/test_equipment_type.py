@@ -69,15 +69,15 @@ def test_equipment_type_template_values(client: TestClient):
     assert len(templates) == 3
 
     # Check Контакт рубильника template
-    contact = next(
-        (t for t in templates if t["name"] == "Контакт рубильника"), None
-    )
+    contact = next((t for t in templates if t["name"] == "Контакт рубильника"), None)
     assert contact is not None
     assert contact["short_name"] == "Контакт рубильника"
     assert contact["default_sticker_id"] == 3
 
     # Check БКС template
-    bks = next((t for t in templates if t["name"] == "Болтовое контактное соединение"), None)
+    bks = next(
+        (t for t in templates if t["name"] == "Болтовое контактное соединение"), None
+    )
     assert bks is not None
     assert bks["short_name"] == "БКС"
     assert bks["default_sticker_id"] == 3

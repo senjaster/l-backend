@@ -243,7 +243,7 @@ def test_claim_plant(client: TestClient, plant_data, plant_id):
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert response.status_code == 200
-    
+
     # Response should contain the updated plant
     data = response.json()
     assert data["id"] == str(plant_id)
@@ -265,7 +265,7 @@ def test_release_plant(client: TestClient, plant_data, plant_id):
     # Release plant
     response = client.post(f"/plant/by_id/{plant_id}/release")
     assert response.status_code == 200
-    
+
     # Response should contain the updated plant
     data = response.json()
     assert data["id"] == str(plant_id)

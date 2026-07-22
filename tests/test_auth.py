@@ -63,7 +63,7 @@ async def test_inspector(test_inspector_data):
         await conn.close()
 
     yield {"id": inspector_id, **test_inspector_data}
-    
+
     # Cleanup after test - use a fresh connection
     conn = await asyncpg.connect(settings.get_database_url())
     try:
@@ -382,23 +382,23 @@ def test_middleware_authentication_flow(enable_auth, client, test_inspector):
     )
 
     # Should not return 401 (authentication should succeed)
-    assert (
-        response.status_code != 401
-    ), f"Middleware rejected valid token: {response.json()}"
+    assert response.status_code != 401, (
+        f"Middleware rejected valid token: {response.json()}"
+    )
 
     # Test with malformed token
     response = client.get(
         "/inspector/all", headers={"Authorization": "Bearer malformed_token"}
     )
-    assert (
-        response.status_code == 401
-    ), f"Expected 401 but got {response.status_code}: {response.json()}"
+    assert response.status_code == 401, (
+        f"Expected 401 but got {response.status_code}: {response.json()}"
+    )
 
     # Test without Bearer prefix - middleware accepts both formats, so this should succeed
     response = client.get("/inspector/all", headers={"Authorization": access_token})
-    assert (
-        response.status_code != 401
-    ), f"Middleware rejected valid token without Bearer prefix: {response.json()}"
+    assert response.status_code != 401, (
+        f"Middleware rejected valid token without Bearer prefix: {response.json()}"
+    )
 
     # Test without Authorization header - should fail with 401
     response = client.get("/inspector/all")
@@ -413,7 +413,9 @@ def test_token_validation_with_auth_service(test_inspector):
     device_id = uuid4()
 
     # Create a token
-    access_token = auth_service.create_access_token(test_inspector["id"], device_id, "MODIFY")
+    access_token = auth_service.create_access_token(
+        test_inspector["id"], device_id, "MODIFY"
+    )
 
     # Verify the token
     payload = auth_service.verify_access_token(access_token)

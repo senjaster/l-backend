@@ -67,7 +67,9 @@ class AuthService:
         """Hash a refresh token using SHA-256"""
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def create_access_token(self, inspector_id: int, device_id: UUID | str, access_level: str) -> str:
+    def create_access_token(
+        self, inspector_id: int, device_id: UUID | str, access_level: str
+    ) -> str:
         """Create a JWT access token with access level as scope"""
         self._load_keys()
 
@@ -103,19 +105,19 @@ class AuthService:
         try:
             expected_access_key = settings.s3_access_key_id
             expected_secret_key = settings.s3_secret_access_key
-            
+
             if not expected_access_key or not expected_secret_key:
                 logger.error("  S3 credentials not found in environment variables")
                 return None
-            
-            decoded_credentials = base64.b64decode(token).decode('utf-8')
-            
-            if ':' not in decoded_credentials:
+
+            decoded_credentials = base64.b64decode(token).decode("utf-8")
+
+            if ":" not in decoded_credentials:
                 logger.warning("  Invalid Basic auth format: missing colon separator")
                 return None
-                
-            inspector_id, access_key, secret_key = decoded_credentials.split(':')
-            
+
+            inspector_id, access_key, secret_key = decoded_credentials.split(":")
+
             current_time = int(time.time())
             if access_key == expected_access_key and secret_key == expected_secret_key:
                 return TokenPayload(
@@ -125,22 +127,21 @@ class AuthService:
                     exp=current_time + 3600,
                     iat=current_time,
                     iss="s3-auth",
-                    aud="s3-service"
+                    aud="s3-service",
                 )
             else:
                 logger.warning("  S3 credentials don't match")
                 return None
-                
+
         except Exception as e:
             logger.error(f"  Error in yc_verify_access_token: {e}")
             return None
-    
+
     def _jwt_verify_access_token(self, token: str) -> Optional[TokenPayload]:
         """
         Оригинальная функция проверки JWT токена (локальная)
         """
         try:
-            
             payload = jwt.decode(
                 token,
                 self._public_key,
@@ -157,21 +158,21 @@ class AuthService:
                 extra={"error_type": type(e).__name__, "error": str(e)},
             )
             return None
-    
+
     def verify_access_token(self, token: str) -> Optional[TokenPayload]:
         """
         Универсальная проверка токена: сначала JWT, потом S3 (Basic Auth)
         """
         self._load_keys()
-        
+
         jwt_payload = self._jwt_verify_access_token(token)
         if jwt_payload:
             return jwt_payload
-        
+
         s3_payload = self._yc_verify_access_token(token)
         if s3_payload:
             return s3_payload
-        
+
         logger.warning("  Авторизация не удалась: ни JWT, ни S3 проверка не прошли")
         return None
 
@@ -218,7 +219,9 @@ class AuthService:
             return None
 
         # Generate tokens with access level as scope
-        access_token = self.create_access_token(inspector.id, device_id, inspector.access_level.value)
+        access_token = self.create_access_token(
+            inspector.id, device_id, inspector.access_level.value
+        )
         refresh_token_string = self.generate_refresh_token()
 
         # Store refresh token in database
@@ -285,7 +288,9 @@ class AuthService:
         await self.repository.mark_token_used(conn, token.id)
 
         # Generate new tokens (rotation)
-        new_access_token = self.create_access_token(token.inspector_id, token.device_id, inspector.access_level.value)
+        new_access_token = self.create_access_token(
+            token.inspector_id, token.device_id, inspector.access_level.value
+        )
         new_refresh_token_string = self.generate_refresh_token()
 
         # Create new refresh token in database
@@ -368,7 +373,9 @@ class AuthService:
         await self.repository.revoke_all_tokens_for_inspector(conn, inspector_id)
 
         # Generate new token pair with access level
-        access_token = self.create_access_token(inspector_id, device_id, inspector.access_level.value)
+        access_token = self.create_access_token(
+            inspector_id, device_id, inspector.access_level.value
+        )
         refresh_token_string = self.generate_refresh_token()
 
         # Store new refresh token in database

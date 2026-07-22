@@ -22,6 +22,7 @@ class ImageUploadStatus(str, Enum):
 
 class PresignedUploadUrlResponse(BaseModel):
     """Response model for presigned upload URL"""
+
     presigned_url: str
     presigned_url_expires_at: datetime
 
@@ -39,12 +40,14 @@ class Image(BaseModel):
     upload_status: ImageUploadStatus
     server_uploaded_at: Optional[datetime] = None
     presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
-    presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
+    presigned_url_expires_at: Optional[datetime] = (
+        None  # Expiration time for presigned URL
+    )
 
 
 class PutImageRequestBody(BaseModel):
     """Image aggregate without file upload status and upload date"""
-    
+
     id: UUID
     plant_id: UUID
     # HOTFIX: original_file_name is temporarily optional to handle buggy client
@@ -56,6 +59,6 @@ class PutImageRequestBody(BaseModel):
     is_deleted: bool = False
     server_modified_at: datetime
     presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
-    presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
-
-
+    presigned_url_expires_at: Optional[datetime] = (
+        None  # Expiration time for presigned URL
+    )

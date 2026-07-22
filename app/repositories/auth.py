@@ -10,7 +10,9 @@ from app.utils.async_wrapper import AsyncWrapper
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/auth.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class AuthRepository:

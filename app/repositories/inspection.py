@@ -21,7 +21,9 @@ from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/inspection.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class InspectionRepository:

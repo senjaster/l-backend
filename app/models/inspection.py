@@ -43,7 +43,7 @@ class ImageLink(BaseModel):
 class InspectionStep(BaseModel):
     """Inspection step within inspection (child entity)"""
 
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra="ignore")
 
     id: UUID
     started_at: datetime

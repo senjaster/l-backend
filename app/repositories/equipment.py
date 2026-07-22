@@ -20,7 +20,9 @@ from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/equipment.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class EquipmentRepository:
@@ -149,7 +151,7 @@ class EquipmentRepository:
         # DEPRECATED: Defects are now managed via separate defect router
         # Always return empty list for backwards compatibility
         defect_rows = []
-        
+
         inspection_rows = [
             row
             async for row in queries.get_inspections_by_plant(conn, plant_id=plant_id)

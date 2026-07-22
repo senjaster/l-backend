@@ -18,7 +18,14 @@ def test_get_all_defect_types(client: TestClient):
     # Verify structure of first item
     assert all(
         key in items[0]
-        for key in ["id", "name", "short_name", "t_max", "t_excess", "server_modified_at"]
+        for key in [
+            "id",
+            "name",
+            "short_name",
+            "t_max",
+            "t_excess",
+            "server_modified_at",
+        ]
     )
 
 
@@ -75,7 +82,10 @@ def test_defect_type_values(client: TestClient):
     # Check copper contact defect type
     copper_contact = next((item for item in items if item["id"] == 5), None)
     assert copper_contact is not None
-    assert copper_contact["name"] == "Контакт из меди или сплавов меди без покрытия, на воздухе"
+    assert (
+        copper_contact["name"]
+        == "Контакт из меди или сплавов меди без покрытия, на воздухе"
+    )
     assert copper_contact["short_name"] == "Контакт (Cu)"
     assert copper_contact["t_max"] == 75
     assert copper_contact["t_excess"] == 35
@@ -83,7 +93,10 @@ def test_defect_type_values(client: TestClient):
     # Check cable defect type
     cable_pvc = next((item for item in items if item["id"] == 9), None)
     assert cable_pvc is not None
-    assert cable_pvc["name"] == "Токоведущая жила силового кабеля из поливинилхлоридного пластика и полиэтилена"
+    assert (
+        cable_pvc["name"]
+        == "Токоведущая жила силового кабеля из поливинилхлоридного пластика и полиэтилена"
+    )
     assert cable_pvc["short_name"] == "Каб. нак. (ПВХ)"
     assert cable_pvc["t_max"] == 70
     assert cable_pvc["t_excess"] == 30

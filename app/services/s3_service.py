@@ -24,22 +24,24 @@ class S3Service:
                 "aws_access_key_id": settings.s3_access_key_id,
                 "aws_secret_access_key": settings.s3_secret_access_key,
             }
-            
+
             # Configure addressing style for S3-compatible services
             boto_config = Config(
-                signature_version='s3v4',
+                signature_version="s3v4",
                 s3={
-                    'addressing_style': 'virtual' if settings.s3_use_virtual_hosted_style else 'path'
-                }
+                    "addressing_style": "virtual"
+                    if settings.s3_use_virtual_hosted_style
+                    else "path"
+                },
             )
             client_config["config"] = boto_config
-            
+
             # Add custom endpoint URL if provided (for S3-compatible services)
             if settings.s3_endpoint_host:
                 # Construct endpoint URL with proper scheme
                 endpoint_url = f"https://{settings.s3_endpoint_host}"
                 client_config["endpoint_url"] = endpoint_url
-            
+
             self.s3_client = boto3.client("s3", **client_config)
             self.bucket_name = settings.s3_bucket_name
             self.expiration = settings.s3_presigned_url_expiration
@@ -87,7 +89,9 @@ class S3Service:
             )
             return None
 
-    def generate_upload_presigned_url(self, image_id: UUID) -> Optional[Tuple[str, datetime]]:
+    def generate_upload_presigned_url(
+        self, image_id: UUID
+    ) -> Optional[Tuple[str, datetime]]:
         """
         Generate a presigned URL for uploading an image to S3.
 
@@ -119,13 +123,11 @@ class S3Service:
 
         except ClientError as e:
             # If a 404 error is returned, the object does not exist
-            error_code = e.response.get('Error', {}).get('Code', '')
-            if error_code == '404':
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == "404":
                 return False
             # For other errors, log and return False
-            logger.error(
-                f"Error checking existence for image {image_id}: {str(e)}"
-            )
+            logger.error(f"Error checking existence for image {image_id}: {str(e)}")
             return False
         except Exception as e:
             logger.error(

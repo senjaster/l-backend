@@ -27,7 +27,7 @@ class ControlPoint(BaseModel):
 
 class Defect(BaseModel):
     """Defect within equipment (child entity) - DEPRECATED: Use defect router instead
-    
+
     Kept for backwards compatibility. Fields are preserved but defects are now managed
     via the separate defect router.
     """

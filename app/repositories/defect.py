@@ -15,7 +15,9 @@ from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/defect.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class DefectRepository:
@@ -34,7 +36,9 @@ class DefectRepository:
         """Get all defects as lightweight list, optionally filtered by modification date"""
         defect_rows = [
             row
-            async for row in queries.get_all_defects(conn, modified_since=modified_since)
+            async for row in queries.get_all_defects(
+                conn, modified_since=modified_since
+            )
         ]
         defect_list = [DefectListItem(**row) for row in defect_rows]
         return DefectListResponse(items=defect_list)

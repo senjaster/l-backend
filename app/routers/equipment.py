@@ -30,7 +30,7 @@ async def get_all_equipment(
 ):
     """Get all equipment IDs (lightweight list), optionally filtered by modification date and accessible plants"""
     all_equipment = await equipment_repo.get_all(conn, modified_since=modified_since)
-    
+
     # Filter to only equipment from accessible plants
     # Note: This requires checking plant access for each equipment item
     # For better performance, consider filtering at the database level
@@ -39,7 +39,7 @@ async def get_all_equipment(
         plant_id = await permission_service.get_plant_id_from_equipment(eq.id)
         if plant_id and await permission_service.check_plant_access(plant_id):
             accessible_equipment.append(eq)
-    
+
     return EquipmentListResponse(items=accessible_equipment)
 
 
@@ -55,7 +55,7 @@ async def get_equipment_by_id(
     if not plant_id:
         raise HTTPException(status_code=404, detail="Equipment not found")
     await permission_service.require_plant_access(plant_id)
-    
+
     equipment = await equipment_repo.get_by_id(conn, equipment_id)
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
@@ -75,7 +75,7 @@ async def get_equipment_by_plant_id(
     """Get all equipment for a plant (full aggregates with control points, defects, and inspection IDs), optionally filtered by modification date"""
     # Check plant access
     await permission_service.require_plant_access(plant_id)
-    
+
     return await equipment_repo.get_by_plant_id(
         conn, plant_id, modified_since=modified_since
     )
@@ -111,12 +111,14 @@ async def upsert_equipment(
         async with conn.transaction():
             # Check access level (MODIFY required)
             permission_service.require_access_level(AccessLevel.MODIFY)
-            
+
             # Check plant access via equipment
-            plant_id = await permission_service.get_plant_id_from_equipment(equipment.id)
+            plant_id = await permission_service.get_plant_id_from_equipment(
+                equipment.id
+            )
             if plant_id:
                 await permission_service.require_plant_access(plant_id)
-            
+
             # Validate ownership before saving
             await ownership_validator.validate_equipment_ownership(equipment)
             result = await equipment_repo.save(conn, equipment, force=force)

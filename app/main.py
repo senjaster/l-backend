@@ -29,7 +29,7 @@ from app.routers import (
     equipment,
     inspection,
     defect,
-    work_log
+    work_log,
 )
 
 
@@ -90,7 +90,7 @@ def custom_openapi():
             "in": "header",
             "name": "X-Auth-Token",
             "description": "Enter 'Bearer <token>' or just '<token>' (works in Yandex Cloud where Authorization header is stripped)",
-        }
+        },
     }
 
     # Apply security globally to all operations except public paths
@@ -104,10 +104,7 @@ def custom_openapi():
         # Allow either HTTPBearer OR X-Auth-Token
         for method in path_item.values():
             if isinstance(method, dict) and "security" not in method:
-                method["security"] = [
-                    {"HTTPBearer": []},
-                    {"X-Auth-Token": []}
-                ]
+                method["security"] = [{"HTTPBearer": []}, {"X-Auth-Token": []}]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

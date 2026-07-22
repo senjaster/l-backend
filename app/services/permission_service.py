@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 # Load SQL queries
 _queries = aiosql.from_path("app/queries/permission.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 # Access level hierarchy for comparison
@@ -132,9 +134,7 @@ class PermissionService:
         )
         return result["plant_id"] if result else None
 
-    async def get_plant_id_from_inspection(
-        self, inspection_id: UUID
-    ) -> Optional[UUID]:
+    async def get_plant_id_from_inspection(self, inspection_id: UUID) -> Optional[UUID]:
         """
         Get plant_id from inspection_id.
 
@@ -185,7 +185,9 @@ class PermissionService:
         Returns:
             UUID of the plant, or None if not found
         """
-        result = await queries.get_plant_from_work_log(self.conn, work_log_id=work_log_id)
+        result = await queries.get_plant_from_work_log(
+            self.conn, work_log_id=work_log_id
+        )
         return result["plant_id"] if result else None
 
     def check_access_level(self, required_level: AccessLevel) -> bool:
@@ -202,9 +204,7 @@ class PermissionService:
         if self.current_user.id == -1:
             return True
 
-        user_level = ACCESS_LEVEL_HIERARCHY.get(
-            self.current_user.access_level, 0
-        )
+        user_level = ACCESS_LEVEL_HIERARCHY.get(self.current_user.access_level, 0)
         required_level_value = ACCESS_LEVEL_HIERARCHY.get(required_level, 0)
 
         return user_level >= required_level_value

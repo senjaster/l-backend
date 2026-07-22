@@ -186,7 +186,7 @@ class OwnershipValidator:
                     ],
                 )
             )
-    
+
     async def validate_work_log_ownership(self, work_log: WorkLog) -> None:
         """
         Validate that the work log is owned by the current user.

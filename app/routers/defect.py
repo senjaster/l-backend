@@ -33,14 +33,14 @@ async def get_all_defects(
 ):
     """Get all defect IDs (lightweight list), optionally filtered by modification date and accessible plants"""
     all_defects = await defect_repo.get_all(conn, modified_since=modified_since)
-    
+
     # Filter to only defects from accessible plants
     accessible_defects = []
     for defect in all_defects.items:
         plant_id = await permission_service.get_plant_id_from_defect(defect.id)
         if plant_id and await permission_service.check_plant_access(plant_id):
             accessible_defects.append(defect)
-    
+
     return DefectListResponse(items=accessible_defects)
 
 
@@ -56,7 +56,7 @@ async def get_defect_by_id(
     if not plant_id:
         raise HTTPException(status_code=404, detail="Defect not found")
     await permission_service.require_plant_access(plant_id)
-    
+
     defect = await defect_repo.get_by_id(conn, defect_id)
     if not defect:
         raise HTTPException(status_code=404, detail="Defect not found")
@@ -76,7 +76,7 @@ async def get_defects_by_plant_id(
     """Get all defects for a plant (full data), optionally filtered by modification date"""
     # Check plant access
     await permission_service.require_plant_access(plant_id)
-    
+
     return await defect_repo.get_by_plant_id(
         conn, plant_id, modified_since=modified_since
     )
@@ -101,7 +101,7 @@ async def upsert_defect(
       - Ignores server_modified_at for new defects
     - force=true:
       - Ignores server_modified_at validation
-    
+
     Note: Defects are NOT owned by plant claims and can be modified by any authenticated user.
     This is the key difference from equipment, which requires plant ownership.
     However, users must still have access to the plant.
@@ -110,12 +110,12 @@ async def upsert_defect(
         async with conn.transaction():
             # Check access level (INSPECT required)
             permission_service.require_access_level(AccessLevel.INSPECT)
-            
+
             # Check plant access via defect
             plant_id = await permission_service.get_plant_id_from_defect(defect.id)
             if plant_id:
                 await permission_service.require_plant_access(plant_id)
-            
+
             result = await defect_repo.save(conn, defect, force=force)
         return result
     except ConcurrentModificationError as e:

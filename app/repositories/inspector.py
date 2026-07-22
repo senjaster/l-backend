@@ -11,7 +11,9 @@ from app.models.inspector import Inspector
 
 # Load queries
 _queries = aiosql.from_path("app/queries/inspector.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class InspectorRepository:

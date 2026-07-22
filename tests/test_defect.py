@@ -114,7 +114,7 @@ def test_create_defect_with_null_server_modified_at(
         "is_deleted": False,
         "server_modified_at": None,  # Null for new defects
     }
-    
+
     response = client.put("/defect", json=defect_data)
     assert response.status_code == 200
 

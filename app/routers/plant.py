@@ -32,13 +32,13 @@ async def get_all_plants(
 ):
     """Get all plant IDs (lightweight list), optionally filtered by modification date and accessible to current user"""
     all_plants = await plant_repo.get_all(conn, modified_since=modified_since)
-    
+
     # Filter to only plants accessible to current user
     accessible_ids = await permission_service.filter_accessible_plants(
         [p.id for p in all_plants.items]
     )
     accessible_plants = [p for p in all_plants.items if p.id in accessible_ids]
-    
+
     return PlantListResponse(items=accessible_plants)
 
 
@@ -51,7 +51,7 @@ async def get_plant_by_id(
     """Get specific plant with facilities and equipment IDs"""
     # Check plant access
     await permission_service.require_plant_access(plant_id)
-    
+
     plant = await plant_repo.get_by_id(conn, plant_id)
     if not plant:
         raise HTTPException(status_code=404, detail="Plant not found")
@@ -88,24 +88,24 @@ async def upsert_plant(
         async with conn.transaction():
             # Check access level (MODIFY required)
             permission_service.require_access_level(AccessLevel.MODIFY)
-            
+
             # Check if plant exists
             existing_plant = await plant_repo.get_by_id(conn, plant.id)
             is_new_plant = existing_plant is None
-            
+
             # For existing plants, check plant access
             # For new plants, we'll grant access after creation
             if not is_new_plant:
                 await permission_service.require_plant_access(plant.id)
-            
+
             # Validate ownership before saving
             await ownership_validator.validate_plant_ownership(plant)
             result = await plant_repo.save(conn, plant, force=force)
-            
+
             # Grant access to creator for new plants
             if is_new_plant:
                 await permission_service.grant_plant_access(plant.id)
-        
+
         return result
     except ConcurrentModificationError as e:
         logger.warning(
@@ -134,48 +134,51 @@ async def claim_plant(
 ):
     """
     Claim plant for editing (user_id and device_id extracted from auth token).
-    
+
     Allows claiming if:
     - Plant is not claimed
     - Plant is already claimed by the same user
     - Claim is stale (expired at 3:00 AM Moscow time)
-    
+
     Returns 409 if plant is claimed by another user and claim is not stale.
     Returns the updated plant state with claim information.
     Permission: User must have access to the plant.
     """
     # Check access level (MODIFY required)
     permission_service.require_access_level(AccessLevel.MODIFY)
-    
+
     # Check if user has plant access, if not grant it
     # Claiming a plant should grant access to the claimer
     has_access = await permission_service.check_plant_access(plant_id)
-    
+
     async with conn.transaction():
         # Grant access if user doesn't have it yet
         if not has_access:
             await permission_service.grant_plant_access(plant_id)
-        
+
         success = await plant_repo.claim(
             conn,
             plant_id,
             token_payload.dev,  # device_id from token
             token_payload.sub,  # user_id (inspector_id) from token
         )
-    
+
     if success is None:
         raise HTTPException(status_code=404, detail="Plant not found")
-    
+
     if not success:
         # Get plant info for better error message
         plant = await plant_repo.get_by_id(conn, plant_id)
         from app.models import ConflictError, ConflictDetail
         from datetime import datetime, timezone
+
         raise HTTPException(
             status_code=409,
             detail=ConflictError(
                 message="Plant is claimed by another user and claim is not stale",
-                server_modified_at=plant.server_modified_at if plant else datetime.now(timezone.utc),
+                server_modified_at=plant.server_modified_at
+                if plant
+                else datetime.now(timezone.utc),
                 conflicts=[
                     ConflictDetail(
                         field="claimed_by_user_id",
@@ -184,7 +187,7 @@ async def claim_plant(
                 ],
             ).model_dump(mode="json"),
         )
-    
+
     # Return the updated plant state
     plant = await plant_repo.get_by_id(conn, plant_id)
     if not plant:
@@ -200,27 +203,27 @@ async def release_plant(
 ):
     """
     Release plant claim.
-    
+
     Returns the updated plant state with cleared claim information.
     Permission: User must have access to the plant.
     """
     # Check access level (MODIFY required)
     permission_service.require_access_level(AccessLevel.MODIFY)
-    
+
     # Check if user has plant access, if not grant it
     # Releasing a plant should grant access to the releaser
     has_access = await permission_service.check_plant_access(plant_id)
-    
+
     async with conn.transaction():
         # Grant access if user doesn't have it yet
         if not has_access:
             await permission_service.grant_plant_access(plant_id)
-        
+
         success = await plant_repo.release(conn, plant_id)
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="Plant not found")
-    
+
     # Return the updated plant state
     plant = await plant_repo.get_by_id(conn, plant_id)
     if not plant:

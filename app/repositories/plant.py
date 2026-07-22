@@ -15,7 +15,9 @@ from app.utils.datetime_utils import truncate_to_milliseconds
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/plant.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class PlantRepository:
@@ -165,29 +167,33 @@ class PlantRepository:
             return result > 0
         return result is not None and "0" not in result
 
-    async def claim(self, conn, plant_id: UUID, device_id: str, user_id: int) -> Optional[bool]:
+    async def claim(
+        self, conn, plant_id: UUID, device_id: str, user_id: int
+    ) -> Optional[bool]:
         """
         Claim plant for editing (must be called within transaction).
         Updates server_modified_at for sync purposes.
-        
+
         Returns:
             - True if claim succeeded
             - False if plant is claimed by another user and not stale
             - None if equipment is not found
         """
-        
+
         # Get current plant state
         current = await self.get_by_id(conn, plant_id)
         if not current:
             return None
-        
-        
+
         # Check if claiming is allowed
-        if current.claimed_by_user_id is not None and current.claimed_by_user_id != user_id:
+        if (
+            current.claimed_by_user_id is not None
+            and current.claimed_by_user_id != user_id
+        ):
             # Plant is claimed by another user - check if stale
             if not current.is_stale:
                 return False
-        
+
         # Claim is allowed - update the claim and server_modified_at
         now = datetime.now(timezone.utc)
         result = await queries.claim_plant(
@@ -203,15 +209,13 @@ class PlantRepository:
             success = result > 0
         else:
             success = result is not None and "0" not in result
-        
+
         return success
 
     async def release(self, conn, plant_id: UUID) -> bool:
         """Release plant (must be called within transaction). Updates server_modified_at for sync purposes."""
         result = await queries.release_plant(
-            conn,
-            id=plant_id,
-            server_modified_at=datetime.now(timezone.utc)
+            conn, id=plant_id, server_modified_at=datetime.now(timezone.utc)
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):

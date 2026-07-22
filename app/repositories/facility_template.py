@@ -12,7 +12,9 @@ from app.models.facility_template import FacilityTemplate, FacilityTemplateEquip
 
 # Load queries
 _queries = aiosql.from_path("app/queries/facility_template.sql", settings.db_driver)
-queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class FacilityTemplateRepository:
@@ -38,7 +40,9 @@ class FacilityTemplateRepository:
         ]
         equipment_by_template = {
             key: [FacilityTemplateEquipment(**row) for row in value]
-            for key, value in groupby(equipment_raw, lambda r: r["facility_template_id"])
+            for key, value in groupby(
+                equipment_raw, lambda r: r["facility_template_id"]
+            )
         }
 
         return [
