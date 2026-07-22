@@ -1,28 +1,31 @@
 """Unit tests for OptimisticLockingValidator and CollectionConfig"""
 
-import pytest
-from datetime import datetime, timezone
-from uuid import uuid4
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
+from uuid import uuid4
 
-from app.utils.db_utils import OptimisticLockingValidator, CollectionConfig
+import pytest
+
 from app.exceptions import ConcurrentModificationError
-
+from app.utils.db_utils import CollectionConfig, OptimisticLockingValidator
 
 # ---------------------------------------------------------------------------
 # Helpers / simple domain objects
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SimpleObj:
     """Minimal object with server_modified_at, used to test validate_object."""
+
     server_modified_at: Optional[datetime] = None
 
 
 @dataclass
 class ChildItem:
     """Minimal child entity with id and is_deleted."""
+
     id: object
     is_deleted: bool = False
 
@@ -36,6 +39,7 @@ def _dt(microsecond: int = 0) -> datetime:
 # validate_timestamps
 # ---------------------------------------------------------------------------
 
+
 class TestValidateTimestamps:
     def test_matching_timestamps_do_not_raise(self):
         """Identical timestamps must not raise."""
@@ -44,8 +48,8 @@ class TestValidateTimestamps:
 
     def test_timestamps_equal_at_millisecond_precision_do_not_raise(self):
         """Timestamps that differ only in sub-millisecond digits are considered equal."""
-        server = _dt(123_456)   # 123.456 ms
-        client = _dt(123_000)   # 123.000 ms — same millisecond after truncation
+        server = _dt(123_456)  # 123.456 ms
+        client = _dt(123_000)  # 123.000 ms — same millisecond after truncation
         OptimisticLockingValidator.validate_timestamps(server, client)
 
     def test_different_timestamps_raise(self):
@@ -99,6 +103,7 @@ class TestValidateTimestamps:
 # ---------------------------------------------------------------------------
 # validate_extra_ids
 # ---------------------------------------------------------------------------
+
 
 class TestValidateExtraIds:
     def test_no_extra_ids_does_not_raise(self):
@@ -168,6 +173,7 @@ class TestValidateExtraIds:
 # validate_collections
 # ---------------------------------------------------------------------------
 
+
 class TestValidateCollections:
     def _make_config(self, server_items, client_items, name="items"):
         return CollectionConfig(
@@ -230,6 +236,7 @@ class TestValidateCollections:
         ConflictError.extra_child_ids only accepts UUID | int values, so the
         custom id_getter must return a UUID (or int) for the error to be built.
         """
+
         @dataclass
         class WeirdItem:
             uid: object  # UUID stored under a non-standard attribute name
@@ -251,6 +258,7 @@ class TestValidateCollections:
 
     def test_custom_is_deleted_checker_is_used(self):
         """CollectionConfig.is_deleted_checker is respected when filtering deleted items."""
+
         @dataclass
         class FlaggedItem:
             id: object
@@ -272,6 +280,7 @@ class TestValidateCollections:
 # ---------------------------------------------------------------------------
 # validate_object
 # ---------------------------------------------------------------------------
+
 
 class TestValidateObject:
     def test_matching_timestamps_do_not_raise(self):
@@ -303,6 +312,7 @@ class TestValidateObject:
 
     def test_object_without_server_modified_at_attribute_skips_check(self):
         """Objects that lack server_modified_at entirely skip the timestamp check."""
+
         @dataclass
         class NoTimestamp:
             name: str
@@ -352,6 +362,7 @@ class TestValidateObject:
 
     def test_class_name_used_as_object_name_in_error(self):
         """The class name of server_obj is used as object_name in the timestamp error message."""
+
         @dataclass
         class MySpecialEntity:
             server_modified_at: Optional[datetime] = None
