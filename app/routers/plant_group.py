@@ -20,18 +20,17 @@ plant_group_repo = PlantGroupRepository()
 
 @router.get("/all", response_model=PlantGroupListResponse)
 async def get_all_groups(
-    modified_since: datetime = Query(DEFAULT_MODIFIED_SINCE, description="Filter by modification date"),
-    conn = Depends(get_db_connection)
+    modified_since: datetime = Query(
+        DEFAULT_MODIFIED_SINCE, description="Filter by modification date"
+    ),
+    conn=Depends(get_db_connection),
 ) -> PlantGroupListResponse:
     """Получение списка групп (синхронизация)"""
     return await plant_group_repo.get_all(conn, modified_since=modified_since)
 
 
 @router.get("/by_id/{group_id}", response_model=PlantGroup)
-async def get_group(
-    group_id: UUID,
-    conn = Depends(get_db_connection)
-) -> PlantGroup:
+async def get_group(group_id: UUID, conn=Depends(get_db_connection)) -> PlantGroup:
     """Получение группы по ID"""
     group = await plant_group_repo.get_by_id(conn, group_id=group_id)
     if not group:
@@ -86,4 +85,3 @@ async def upsert_group(
             "Invalid group data", extra={"group_id": str(group.id), "error": str(e)}
         )
         raise HTTPException(status_code=400, detail=str(e))
-

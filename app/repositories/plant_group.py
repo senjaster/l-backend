@@ -1,10 +1,11 @@
 """Group repository with hierarchical structure and plant synchronization"""
+
 import aiosql
 import logging
 
 from uuid import UUID
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional
 
 from app.config import settings
 from app.constants import DEFAULT_MODIFIED_SINCE

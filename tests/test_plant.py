@@ -51,7 +51,9 @@ def plant_data(plant_id, facility_id_1, plant_group_id):
     return data
 
 
-def test_create_plant(client: TestClient, plant_data, plant_id, facility_id_1, plant_group_id):
+def test_create_plant(
+    client: TestClient, plant_data, plant_id, facility_id_1, plant_group_id
+):
     """Test creating a new plant with facilities (server_modified_at ignored for new plants)"""
     response = client.put("/plant", json=plant_data)
     assert response.status_code == 200
@@ -76,7 +78,7 @@ def test_get_plant(client: TestClient, plant_data, plant_id, plant_group_id):
     data = response.json()
     assert data["id"] == str(plant_id)
     assert data["name"] == "Test Power Plant"
-    assert data["plant_group_id"] == str(plant_group_id) 
+    assert data["plant_group_id"] == str(plant_group_id)
     assert len(data["facilities"]) == 1
 
 
@@ -127,7 +129,7 @@ def test_update_plant_with_correct_timestamp(
     # Update with correct timestamp
     plant_data["server_modified_at"] = server_modified_at
     plant_data["name"] = "Updated Name"
-    plant_data["plant_group_id"] = str(plant_group_id) 
+    plant_data["plant_group_id"] = str(plant_group_id)
     plant_data["facilities"][0]["name"] = "Updated Facility"
 
     response = client.put("/plant", json=plant_data)
@@ -135,7 +137,7 @@ def test_update_plant_with_correct_timestamp(
 
     data = response.json()
     assert data["name"] == "Updated Name"
-    assert data["plant_group_id"] == str(plant_group_id) 
+    assert data["plant_group_id"] == str(plant_group_id)
     assert data["facilities"][0]["name"] == "Updated Facility"
     assert data["server_modified_at"] != server_modified_at  # Should be updated
 
@@ -287,7 +289,9 @@ def test_release_plant(client: TestClient, plant_data, plant_id):
     assert data["claimed_at"] is None
 
 
-def test_facility_transfer_not_allowed(client: TestClient, plant_data, facility_id_1, plant_group_id):
+def test_facility_transfer_not_allowed(
+    client: TestClient, plant_data, facility_id_1, plant_group_id
+):
     """Test that transferring a facility from one plant to another is not allowed (never allow stealing)"""
     client.put("/plant", json=plant_data)
 
@@ -342,7 +346,9 @@ def test_is_deleted_honored_for_plant(client: TestClient, plant_data, plant_grou
     assert get_response.json()["is_deleted"] is True
 
 
-def test_is_deleted_honored_for_facility(client: TestClient, plant_data, facility_id_2, plant_group_id):
+def test_is_deleted_honored_for_facility(
+    client: TestClient, plant_data, facility_id_2, plant_group_id
+):
     """Test that is_deleted value is honored for facilities"""
     # Add second facility marked as deleted
     plant_data["facilities"].append(
@@ -458,7 +464,12 @@ def test_child_aggregate_ids_in_get_response(
 
 
 def test_mismatched_child_ids_rejection(
-    client: TestClient, plant_data, facility_id_1, facility_id_2, facility_id_3, plant_group_id
+    client: TestClient,
+    plant_data,
+    facility_id_1,
+    facility_id_2,
+    facility_id_3,
+    plant_group_id,
 ):
     """Test #2: Reject when server and client have same count but different IDs"""
     # Create plant with 3 facilities [A, B, C]
@@ -603,7 +614,11 @@ def test_empty_facilities_list_with_force(
 
 
 def test_multiple_facility_operations_in_single_request(
-    client: TestClient, plant_data, facility_id_1, facility_id_2, facility_id_3,
+    client: TestClient,
+    plant_data,
+    facility_id_1,
+    facility_id_2,
+    facility_id_3,
 ):
     """Test #6: Simultaneously add, update, and delete facilities in one PUT"""
     # Start with 2 facilities
@@ -659,7 +674,9 @@ def test_multiple_facility_operations_in_single_request(
 # Tests for modified_since filter
 
 
-def test_get_all_plants_with_modified_since_filter(client: TestClient, plant_data, plant_group_id):
+def test_get_all_plants_with_modified_since_filter(
+    client: TestClient, plant_data, plant_group_id
+):
     """Test filtering plants by modified_since parameter"""
 
     # Create first plant

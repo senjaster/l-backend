@@ -14,15 +14,18 @@ from app.exceptions import ConcurrentModificationError
 # Helpers / simple domain objects
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SimpleObj:
     """Minimal object with server_modified_at, used to test validate_object."""
+
     server_modified_at: Optional[datetime] = None
 
 
 @dataclass
 class ChildItem:
     """Minimal child entity with id and is_deleted."""
+
     id: object
     is_deleted: bool = False
 
@@ -36,6 +39,7 @@ def _dt(microsecond: int = 0) -> datetime:
 # validate_timestamps
 # ---------------------------------------------------------------------------
 
+
 class TestValidateTimestamps:
     def test_matching_timestamps_do_not_raise(self):
         """Identical timestamps must not raise."""
@@ -44,8 +48,8 @@ class TestValidateTimestamps:
 
     def test_timestamps_equal_at_millisecond_precision_do_not_raise(self):
         """Timestamps that differ only in sub-millisecond digits are considered equal."""
-        server = _dt(123_456)   # 123.456 ms
-        client = _dt(123_000)   # 123.000 ms — same millisecond after truncation
+        server = _dt(123_456)  # 123.456 ms
+        client = _dt(123_000)  # 123.000 ms — same millisecond after truncation
         OptimisticLockingValidator.validate_timestamps(server, client)
 
     def test_different_timestamps_raise(self):
@@ -74,7 +78,9 @@ class TestValidateTimestamps:
         server = _dt(1_000)
         client = _dt(2_000)
         with pytest.raises(ConcurrentModificationError) as exc_info:
-            OptimisticLockingValidator.validate_timestamps(server, client, object_name="MyEntity")
+            OptimisticLockingValidator.validate_timestamps(
+                server, client, object_name="MyEntity"
+            )
         assert "MyEntity" in exc_info.value.conflict_error.message
 
     def test_default_object_name_used_when_not_provided(self):
@@ -99,6 +105,7 @@ class TestValidateTimestamps:
 # ---------------------------------------------------------------------------
 # validate_extra_ids
 # ---------------------------------------------------------------------------
+
 
 class TestValidateExtraIds:
     def test_no_extra_ids_does_not_raise(self):
@@ -139,7 +146,9 @@ class TestValidateExtraIds:
         """Custom collection_name must appear in the error message."""
         extra_id = uuid4()
         with pytest.raises(ConcurrentModificationError) as exc_info:
-            OptimisticLockingValidator.validate_extra_ids({extra_id}, set(), collection_name="widgets")
+            OptimisticLockingValidator.validate_extra_ids(
+                {extra_id}, set(), collection_name="widgets"
+            )
         assert "widgets" in exc_info.value.conflict_error.message
 
     def test_default_collection_name_used_when_not_provided(self):
@@ -158,7 +167,9 @@ class TestValidateExtraIds:
         extra_1, extra_2 = uuid4(), uuid4()
         server_ids = {extra_1, extra_2}
         with pytest.raises(ConcurrentModificationError) as exc_info:
-            OptimisticLockingValidator.validate_extra_ids(server_ids, set(), collection_name="steps")
+            OptimisticLockingValidator.validate_extra_ids(
+                server_ids, set(), collection_name="steps"
+            )
         detail = exc_info.value.conflict_error.conflicts[0]
         assert "2" in detail.message
         assert "steps" in detail.message
@@ -167,6 +178,7 @@ class TestValidateExtraIds:
 # ---------------------------------------------------------------------------
 # validate_collections
 # ---------------------------------------------------------------------------
+
 
 class TestValidateCollections:
     def _make_config(self, server_items, client_items, name="items"):
@@ -207,8 +219,12 @@ class TestValidateCollections:
     def test_multiple_configs_all_valid_do_not_raise(self):
         """Multiple valid configs — none should raise."""
         id_a, id_b = uuid4(), uuid4()
-        config_a = self._make_config([ChildItem(id=id_a)], [ChildItem(id=id_a)], "steps")
-        config_b = self._make_config([ChildItem(id=id_b)], [ChildItem(id=id_b)], "defects")
+        config_a = self._make_config(
+            [ChildItem(id=id_a)], [ChildItem(id=id_a)], "steps"
+        )
+        config_b = self._make_config(
+            [ChildItem(id=id_b)], [ChildItem(id=id_b)], "defects"
+        )
         OptimisticLockingValidator.validate_collections([config_a, config_b])
 
     def test_first_invalid_config_raises_immediately(self):
@@ -230,6 +246,7 @@ class TestValidateCollections:
         ConflictError.extra_child_ids only accepts UUID | int values, so the
         custom id_getter must return a UUID (or int) for the error to be built.
         """
+
         @dataclass
         class WeirdItem:
             uid: object  # UUID stored under a non-standard attribute name
@@ -251,6 +268,7 @@ class TestValidateCollections:
 
     def test_custom_is_deleted_checker_is_used(self):
         """CollectionConfig.is_deleted_checker is respected when filtering deleted items."""
+
         @dataclass
         class FlaggedItem:
             id: object
@@ -272,6 +290,7 @@ class TestValidateCollections:
 # ---------------------------------------------------------------------------
 # validate_object
 # ---------------------------------------------------------------------------
+
 
 class TestValidateObject:
     def test_matching_timestamps_do_not_raise(self):
@@ -303,6 +322,7 @@ class TestValidateObject:
 
     def test_object_without_server_modified_at_attribute_skips_check(self):
         """Objects that lack server_modified_at entirely skip the timestamp check."""
+
         @dataclass
         class NoTimestamp:
             name: str
@@ -322,7 +342,9 @@ class TestValidateObject:
             collection_name="steps",
         )
         with pytest.raises(ConcurrentModificationError) as exc_info:
-            OptimisticLockingValidator.validate_object(server, client, collection_configs=[config])
+            OptimisticLockingValidator.validate_object(
+                server, client, collection_configs=[config]
+            )
         assert extra_id in exc_info.value.conflict_error.extra_child_ids
 
     def test_no_collection_configs_skips_collection_check(self):
@@ -330,7 +352,9 @@ class TestValidateObject:
         ts = _dt(0)
         server = SimpleObj(server_modified_at=ts)
         client = SimpleObj(server_modified_at=ts)
-        OptimisticLockingValidator.validate_object(server, client, collection_configs=None)
+        OptimisticLockingValidator.validate_object(
+            server, client, collection_configs=None
+        )
 
     def test_timestamp_checked_before_collections(self):
         """Timestamp mismatch is raised before collection conflicts are evaluated."""
@@ -344,7 +368,9 @@ class TestValidateObject:
             collection_name="steps",
         )
         with pytest.raises(ConcurrentModificationError) as exc_info:
-            OptimisticLockingValidator.validate_object(server, client, collection_configs=[config])
+            OptimisticLockingValidator.validate_object(
+                server, client, collection_configs=[config]
+            )
         # The error must be about the timestamp, not the extra child IDs
         err = exc_info.value.conflict_error
         assert err.server_modified_at == _dt(1_000)
@@ -352,6 +378,7 @@ class TestValidateObject:
 
     def test_class_name_used_as_object_name_in_error(self):
         """The class name of server_obj is used as object_name in the timestamp error message."""
+
         @dataclass
         class MySpecialEntity:
             server_modified_at: Optional[datetime] = None
@@ -373,4 +400,6 @@ class TestValidateObject:
             client_collection=[ChildItem(id=shared_id)],
             collection_name="items",
         )
-        OptimisticLockingValidator.validate_object(server, client, collection_configs=[config])
+        OptimisticLockingValidator.validate_object(
+            server, client, collection_configs=[config]
+        )

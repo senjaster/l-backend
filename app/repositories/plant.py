@@ -9,9 +9,6 @@ from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant import Plant, Facility, PlantListItem, PlantListResponse
-from app.models import ConflictError, ConflictDetail
-from app.exceptions import ConcurrentModificationError
-from app.utils.datetime_utils import truncate_to_milliseconds
 from app.utils.db_utils import OptimisticLockingValidator, CollectionConfig
 
 # Load queries from single file
@@ -30,7 +27,7 @@ class PlantRepository:
         plant_row = await queries.get_by_id(conn, id=plant_id)
         if not plant_row:
             return None
-        
+
         # Get facilities
         facility_rows = [
             row async for row in queries.get_facilities(conn, plant_id=plant_id)
@@ -92,9 +89,9 @@ class PlantRepository:
                     CollectionConfig(
                         server_collection=current.facilities,
                         client_collection=plant.facilities,
-                        collection_name="facilities"
+                        collection_name="facilities",
                     )
-                ]
+                ],
             )
 
         # Upsert plant (claim fields are managed separately via claim/release endpoints)
@@ -160,7 +157,7 @@ class PlantRepository:
             user_id=user_id,
             claimed_at=now,
             server_modified_at=now,
-            plant_group_id=current.plant_group_id
+            plant_group_id=current.plant_group_id,
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):
