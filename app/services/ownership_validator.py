@@ -222,6 +222,7 @@ class OwnershipValidator:
             )
 
         if current.inspector_id != self.current_user.id:
+            assert current.server_modified_at is not None
             raise ConcurrentModificationError(
                 ConflictError(
                     message="Work log is owned by another user",

@@ -78,6 +78,7 @@ class DefectRepository:
 
         if current and not (force or settings.disable_optimistic_locking):
             # Validate server_modified_at for existing defect
+            assert current.server_modified_at is not None
             if defect.server_modified_at is None:
                 raise ConcurrentModificationError(
                     ConflictError(

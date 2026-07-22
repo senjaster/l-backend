@@ -62,7 +62,7 @@ class PermissionService:
         result = await queries.check_plant_access(
             self.conn, inspector_id=self.current_user.id, plant_id=plant_id
         )
-        return result["has_access"]
+        return result["has_access"] if result else False
 
     async def require_plant_access(self, plant_id: UUID) -> None:
         """

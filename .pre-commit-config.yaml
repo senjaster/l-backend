@@ -3,8 +3,7 @@ repos:
     hooks:
       - id: generate-aiosql-stubs
         name: Generate aiosql type stubs
-        language: python
-        entry: python scripts/generate_aiosql_stubs.py
+        language: system
+        entry: .venv/bin/python scripts/generate_aiosql_stubs.py
         files: ^app/queries/.*\.sql$
         pass_filenames: false
-        additional_dependencies: []

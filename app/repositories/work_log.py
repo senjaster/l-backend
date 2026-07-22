@@ -37,7 +37,7 @@ class WorkLogRepository:
 
     async def get_by_id(self, conn, work_log_id: UUID) -> Optional[WorkLog]:
         """Get work log by ID with inspectors"""
-        work_log_row = await queries.get_by_id(conn, work_log_id=work_log_id)
+        work_log_row = await queries.get_by_id(conn, id=work_log_id)
         if not work_log_row:
             return None
 
@@ -125,6 +125,7 @@ class WorkLogRepository:
             new_server_modified_at = datetime.now(timezone.utc)
 
             if current and not (force or settings.disable_optimistic_locking):
+                assert current.server_modified_at is not None
                 if work_log.server_modified_at is None:
                     raise ConcurrentModificationError(
                         ConflictError(

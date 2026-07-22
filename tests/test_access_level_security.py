@@ -38,7 +38,6 @@ def test_jwt_token_contains_scope():
     )
 
     # Decode the token (without verification for testing)
-    auth_service._load_keys()
     decoded = jwt.decode(
         access_token,
         auth_service._public_key,
@@ -73,7 +72,6 @@ def test_jwt_token_scope_variations():
         )
 
         # Decode and verify
-        auth_service._load_keys()
         decoded = jwt.decode(
             access_token,
             auth_service._public_key,

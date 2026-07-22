@@ -81,7 +81,10 @@ class EquipmentTypeRepository:
         )
 
         # Return updated aggregate
-        return await self.get_by_id(conn, equipment_type.id)
+        result = await self.get_by_id(conn, equipment_type.id)
+        if result is None:
+            raise ValueError(f"EquipmentType {equipment_type.id} not found after save")
+        return result
 
     async def delete(self, conn, equipment_type_id: int) -> bool:
         """Delete equipment type (must be called within transaction)"""
@@ -112,8 +115,6 @@ class EquipmentTypeRepository:
                 equipment_type_id=equipment_type_id,
                 name=template.name,
                 short_name=template.short_name,
-                t_max=template.t_max,
-                t_excess=template.t_excess,
                 default_sticker_id=template.default_sticker_id,
             )
 

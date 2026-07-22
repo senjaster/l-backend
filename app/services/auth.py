@@ -23,28 +23,25 @@ class AuthService:
 
     def __init__(self):
         self.repository = AuthRepository()
-        self._private_key: Optional[str] = None
-        self._public_key: Optional[str] = None
+        self._private_key: str = self._load_key(
+            settings.private_key, settings.private_key_path, "PRIVATE_KEY"
+        )
+        self._public_key: str = self._load_key(
+            settings.public_key, settings.public_key_path, "PUBLIC_KEY"
+        )
 
-    def _load_keys(self):
-        """Load RSA keys from environment variables or files (lazy loading)"""
-        if self._private_key is None:
-            # Try to load from environment variable first
-            if settings.private_key:
-                self._private_key = settings.private_key
-            else:
-                # Fallback to reading from file
-                with open(settings.private_key_path, "r") as f:
-                    self._private_key = f.read()
-
-        if self._public_key is None:
-            # Try to load from environment variable first
-            if settings.public_key:
-                self._public_key = settings.public_key
-            else:
-                # Fallback to reading from file
-                with open(settings.public_key_path, "r") as f:
-                    self._public_key = f.read()
+    @staticmethod
+    def _load_key(env_value: str | None, file_path: str | None, key_name: str) -> str:
+        """Load a single RSA key from env variable or file, raising ValueError if neither is set."""
+        if env_value:
+            return env_value
+        if file_path:
+            with open(file_path, "r") as f:
+                return f.read()
+        raise ValueError(
+            f"RSA key '{key_name}' is not configured: "
+            f"set the corresponding environment variable or file path."
+        )
 
     @staticmethod
     def hash_password(password: str) -> str:
@@ -71,8 +68,6 @@ class AuthService:
         self, inspector_id: int, device_id: UUID | str, access_level: str
     ) -> str:
         """Create a JWT access token with access level as scope"""
-        self._load_keys()
-
         now = datetime.now(timezone.utc)
         exp = now + timedelta(minutes=settings.access_token_lifetime_min)
 
@@ -163,8 +158,6 @@ class AuthService:
         """
         Универсальная проверка токена: сначала JWT, потом S3 (Basic Auth)
         """
-        self._load_keys()
-
         jwt_payload = self._jwt_verify_access_token(token)
         if jwt_payload:
             return jwt_payload
@@ -182,8 +175,6 @@ class AuthService:
         This will accept expired or revoked tokens.
         WARNING: Only use when TRUST_INVALID_TOKENS is enabled for development/testing.
         """
-        self._load_keys()
-
         try:
             # Decode without verification - accepts expired tokens
             payload = jwt.decode(
