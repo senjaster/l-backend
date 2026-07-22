@@ -1,11 +1,12 @@
 """Tests for stale claim mechanism - claims persist but can be overridden after 3:00 AM"""
 
-import pytest
-from uuid import uuid4
-from datetime import datetime, timezone, timedelta
-from fastapi.testclient import TestClient
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from uuid import uuid4
+
+import pytest
+from fastapi.testclient import TestClient
 
 PUT_BODY_TEMPLATE = {
     "name": "Test Power Plant",
@@ -154,12 +155,11 @@ def test_unclaimed_plant_is_stale(client: TestClient, plant_data, plant_id):
     assert data["is_stale"] is True
 
 
-def test_reclaim_stale_plant_by_different_user(
-    client: TestClient, plant_data, plant_id
-):
+def test_reclaim_stale_plant_by_different_user(client: TestClient, plant_data, plant_id):
     """Test that a different user can claim a stale plant"""
-    from app.services.auth import AuthService
     from datetime import timedelta
+
+    from app.services.auth import AuthService
 
     # Create plant
     client.put("/plant", json=plant_data)
@@ -174,9 +174,7 @@ def test_reclaim_stale_plant_by_different_user(
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(
-            user_id_1, device_id_1, "MODIFY"
-        )
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
 
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -202,9 +200,7 @@ def test_reclaim_stale_plant_by_different_user(
     assert data["is_stale"] is False
 
 
-def test_cannot_reclaim_fresh_plant_by_different_user(
-    client: TestClient, plant_data, plant_id
-):
+def test_cannot_reclaim_fresh_plant_by_different_user(client: TestClient, plant_data, plant_id):
     """Test that a different user cannot claim a fresh (non-stale) plant"""
     from app.services.auth import AuthService
 
@@ -272,12 +268,11 @@ def test_same_user_can_reclaim_own_plant(client: TestClient, plant_data, plant_i
     assert data["claimed_by_user_id"] == user_id
 
 
-async def test_can_modify_plant_with_stale_claim(
-    client: TestClient, plant_data, plant_id, grant_plant_access
-):
+async def test_can_modify_plant_with_stale_claim(client: TestClient, plant_data, plant_id, grant_plant_access):
     """Test that modifying a plant with a stale claim requires re-claiming"""
-    from app.services.auth import AuthService
     from datetime import timedelta
+
+    from app.services.auth import AuthService
 
     # Create plant
     create_response = client.put("/plant", json=plant_data)
@@ -293,9 +288,7 @@ async def test_can_modify_plant_with_stale_claim(
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(
-            user_id_1, device_id_1, "MODIFY"
-        )
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
 
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -331,12 +324,11 @@ async def test_can_modify_plant_with_stale_claim(
     assert "claim" in error_data["message"].lower()
 
 
-def test_can_modify_after_reclaiming_stale_plant(
-    client: TestClient, plant_data, plant_id
-):
+def test_can_modify_after_reclaiming_stale_plant(client: TestClient, plant_data, plant_id):
     """Test that after re-claiming a stale plant, user can modify it"""
-    from app.services.auth import AuthService
     from datetime import timedelta
+
+    from app.services.auth import AuthService
 
     # Create plant
     create_response = client.put("/plant", json=plant_data)
@@ -352,9 +344,7 @@ def test_can_modify_after_reclaiming_stale_plant(
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(
-            user_id_1, device_id_1, "MODIFY"
-        )
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
 
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -393,6 +383,7 @@ def test_can_modify_after_reclaiming_stale_plant(
 def test_stale_claim_persists_in_database(client: TestClient, plant_data, plant_id):
     """Test that stale claims are not removed from database, just marked as stale"""
     from datetime import timedelta
+
     from app.services.auth import AuthService
 
     # Create plant
@@ -433,14 +424,13 @@ async def test_equipment_modification_with_stale_plant_claim(
     client: TestClient, plant_data, plant_id, grant_plant_access
 ):
     """Test that equipment cannot be modified if parent plant has stale claim"""
-    from app.services.auth import AuthService
     from datetime import timedelta
+
+    from app.services.auth import AuthService
 
     # Create plant with facility
     facility_id = uuid4()
-    plant_data["facilities"] = [
-        {"id": str(facility_id), "name": "Facility 1", "is_deleted": False}
-    ]
+    plant_data["facilities"] = [{"id": str(facility_id), "name": "Facility 1", "is_deleted": False}]
 
     client.put("/plant", json=plant_data)
 
@@ -454,9 +444,7 @@ async def test_equipment_modification_with_stale_plant_claim(
         auth_service = AuthService()
         device_id_1 = uuid4()
         user_id_1 = 1
-        access_token_1 = auth_service.create_access_token(
-            user_id_1, device_id_1, "MODIFY"
-        )
+        access_token_1 = auth_service.create_access_token(user_id_1, device_id_1, "MODIFY")
 
         client.post(
             f"/plant/by_id/{plant_id}/claim",
@@ -512,6 +500,7 @@ async def test_equipment_modification_with_stale_plant_claim(
 def test_claim_expiration_at_3am_moscow_time(client: TestClient, plant_data, plant_id):
     """Test that claims expire at 3:00 AM Moscow time (00:00 UTC)"""
     from datetime import time
+
     from app.services.auth import AuthService
 
     # Create plant
@@ -519,9 +508,7 @@ def test_claim_expiration_at_3am_moscow_time(client: TestClient, plant_data, pla
 
     # Claim at 2:59 AM Moscow time (23:59 UTC yesterday)
     now_utc = datetime.now(timezone.utc)
-    today_midnight_utc = datetime.combine(
-        now_utc.date(), time(0, 0), tzinfo=timezone.utc
-    )
+    today_midnight_utc = datetime.combine(now_utc.date(), time(0, 0), tzinfo=timezone.utc)
 
     # Claim made 1 minute before 3:00 AM Moscow (23:59 UTC yesterday)
     claim_time = today_midnight_utc - timedelta(minutes=1)
@@ -579,8 +566,9 @@ def test_release_plant_clears_claim(client: TestClient, plant_data, plant_id):
 
 def test_claim_updates_server_modified_at(client: TestClient, plant_data, plant_id):
     """Test that claiming a plant updates server_modified_at for sync purposes"""
-    from app.services.auth import AuthService
     import time
+
+    from app.services.auth import AuthService
 
     # Create plant
     create_response = client.put("/plant", json=plant_data)
@@ -612,8 +600,9 @@ def test_claim_updates_server_modified_at(client: TestClient, plant_data, plant_
 
 def test_release_updates_server_modified_at(client: TestClient, plant_data, plant_id):
     """Test that releasing a plant updates server_modified_at for sync purposes"""
-    from app.services.auth import AuthService
     import time
+
+    from app.services.auth import AuthService
 
     # Create and claim plant
     client.put("/plant", json=plant_data)

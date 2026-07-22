@@ -1,12 +1,14 @@
 """Custom exception handlers"""
 
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
+import logging
+
 import asyncpg
 import psycopg2
 import psycopg2.errors
-import logging
+from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
 from app.models import BaseError
 
 logger = logging.getLogger(__name__)
@@ -45,9 +47,7 @@ async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
             },
         )
         error = BaseError(type="foreign_key_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Unique constraint violation
     if isinstance(exc, psycopg2.errors.UniqueViolation):
@@ -62,9 +62,7 @@ async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
             },
         )
         error = BaseError(type="unique_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Not null violation
     if isinstance(exc, psycopg2.errors.NotNullViolation):
@@ -79,9 +77,7 @@ async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
             },
         )
         error = BaseError(type="not_null_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Check constraint violation
     if isinstance(exc, psycopg2.errors.CheckViolation):
@@ -96,9 +92,7 @@ async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
             },
         )
         error = BaseError(type="check_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Generic database error
     logger.error(
@@ -111,12 +105,8 @@ async def psycopg2_exception_handler(request: Request, exc: psycopg2.Error):
         },
         exc_info=True,
     )
-    error = BaseError(
-        type="database_error", message="An unexpected database error occurred"
-    )
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error.model_dump()
-    )
+    error = BaseError(type="database_error", message="An unexpected database error occurred")
+    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error.model_dump())
 
 
 async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError):
@@ -135,9 +125,7 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
             },
         )
         error = BaseError(type="foreign_key_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Unique constraint violation
     if isinstance(exc, asyncpg.UniqueViolationError):
@@ -152,9 +140,7 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
             },
         )
         error = BaseError(type="unique_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Not null violation
     if isinstance(exc, asyncpg.NotNullViolationError):
@@ -169,9 +155,7 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
             },
         )
         error = BaseError(type="not_null_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Check constraint violation
     if isinstance(exc, asyncpg.CheckViolationError):
@@ -186,9 +170,7 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
             },
         )
         error = BaseError(type="check_violation", message=error_msg)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump()
-        )
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=error.model_dump())
 
     # Generic database error
     logger.error(
@@ -201,12 +183,8 @@ async def asyncpg_exception_handler(request: Request, exc: asyncpg.PostgresError
         },
         exc_info=True,
     )
-    error = BaseError(
-        type="database_error", message="An unexpected database error occurred"
-    )
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error.model_dump()
-    )
+    error = BaseError(type="database_error", message="An unexpected database error occurred")
+    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error.model_dump())
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -223,12 +201,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         exc_info=True,
     )
 
-    message = "\n".join(
-        (f"Field: {error['loc']}, Error: {error['msg']}" for error in exc.errors())
-    )
+    message = "\n".join((f"Field: {error['loc']}, Error: {error['msg']}" for error in exc.errors()))
 
     error = BaseError(type="request_validation_error", message=message)
 
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error.model_dump()
-    )
+    return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error.model_dump())

@@ -1,19 +1,20 @@
 """Authentication service with business logic"""
 
 import base64
-import secrets
 import hashlib
 import logging
+import secrets
+import time
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
 from typing import Optional
+from uuid import UUID, uuid4
+
 import bcrypt
 import jwt
-import time
 
-from app.models.auth import TokenPayload, TokenResponse, InspectorWithPassword
-from app.repositories.auth import AuthRepository
 from app.config import settings
+from app.models.auth import InspectorWithPassword, TokenPayload, TokenResponse
+from app.repositories.auth import AuthRepository
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +24,8 @@ class AuthService:
 
     def __init__(self):
         self.repository = AuthRepository()
-        self._private_key: str = self._load_key(
-            settings.private_key, settings.private_key_path, "PRIVATE_KEY"
-        )
-        self._public_key: str = self._load_key(
-            settings.public_key, settings.public_key_path, "PUBLIC_KEY"
-        )
+        self._private_key: str = self._load_key(settings.private_key, settings.private_key_path, "PRIVATE_KEY")
+        self._public_key: str = self._load_key(settings.public_key, settings.public_key_path, "PUBLIC_KEY")
 
     @staticmethod
     def _load_key(env_value: str | None, file_path: str | None, key_name: str) -> str:
@@ -39,8 +36,7 @@ class AuthService:
             with open(file_path, "r") as f:
                 return f.read()
         raise ValueError(
-            f"RSA key '{key_name}' is not configured: "
-            f"set the corresponding environment variable or file path."
+            f"RSA key '{key_name}' is not configured: set the corresponding environment variable or file path."
         )
 
     @staticmethod
@@ -64,9 +60,7 @@ class AuthService:
         """Hash a refresh token using SHA-256"""
         return hashlib.sha256(token.encode()).hexdigest()
 
-    def create_access_token(
-        self, inspector_id: int, device_id: UUID | str, access_level: str
-    ) -> str:
+    def create_access_token(self, inspector_id: int, device_id: UUID | str, access_level: str) -> str:
         """Create a JWT access token with access level as scope"""
         now = datetime.now(timezone.utc)
         exp = now + timedelta(minutes=settings.access_token_lifetime_min)
@@ -86,9 +80,7 @@ class AuthService:
 
         # Convert to dict and ensure proper types for JWT
         payload_dict = payload.model_dump()
-        payload_dict["sub"] = str(
-            payload_dict["sub"]
-        )  # JWT spec requires sub to be a string
+        payload_dict["sub"] = str(payload_dict["sub"])  # JWT spec requires sub to be a string
         payload_dict["dev"] = str(payload_dict["dev"])
 
         return jwt.encode(payload_dict, self._private_key, algorithm="RS256")
@@ -193,9 +185,7 @@ class AuthService:
             )
             return None
 
-    async def login(
-        self, conn, username: str, password: str, device_id: str
-    ) -> Optional[TokenResponse]:
+    async def login(self, conn, username: str, password: str, device_id: str) -> Optional[TokenResponse]:
         """
         Authenticate user and create tokens.
         Returns None if authentication fails.
@@ -210,17 +200,13 @@ class AuthService:
             return None
 
         # Generate tokens with access level as scope
-        access_token = self.create_access_token(
-            inspector.id, device_id, inspector.access_level.value
-        )
+        access_token = self.create_access_token(inspector.id, device_id, inspector.access_level.value)
         refresh_token_string = self.generate_refresh_token()
 
         # Store refresh token in database
         token_id = uuid4()
         token_hash = self.hash_token(refresh_token_string)
-        expires_at = datetime.now(timezone.utc) + timedelta(
-            days=settings.refresh_token_lifetime_days
-        )
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_lifetime_days)
 
         await self.repository.create_refresh_token(
             conn,
@@ -231,9 +217,7 @@ class AuthService:
             expires_at=expires_at,
         )
 
-        return TokenResponse(
-            access_token=access_token, refresh_token=refresh_token_string
-        )
+        return TokenResponse(access_token=access_token, refresh_token=refresh_token_string)
 
     async def refresh(self, conn, refresh_token_string: str) -> Optional[TokenResponse]:
         """
@@ -271,25 +255,19 @@ class AuthService:
                 access_token = self.create_access_token(
                     token.inspector_id, token.device_id, inspector.access_level.value
                 )
-                return TokenResponse(
-                    access_token=access_token, refresh_token=refresh_token_string
-                )
+                return TokenResponse(access_token=access_token, refresh_token=refresh_token_string)
 
         # Mark token as used
         await self.repository.mark_token_used(conn, token.id)
 
         # Generate new tokens (rotation)
-        new_access_token = self.create_access_token(
-            token.inspector_id, token.device_id, inspector.access_level.value
-        )
+        new_access_token = self.create_access_token(token.inspector_id, token.device_id, inspector.access_level.value)
         new_refresh_token_string = self.generate_refresh_token()
 
         # Create new refresh token in database
         new_token_id = uuid4()
         new_token_hash = self.hash_token(new_refresh_token_string)
-        new_expires_at = datetime.now(timezone.utc) + timedelta(
-            days=settings.refresh_token_lifetime_days
-        )
+        new_expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_lifetime_days)
 
         await self.repository.create_refresh_token(
             conn,
@@ -303,13 +281,9 @@ class AuthService:
         # Revoke old token and link to new one
         await self.repository.revoke_and_replace(conn, token.id, new_token_id)
 
-        return TokenResponse(
-            access_token=new_access_token, refresh_token=new_refresh_token_string
-        )
+        return TokenResponse(access_token=new_access_token, refresh_token=new_refresh_token_string)
 
-    async def get_current_inspector(
-        self, conn, token: str
-    ) -> Optional[InspectorWithPassword]:
+    async def get_current_inspector(self, conn, token: str) -> Optional[InspectorWithPassword]:
         """Get current inspector from access token (returns internal model with password)"""
         payload = self.verify_access_token(token)
         if not payload:
@@ -352,9 +326,7 @@ class AuthService:
         new_password_hash = self.hash_password(new_password)
 
         # Update password in database atomically (checks old password hash in DB)
-        updated = await self.repository.update_password(
-            conn, inspector_id, inspector.password_hash, new_password_hash
-        )
+        updated = await self.repository.update_password(conn, inspector_id, inspector.password_hash, new_password_hash)
 
         # If update failed, old password didn't match (race condition)
         if not updated:
@@ -364,17 +336,13 @@ class AuthService:
         await self.repository.revoke_all_tokens_for_inspector(conn, inspector_id)
 
         # Generate new token pair with access level
-        access_token = self.create_access_token(
-            inspector_id, device_id, inspector.access_level.value
-        )
+        access_token = self.create_access_token(inspector_id, device_id, inspector.access_level.value)
         refresh_token_string = self.generate_refresh_token()
 
         # Store new refresh token in database
         token_id = uuid4()
         token_hash = self.hash_token(refresh_token_string)
-        expires_at = datetime.now(timezone.utc) + timedelta(
-            days=settings.refresh_token_lifetime_days
-        )
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_lifetime_days)
 
         await self.repository.create_refresh_token(
             conn,
@@ -385,6 +353,4 @@ class AuthService:
             expires_at=expires_at,
         )
 
-        return TokenResponse(
-            access_token=access_token, refresh_token=refresh_token_string
-        )
+        return TokenResponse(access_token=access_token, refresh_token=refresh_token_string)

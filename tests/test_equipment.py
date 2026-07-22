@@ -1,9 +1,10 @@
 """Integration tests for Equipment API"""
 
-import pytest
-from uuid import uuid4
-from fastapi.testclient import TestClient
 from copy import deepcopy
+from uuid import uuid4
+
+import pytest
+from fastapi.testclient import TestClient
 
 PUT_BODY_TEMPLATE = {
     "name": "Test Motor",
@@ -68,9 +69,7 @@ def equipment_data(
     return data
 
 
-def test_create_equipment(
-    client: TestClient, equipment_data, equipment_id, plant_id, facility_id
-):
+def test_create_equipment(client: TestClient, equipment_data, equipment_id, plant_id, facility_id):
     """Test creating a new equipment with control points (defects always empty)"""
 
     response = client.put("/equipment", json=equipment_data)
@@ -267,9 +266,7 @@ def test_control_point_transfer_not_allowed(
 # NEW TESTS - Missing test cases 2-10
 
 
-def test_mismatched_control_point_ids_rejection(
-    client: TestClient, equipment_data, control_point_id_1
-):
+def test_mismatched_control_point_ids_rejection(client: TestClient, equipment_data, control_point_id_1):
     """Test #2: Reject when server and client have same count but different control point IDs"""
     control_point_id_2 = uuid4()
     control_point_id_3 = uuid4()
@@ -324,9 +321,7 @@ def test_mismatched_control_point_ids_rejection(
 # DEPRECATED: Defect mismatch test removed - defects are now managed via separate defect router
 
 
-def test_deleted_control_points_persist_through_updates(
-    client: TestClient, equipment_data, control_point_id_1
-):
+def test_deleted_control_points_persist_through_updates(client: TestClient, equipment_data, control_point_id_1):
     """Test #4a: Deleted control points remain in GET response after updates"""
     control_point_id_2 = uuid4()
 
@@ -396,18 +391,14 @@ def test_force_mode_with_control_point_stealing_attempt(
     equipment_data_2["facility_id"] = str(facility_id)
     equipment_data_2["parent_id"] = str(facility_id)
     equipment_data_2["name"] = "Equipment Two"
-    equipment_data_2["control_points"][0]["id"] = str(
-        control_point_id_1
-    )  # Steal control point
+    equipment_data_2["control_points"][0]["id"] = str(control_point_id_1)  # Steal control point
 
     response = client.put("/equipment?force=true", json=equipment_data_2)
     assert response.status_code == 400
     assert "cannot transfer" in response.json()["detail"].lower()
 
 
-def test_empty_control_points_list_without_force(
-    client: TestClient, equipment_data, control_point_id_1
-):
+def test_empty_control_points_list_without_force(client: TestClient, equipment_data, control_point_id_1):
     """Test #6a: Updating from non-empty to empty control points with force=false should reject"""
     control_point_id_2 = uuid4()
 
@@ -439,9 +430,7 @@ def test_empty_control_points_list_without_force(
     assert "extra child" in error_data["message"].lower()
 
 
-def test_empty_control_points_list_with_force(
-    client: TestClient, equipment_data, control_point_id_1
-):
+def test_empty_control_points_list_with_force(client: TestClient, equipment_data, control_point_id_1):
     """Test #6b: Updating from non-empty to empty control points with force=true should mark all as deleted"""
     control_point_id_2 = uuid4()
 
@@ -476,9 +465,7 @@ def test_empty_control_points_list_with_force(
 # DEPRECATED: Empty defects list tests removed - defects are now managed via separate defect router
 
 
-def test_multiple_operations_in_single_request(
-    client: TestClient, equipment_data, control_point_id_1
-):
+def test_multiple_operations_in_single_request(client: TestClient, equipment_data, control_point_id_1):
     """Test #7: Simultaneously add, update, and delete control points in one PUT"""
     control_point_id_2 = uuid4()
 
@@ -574,16 +561,12 @@ def test_get_all_equipment_includes_deleted(client: TestClient, equipment_data):
     assert "items" in data
 
     # Find our deleted equipment in the list
-    deleted_equipment = next(
-        (e for e in data["items"] if e["id"] == equipment_data["id"]), None
-    )
+    deleted_equipment = next((e for e in data["items"] if e["id"] == equipment_data["id"]), None)
     assert deleted_equipment is not None
     assert deleted_equipment["is_deleted"] is True
 
 
-def test_get_equipment_by_plant_id(
-    client: TestClient, equipment_data, plant_id, facility_id
-):
+def test_get_equipment_by_plant_id(client: TestClient, equipment_data, plant_id, facility_id):
     """Test #9: GET /equipment/by_plant_id/{plant_id} returns full equipment aggregates for specific plant"""
     # Create equipment for plant
     client.put("/equipment", json=equipment_data)
@@ -625,9 +608,7 @@ def test_get_equipment_by_plant_id(
     assert len(our_equipment["defects"]) == 0  # Always empty
 
 
-def test_concurrent_modification_with_control_points(
-    client: TestClient, equipment_data, control_point_id_1
-):
+def test_concurrent_modification_with_control_points(client: TestClient, equipment_data, control_point_id_1):
     """Test #10: Concurrent modification detected when another client adds control points"""
     control_point_id_2 = uuid4()
 
@@ -673,9 +654,7 @@ def test_concurrent_modification_with_control_points(
 # Tests for modified_since filter
 
 
-def test_get_all_equipment_with_modified_since_filter(
-    client: TestClient, equipment_data, plant_id, facility_id
-):
+def test_get_all_equipment_with_modified_since_filter(client: TestClient, equipment_data, plant_id, facility_id):
     """Test filtering equipment by modified_since parameter"""
     import time
 
@@ -726,9 +705,7 @@ def test_get_all_equipment_with_modified_since_filter(
     assert str(equipment_id_2) not in filtered_ids
 
 
-def test_get_equipment_by_plant_with_modified_since_filter(
-    client: TestClient, equipment_data, plant_id, facility_id
-):
+def test_get_equipment_by_plant_with_modified_since_filter(client: TestClient, equipment_data, plant_id, facility_id):
     """Test filtering equipment by plant and modified_since parameter"""
     import time
 
@@ -763,9 +740,7 @@ def test_get_equipment_by_plant_with_modified_since_filter(
     assert str(equipment_id_2) in equipment_ids
 
     # Get equipment modified after timestamp1 - should only return equipment 2
-    response = client.get(
-        f"/equipment/by_plant_id/{plant_id}?modified_since={timestamp1}"
-    )
+    response = client.get(f"/equipment/by_plant_id/{plant_id}?modified_since={timestamp1}")
     assert response.status_code == 200
     filtered_equipment = response.json()
     filtered_ids = [e["id"] for e in filtered_equipment]
@@ -773,9 +748,7 @@ def test_get_equipment_by_plant_with_modified_since_filter(
     assert str(equipment_id_2) in filtered_ids
 
     # Get equipment modified after timestamp2 - should return none
-    response = client.get(
-        f"/equipment/by_plant_id/{plant_id}?modified_since={timestamp2}"
-    )
+    response = client.get(f"/equipment/by_plant_id/{plant_id}?modified_since={timestamp2}")
     assert response.status_code == 200
     filtered_equipment = response.json()
     assert len(filtered_equipment) == 0

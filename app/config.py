@@ -1,8 +1,9 @@
 """Application configuration"""
 
 from typing import Optional
-from pydantic_settings import BaseSettings
 from urllib.parse import urlparse, urlunparse
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -30,22 +31,18 @@ class Settings(BaseSettings):
     log_json: bool = True  # Enable structured JSON logging
 
     # Optimistic locking settings
-    disable_optimistic_locking: bool = (
-        False  # Set to True to disable optimistic locking (for testing only)
-    )
+    disable_optimistic_locking: bool = False  # Set to True to disable optimistic locking (for testing only)
 
     # S3 settings
     s3_region: str = "ru-central1"
-    s3_endpoint_host: Optional[str] = (
-        "storage.yandexcloud.net"  # S3 endpoint host (e.g., "storage.yandexcloud.net" for Yandex, "s3.amazonaws.com" for AWS)
-    )
-    s3_use_virtual_hosted_style: bool = True  # Use virtual-hosted-style URLs (bucket.host) instead of path-style (host/bucket)
+    # S3 endpoint host (e.g., "storage.yandexcloud.net" for Yandex, "s3.amazonaws.com" for AWS)
+    s3_endpoint_host: Optional[str] = "storage.yandexcloud.net"
+    # Use virtual-hosted-style URLs (bucket.host) instead of path-style (host/bucket)
+    s3_use_virtual_hosted_style: bool = True
     s3_bucket_name: str
     s3_access_key_id: Optional[str] = None
     s3_secret_access_key: Optional[str] = None
-    s3_presigned_url_expiration: int = (
-        3600  # URL expiration in seconds (default: 1 hour)
-    )
+    s3_presigned_url_expiration: int = 3600  # URL expiration in seconds (default: 1 hour)
 
     class Config:
         env_file = ".env"

@@ -1,7 +1,8 @@
 """S3 Event model"""
 
-from pydantic import BaseModel
 from typing import List
+
+from pydantic import BaseModel
 
 
 class EventMetadata(BaseModel):

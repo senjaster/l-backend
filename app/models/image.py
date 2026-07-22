@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID
+
 from pydantic import BaseModel
 
 
@@ -40,9 +41,7 @@ class Image(BaseModel):
     upload_status: ImageUploadStatus
     server_uploaded_at: Optional[datetime] = None
     presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
-    presigned_url_expires_at: Optional[datetime] = (
-        None  # Expiration time for presigned URL
-    )
+    presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL
 
 
 class PutImageRequestBody(BaseModel):
@@ -59,6 +58,4 @@ class PutImageRequestBody(BaseModel):
     is_deleted: bool = False
     server_modified_at: datetime
     presigned_url: Optional[str] = None  # Generated dynamically, not stored in DB
-    presigned_url_expires_at: Optional[datetime] = (
-        None  # Expiration time for presigned URL
-    )
+    presigned_url_expires_at: Optional[datetime] = None  # Expiration time for presigned URL

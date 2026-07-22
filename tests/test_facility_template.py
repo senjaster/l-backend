@@ -106,19 +106,11 @@ def test_facility_template_with_equipment_types(client: TestClient):
     assert len(general_facility["equipment_templates"]) >= 13
 
     # Verify that some equipment templates have equipment_type_id set
-    templates_with_types = [
-        t
-        for t in general_facility["equipment_templates"]
-        if t["equipment_type_id"] is not None
-    ]
+    templates_with_types = [t for t in general_facility["equipment_templates"] if t["equipment_type_id"] is not None]
     assert len(templates_with_types) > 0
 
     # Verify that some equipment templates don't have equipment_type_id (containers)
-    templates_without_types = [
-        t
-        for t in general_facility["equipment_templates"]
-        if t["equipment_type_id"] is None
-    ]
+    templates_without_types = [t for t in general_facility["equipment_templates"] if t["equipment_type_id"] is None]
     assert len(templates_without_types) > 0
 
 

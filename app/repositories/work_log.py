@@ -1,24 +1,24 @@
 """Work log repository"""
 
-import aiosql
-from aiosql.queries import Queries
-import asyncpg
 import logging
 import re
-
+from datetime import datetime, timezone
 from typing import Optional, Sequence
 from uuid import UUID
-from datetime import datetime, timezone
 
+import aiosql
+import asyncpg
+from aiosql.queries import Queries
+
+from app.config import settings
 from app.constants import DEFAULT_MODIFIED_SINCE
+from app.exceptions import BusinessValidationError, ConcurrentModificationError
+from app.models import ConflictDetail, ConflictError
 from app.models.work_log import (
     WorkLog,
-    WorkLogListResponse,
     WorkLogInspector,
+    WorkLogListResponse,
 )
-from app.models import ConflictError, ConflictDetail
-from app.exceptions import ConcurrentModificationError, BusinessValidationError
-from app.config import settings
 from app.utils.async_wrapper import AsyncWrapper
 from app.utils.datetime_utils import truncate_to_milliseconds
 
@@ -27,9 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Load queries with configurable driver
 _queries = aiosql.from_path("app/queries/work_log.sql", settings.db_driver)
-queries: Queries = (
-    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
-)  # type: ignore[assignment]
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 class WorkLogRepository:
@@ -41,12 +39,7 @@ class WorkLogRepository:
         if not work_log_row:
             return None
 
-        inspector_rows = [
-            row
-            async for row in queries.get_inspectors_by_work_log(
-                conn, work_log_id=work_log_id
-            )
-        ]
+        inspector_rows = [row async for row in queries.get_inspectors_by_work_log(conn, work_log_id=work_log_id)]
 
         inspectors = [WorkLogInspector(**row) for row in inspector_rows]
 
@@ -54,16 +47,9 @@ class WorkLogRepository:
         work_log_data["inspectors"] = inspectors
         return WorkLog(**work_log_data)
 
-    async def get_all(
-        self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE
-    ) -> WorkLogListResponse:
+    async def get_all(self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> WorkLogListResponse:
         """Get all work logs as lightweight list, optionally filtered by modification date"""
-        work_log_rows = [
-            row
-            async for row in queries.get_all_work_logs(
-                conn, modified_since=modified_since
-            )
-        ]
+        work_log_rows = [row async for row in queries.get_all_work_logs(conn, modified_since=modified_since)]
         work_log_list = [WorkLog(**row) for row in work_log_rows]
         return WorkLogListResponse(items=work_log_list)
 
@@ -72,10 +58,7 @@ class WorkLogRepository:
     ) -> list[WorkLog]:
         """Get all work logs for plant (full aggregates)"""
         work_log_rows = [
-            row
-            async for row in queries.get_by_plant_id(
-                conn, plant_id=plant_id, modified_since=modified_since
-            )
+            row async for row in queries.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)
         ]
 
         if not work_log_rows:
@@ -85,15 +68,8 @@ class WorkLogRepository:
 
         all_inspectors = {}
         for work_log_id in work_log_ids:
-            inspector_rows = [
-                row
-                async for row in queries.get_inspectors_by_work_log(
-                    conn, work_log_id=work_log_id
-                )
-            ]
-            all_inspectors[work_log_id] = [
-                WorkLogInspector(**row) for row in inspector_rows
-            ]
+            inspector_rows = [row async for row in queries.get_inspectors_by_work_log(conn, work_log_id=work_log_id)]
+            all_inspectors[work_log_id] = [WorkLogInspector(**row) for row in inspector_rows]
 
         work_log_list = []
         for work_log_row in work_log_rows:
@@ -140,9 +116,9 @@ class WorkLogRepository:
                         )
                     )
 
-                if truncate_to_milliseconds(
-                    work_log.server_modified_at
-                ) != truncate_to_milliseconds(current.server_modified_at):
+                if truncate_to_milliseconds(work_log.server_modified_at) != truncate_to_milliseconds(
+                    current.server_modified_at
+                ):
                     raise ConcurrentModificationError(
                         ConflictError(
                             message="Work log was modified by another client",
@@ -159,12 +135,8 @@ class WorkLogRepository:
                         )
                     )
 
-                current_inspector_ids = {
-                    inspector.inspector_id for inspector in current.inspectors
-                }
-                incoming_inspector_ids = {
-                    inspector.inspector_id for inspector in work_log.inspectors
-                }
+                current_inspector_ids = {inspector.inspector_id for inspector in current.inspectors}
+                incoming_inspector_ids = {inspector.inspector_id for inspector in work_log.inspectors}
                 extra_inspector_ids = current_inspector_ids - incoming_inspector_ids
 
                 if extra_inspector_ids:
@@ -177,7 +149,8 @@ class WorkLogRepository:
                             conflicts=[
                                 ConflictDetail(
                                     field="inspectors",
-                                    message=f"Server has {len(extra_inspector_ids)} extra inspectors not in client request",
+                                    message=f"Server has {len(extra_inspector_ids)} extra inspectors"
+                                    " not in client request",
                                 )
                             ],
                         )
@@ -223,10 +196,7 @@ class WorkLogRepository:
         """
         try:
             existing_inspectors = [
-                row
-                async for row in queries.get_inspectors_by_work_log(
-                    conn, work_log_id=work_log_id
-                )
+                row async for row in queries.get_inspectors_by_work_log(conn, work_log_id=work_log_id)
             ]
             existing_ids = {row["inspector_id"] for row in existing_inspectors}
 
@@ -241,15 +211,11 @@ class WorkLogRepository:
 
             to_delete = existing_ids - incoming_ids
             for inspector_id in to_delete:
-                await queries.delete_work_log_inspector(
-                    conn, work_log_id=work_log_id, inspector_id=inspector_id
-                )
+                await queries.delete_work_log_inspector(conn, work_log_id=work_log_id, inspector_id=inspector_id)
         except asyncpg.ForeignKeyViolationError as e:
             # Извлекаем ID инспектора из ошибки
             match = re.search(r"\(inspector_id\)=\((\d+)\)", str(e))
             if match:
                 inspector_id = match.group(1)
-                raise BusinessValidationError(
-                    f"Inspector with ID {inspector_id} does not exist"
-                )
+                raise BusinessValidationError(f"Inspector with ID {inspector_id} does not exist")
             raise BusinessValidationError("One or more inspectors do not exist")

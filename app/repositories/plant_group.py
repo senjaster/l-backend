@@ -1,12 +1,11 @@
 """Group repository with hierarchical structure and plant synchronization"""
 
-import aiosql
 import logging
-
-from uuid import UUID
 from datetime import datetime, timezone
 from typing import Optional
+from uuid import UUID
 
+import aiosql
 from aiosql.queries import Queries
 
 from app.config import settings
@@ -15,15 +14,12 @@ from app.models.plant_group import PlantGroup, PlantGroupListResponse
 from app.utils.async_wrapper import AsyncWrapper
 from app.utils.db_utils import OptimisticLockingValidator
 
-
 logger = logging.getLogger(__name__)
 
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/plant_group.sql", settings.db_driver)
-queries: Queries = (
-    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
-)  # type: ignore[assignment]
+queries: Queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries  # type: ignore[assignment]
 
 
 class PlantGroupRepository:
@@ -43,14 +39,9 @@ class PlantGroupRepository:
             server_modified_at=group_row["server_modified_at"],
         )
 
-    async def get_all(
-        self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE
-    ) -> PlantGroupListResponse:
+    async def get_all(self, conn, modified_since: datetime = DEFAULT_MODIFIED_SINCE) -> PlantGroupListResponse:
         """Get all groups as lightweight list, optionally filtered by modification date"""
-        group_rows = [
-            row
-            async for row in queries.get_all_groups(conn, modified_since=modified_since)
-        ]
+        group_rows = [row async for row in queries.get_all_groups(conn, modified_since=modified_since)]
         groups = [PlantGroup(**row) for row in group_rows]
         return PlantGroupListResponse(items=groups)
 
@@ -102,9 +93,7 @@ class PlantGroupRepository:
 
         return result
 
-    async def _check_cyclic_dependency(
-        self, conn, group_id: UUID, new_parent_id: UUID
-    ) -> bool:
+    async def _check_cyclic_dependency(self, conn, group_id: UUID, new_parent_id: UUID) -> bool:
         """Check if moving a group to a new parent would create a cyclic dependency.
 
         Args:

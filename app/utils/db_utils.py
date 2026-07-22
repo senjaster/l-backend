@@ -1,13 +1,12 @@
 """Utility functions for database operations"""
 
-from datetime import datetime
-from typing import TypeVar, Generic, List, Set, Optional, Callable, Any
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Callable, Generic, List, Optional, Set, TypeVar
 
 from app.exceptions import ConcurrentModificationError
-from app.models import ConflictError, ConflictDetail
+from app.models import ConflictDetail, ConflictError
 from app.utils.datetime_utils import truncate_to_milliseconds
-
 
 T = TypeVar("T")
 
@@ -33,9 +32,7 @@ class OptimisticLockingValidator:
         object_name: str = "object",
     ) -> None:
         """Validate timestamps"""
-        if truncate_to_milliseconds(client_modified_at) != truncate_to_milliseconds(
-            server_modified_at
-        ):
+        if truncate_to_milliseconds(client_modified_at) != truncate_to_milliseconds(server_modified_at):
             raise ConcurrentModificationError(
                 ConflictError(
                     message=f"{object_name} was modified by another client",
@@ -53,9 +50,7 @@ class OptimisticLockingValidator:
             )
 
     @staticmethod
-    def validate_extra_ids(
-        server_ids: Set[Any], client_ids: Set[Any], collection_name: str = "items"
-    ) -> None:
+    def validate_extra_ids(server_ids: Set[Any], client_ids: Set[Any], collection_name: str = "items") -> None:
         """Validate that server doesn't have extra items"""
         extra_ids = server_ids - client_ids
         if extra_ids:
@@ -78,9 +73,7 @@ class OptimisticLockingValidator:
         """Validate multiple collections"""
         for config in configs:
             server_ids = {
-                config.id_getter(item)
-                for item in config.server_collection
-                if not config.is_deleted_checker(item)
+                config.id_getter(item) for item in config.server_collection if not config.is_deleted_checker(item)
             }
             client_ids = {config.id_getter(item) for item in config.client_collection}
             cls.validate_extra_ids(server_ids, client_ids, config.collection_name)

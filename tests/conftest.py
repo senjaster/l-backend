@@ -1,15 +1,17 @@
 """Pytest configuration and fixtures"""
 
+import os
+import subprocess
+from pathlib import Path
+
+import asyncpg
 import pytest
 import pytest_asyncio
-import asyncpg
-import subprocess
-import os
-from pathlib import Path
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 # Load test-specific environment variables from .env.test
 test_env_file = Path(__file__).parent.parent / ".env.test"
@@ -40,9 +42,7 @@ async def seed_test_data():
     # Run Flyway migrate from the db directory
     # Flyway will read credentials from environment variables
     try:
-        result = subprocess.run(
-            ["flyway", "migrate"], cwd="db", capture_output=True, text=True, check=True
-        )
+        result = subprocess.run(["flyway", "migrate"], cwd="db", capture_output=True, text=True, check=True)
         print(f"Flyway migration output: {result.stdout}")
     except subprocess.CalledProcessError as e:
         print(f"Flyway migration failed: {e.stderr}")

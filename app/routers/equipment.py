@@ -1,18 +1,20 @@
 """Equipment router - implements new API design principles"""
 
-from uuid import UUID
-from datetime import datetime
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Query
+from datetime import datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.equipment import Equipment, EquipmentListResponse
-from app.repositories.equipment import EquipmentRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.ownership import get_ownership_validator
 from app.dependencies.permissions import get_permission_service
+from app.models.equipment import Equipment, EquipmentListResponse
+from app.models.inspector import AccessLevel
+from app.repositories.equipment import ConcurrentModificationError, EquipmentRepository
 from app.services.ownership_validator import OwnershipValidator
 from app.services.permission_service import PermissionService
-from app.models.inspector import AccessLevel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/equipment", tags=["equipment"])
@@ -72,13 +74,12 @@ async def get_equipment_by_plant_id(
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
 ):
-    """Get all equipment for a plant (full aggregates with control points, defects, and inspection IDs), optionally filtered by modification date"""
+    """Get all equipment for a plant (full aggregates with control points, defects, and inspection IDs),
+    optionally filtered by modification date"""
     # Check plant access
     await permission_service.require_plant_access(plant_id)
 
-    return await equipment_repo.get_by_plant_id(
-        conn, plant_id, modified_since=modified_since
-    )
+    return await equipment_repo.get_by_plant_id(conn, plant_id, modified_since=modified_since)
 
 
 @router.put("", response_model=Equipment)
@@ -113,9 +114,7 @@ async def upsert_equipment(
             permission_service.require_access_level(AccessLevel.MODIFY)
 
             # Check plant access via equipment
-            plant_id = await permission_service.get_plant_id_from_equipment(
-                equipment.id
-            )
+            plant_id = await permission_service.get_plant_id_from_equipment(equipment.id)
             if plant_id:
                 await permission_service.require_plant_access(plant_id)
 
@@ -131,9 +130,7 @@ async def upsert_equipment(
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
-        raise HTTPException(
-            status_code=409, detail=e.conflict_error.model_dump(mode="json")
-        )
+        raise HTTPException(status_code=409, detail=e.conflict_error.model_dump(mode="json"))
     except ValueError as e:
         logger.warning(
             "Invalid equipment data",

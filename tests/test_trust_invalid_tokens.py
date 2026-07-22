@@ -1,13 +1,15 @@
 """Tests for TRUST_INVALID_TOKENS setting"""
 
-import pytest
-import pytest_asyncio
-import asyncpg
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from uuid import uuid4
-from app.services.auth import AuthService
+
+import asyncpg
+import pytest
+import pytest_asyncio
+
 from app.config import settings
+from app.services.auth import AuthService
 
 
 @pytest.fixture
@@ -54,9 +56,7 @@ async def test_inspector(test_inspector_data):
         )
 
         if existing_id:
-            await conn.execute(
-                "DELETE FROM lesiv.tokens WHERE inspector_id = $1", existing_id
-            )
+            await conn.execute("DELETE FROM lesiv.tokens WHERE inspector_id = $1", existing_id)
             await conn.execute("DELETE FROM lesiv.inspector WHERE id = $1", existing_id)
 
         inspector_id = await conn.fetchval(
@@ -77,17 +77,13 @@ async def test_inspector(test_inspector_data):
     # Cleanup after test
     conn = await asyncpg.connect(settings.get_database_url())
     try:
-        await conn.execute(
-            "DELETE FROM lesiv.tokens WHERE inspector_id = $1", inspector_id
-        )
+        await conn.execute("DELETE FROM lesiv.tokens WHERE inspector_id = $1", inspector_id)
         await conn.execute("DELETE FROM lesiv.inspector WHERE id = $1", inspector_id)
     finally:
         await conn.close()
 
 
-def test_trust_invalid_tokens_with_expired_token(
-    client, test_inspector, enable_auth, enable_trust_invalid_tokens
-):
+def test_trust_invalid_tokens_with_expired_token(client, test_inspector, enable_auth, enable_trust_invalid_tokens):
     """Test that expired tokens are accepted when TRUST_INVALID_TOKENS=true"""
     auth_service = AuthService()
     device_id = str(uuid4())
@@ -121,17 +117,13 @@ def test_trust_invalid_tokens_with_expired_token(
 
     # Test with TRUST_INVALID_TOKENS=true (already enabled by fixture)
     # The expired token should be accepted
-    response = client.get(
-        "/plant/all", headers={"Authorization": f"Bearer {expired_token}"}
-    )
+    response = client.get("/plant/all", headers={"Authorization": f"Bearer {expired_token}"})
     assert response.status_code == 200, (
         f"Should accept expired token when TRUST_INVALID_TOKENS=true, got {response.status_code}: {response.text}"
     )
 
 
-def test_trust_invalid_tokens_disabled_rejects_expired_token(
-    client, test_inspector, enable_auth
-):
+def test_trust_invalid_tokens_disabled_rejects_expired_token(client, test_inspector, enable_auth):
     """Test that expired tokens are rejected when TRUST_INVALID_TOKENS=false"""
     auth_service = AuthService()
     device_id = str(uuid4())
@@ -157,17 +149,11 @@ def test_trust_invalid_tokens_disabled_rejects_expired_token(
 
     # Test with TRUST_INVALID_TOKENS=false
     # The expired token should be rejected
-    response = client.get(
-        "/plant/all", headers={"Authorization": f"Bearer {expired_token}"}
-    )
-    assert response.status_code == 401, (
-        "Should reject expired token when TRUST_INVALID_TOKENS=false"
-    )
+    response = client.get("/plant/all", headers={"Authorization": f"Bearer {expired_token}"})
+    assert response.status_code == 401, "Should reject expired token when TRUST_INVALID_TOKENS=false"
 
 
-def test_trust_invalid_tokens_with_valid_token(
-    client, test_inspector, enable_auth, enable_trust_invalid_tokens
-):
+def test_trust_invalid_tokens_with_valid_token(client, test_inspector, enable_auth, enable_trust_invalid_tokens):
     """Test that valid tokens still work normally with TRUST_INVALID_TOKENS=true"""
     device_id = str(uuid4())
 
@@ -184,12 +170,8 @@ def test_trust_invalid_tokens_with_valid_token(
     access_token = login_response.json()["access_token"]
 
     # Valid token should work with TRUST_INVALID_TOKENS=true
-    response = client.get(
-        "/plant/all", headers={"Authorization": f"Bearer {access_token}"}
-    )
-    assert response.status_code == 200, (
-        "Valid token should work with TRUST_INVALID_TOKENS=true"
-    )
+    response = client.get("/plant/all", headers={"Authorization": f"Bearer {access_token}"})
+    assert response.status_code == 200, "Valid token should work with TRUST_INVALID_TOKENS=true"
 
 
 @pytest.mark.asyncio
@@ -231,6 +213,4 @@ async def test_decode_token_without_validation_with_malformed_token():
     assert payload is None, "Normal validation should fail for malformed token"
 
     payload = auth_service.decode_token_without_validation(malformed_token)
-    assert payload is None, (
-        "Decode without validation should also fail for malformed token"
-    )
+    assert payload is None, "Decode without validation should also fail for malformed token"

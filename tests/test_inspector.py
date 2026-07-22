@@ -16,9 +16,7 @@ def test_get_all_inspectors(client: TestClient):
     assert len(items) >= 3
 
     # Verify structure of first item
-    assert all(
-        key in items[0] for key in ["id", "full_name", "username", "server_modified_at"]
-    )
+    assert all(key in items[0] for key in ["id", "full_name", "username", "server_modified_at"])
 
     # Verify password_hash is NOT included
     assert "password_hash" not in items[0]

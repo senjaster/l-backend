@@ -1,23 +1,25 @@
 """Image router - implements API design principles"""
 
-from uuid import UUID
-from datetime import datetime
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Query
+from datetime import datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from app.constants import DEFAULT_MODIFIED_SINCE
+from app.database import get_db_connection
+from app.dependencies.permissions import get_permission_service
 from app.models.image import (
     Image,
     ImageUploadStatus,
     PresignedUploadUrlResponse,
     PutImageRequestBody,
 )
-from app.repositories.image import ImageRepository, ConcurrentModificationError
+from app.models.inspector import AccessLevel
 from app.models.s3_event import StorageEventPayload
-from app.database import get_db_connection
-from app.dependencies.permissions import get_permission_service
+from app.repositories.image import ConcurrentModificationError, ImageRepository
 from app.services.permission_service import PermissionService
 from app.services.s3_service import s3_service
-from app.models.inspector import AccessLevel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/image", tags=["image"])
@@ -63,9 +65,7 @@ async def get_images_by_plant_id(
     # Check plant access
     await permission_service.require_plant_access(plant_id)
 
-    images = await image_repo.get_by_plant_id(
-        conn, plant_id, modified_since=modified_since
-    )
+    images = await image_repo.get_by_plant_id(conn, plant_id, modified_since=modified_since)
 
     # Generate presigned URLs for all images
     for image in images:
@@ -79,9 +79,7 @@ async def get_images_by_plant_id(
 @router.put("", response_model=Image)
 async def upsert_image(
     image_body: PutImageRequestBody,
-    force: bool = Query(
-        default=False, description="If true, ignore server_modified_at validation"
-    ),
+    force: bool = Query(default=False, description="If true, ignore server_modified_at validation"),
     conn=Depends(get_db_connection),
     permission_service: PermissionService = Depends(get_permission_service),
 ):
@@ -134,13 +132,9 @@ async def upsert_image(
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
-        raise HTTPException(
-            status_code=409, detail=e.conflict_error.model_dump(mode="json")
-        )
+        raise HTTPException(status_code=409, detail=e.conflict_error.model_dump(mode="json"))
     except ValueError as e:
-        logger.warning(
-            "Invalid image data", extra={"image_id": str(image.id), "error": str(e)}
-        )
+        logger.warning("Invalid image data", extra={"image_id": str(image.id), "error": str(e)})
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -178,9 +172,7 @@ async def get_upload_url(
         raise HTTPException(status_code=500, detail="Failed to generate upload URL")
 
     presigned_url, expires_at = url_result
-    return PresignedUploadUrlResponse(
-        presigned_url=presigned_url, presigned_url_expires_at=expires_at
-    )
+    return PresignedUploadUrlResponse(presigned_url=presigned_url, presigned_url_expires_at=expires_at)
 
 
 @router.get("/{image_id}/exists", response_model=dict)
@@ -215,9 +207,7 @@ async def check_image_exists(
 
 
 @router.post("/s3-upload-callback")
-async def handle_s3_upload_callback(
-    payload: StorageEventPayload, conn=Depends(get_db_connection)
-) -> dict:
+async def handle_s3_upload_callback(payload: StorageEventPayload, conn=Depends(get_db_connection)) -> dict:
     """
     Handle storage events from Yandex Cloud.
     Processes ObjectCreate events and updates image upload status in database.
@@ -235,9 +225,7 @@ async def handle_s3_upload_callback(
             details = message.details
 
             if event_metadata.event_type != "yandex.cloud.events.storage.ObjectCreate":
-                logger.info(
-                    f"Skipping event {idx}: not ObjectCreate event, type={event_metadata.event_type}"
-                )
+                logger.info(f"Skipping event {idx}: not ObjectCreate event, type={event_metadata.event_type}")
                 continue
 
             if "." in details.object_id:
@@ -247,9 +235,7 @@ async def handle_s3_upload_callback(
             created_at = event_metadata.created_at
 
             try:
-                server_uploaded_at = datetime.fromisoformat(
-                    created_at.replace("Z", "+00:00")
-                )
+                server_uploaded_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
             except ValueError as e:
                 logger.error(f"Error parsing created_at '{created_at}': {e}")
                 errors.append(f"Event {idx}: invalid created_at format")
@@ -263,9 +249,7 @@ async def handle_s3_upload_callback(
             )
 
             processed_count += 1
-            logger.info(
-                f"Successfully processed image {object_id} with upload status 'uploaded'"
-            )
+            logger.info(f"Successfully processed image {object_id} with upload status 'uploaded'")
 
         except Exception as e:
             error_msg = f"Error processing event {idx}: {str(e)}"

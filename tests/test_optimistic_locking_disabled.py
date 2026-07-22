@@ -1,8 +1,10 @@
 """Tests for disabling optimistic locking via configuration"""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 from fastapi.testclient import TestClient
+
 from app.config import settings
 
 
@@ -318,6 +320,4 @@ def test_defect_update_without_timestamp_when_disabled(
     assert response.status_code == 200
     updated_defect = response.json()
     assert updated_defect["status"] == "RESOLVED"
-    assert (
-        updated_defect["server_modified_at"] is not None
-    )  # Server assigns new timestamp
+    assert updated_defect["server_modified_at"] is not None  # Server assigns new timestamp

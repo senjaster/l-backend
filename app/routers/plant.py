@@ -1,21 +1,23 @@
 """Plant router - implements new API design principles"""
 
-from uuid import UUID
-from datetime import datetime
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Query
+from datetime import datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.plant import Plant, PlantListResponse
-from app.models.auth import TokenPayload
-from app.repositories.plant import PlantRepository
-from app.exceptions import ConcurrentModificationError
 from app.database import get_db_connection
-from app.dependencies.ownership import get_ownership_validator
 from app.dependencies.auth import get_token_payload
+from app.dependencies.ownership import get_ownership_validator
 from app.dependencies.permissions import get_permission_service
+from app.exceptions import ConcurrentModificationError
+from app.models.auth import TokenPayload
+from app.models.inspector import AccessLevel
+from app.models.plant import Plant, PlantListResponse
+from app.repositories.plant import PlantRepository
 from app.services.ownership_validator import OwnershipValidator
 from app.services.permission_service import PermissionService
-from app.models.inspector import AccessLevel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plant", tags=["plant"])
@@ -35,9 +37,7 @@ async def get_all_plants(
     all_plants = await plant_repo.get_all(conn, modified_since=modified_since)
 
     # Filter to only plants accessible to current user
-    accessible_ids = await permission_service.filter_accessible_plants(
-        [p.id for p in all_plants.items]
-    )
+    accessible_ids = await permission_service.filter_accessible_plants([p.id for p in all_plants.items])
     accessible_plants = [p for p in all_plants.items if p.id in accessible_ids]
 
     return PlantListResponse(items=accessible_plants)
@@ -116,13 +116,9 @@ async def upsert_plant(
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
-        raise HTTPException(
-            status_code=409, detail=e.conflict_error.model_dump(mode="json")
-        )
+        raise HTTPException(status_code=409, detail=e.conflict_error.model_dump(mode="json"))
     except ValueError as e:
-        logger.warning(
-            "Invalid plant data", extra={"plant_id": str(plant.id), "error": str(e)}
-        )
+        logger.warning("Invalid plant data", extra={"plant_id": str(plant.id), "error": str(e)})
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -170,20 +166,22 @@ async def claim_plant(
     if not success:
         # Get plant info for better error message
         plant = await plant_repo.get_by_id(conn, plant_id)
-        from app.models import ConflictError, ConflictDetail
         from datetime import datetime, timezone
+
+        from app.models import ConflictDetail, ConflictError
 
         raise HTTPException(
             status_code=409,
             detail=ConflictError(
                 message="Plant is claimed by another user and claim is not stale",
-                server_modified_at=plant.server_modified_at
-                if plant
-                else datetime.now(timezone.utc),
+                server_modified_at=plant.server_modified_at if plant else datetime.now(timezone.utc),
                 conflicts=[
                     ConflictDetail(
                         field="claimed_by_user_id",
-                        message=f"Plant is claimed by user {plant.claimed_by_user_id if plant else 'unknown'} and claim has not expired yet",
+                        message=(
+                            f"Plant is claimed by user {plant.claimed_by_user_id if plant else 'unknown'}"
+                            " and claim has not expired yet"
+                        ),
                     )
                 ],
             ).model_dump(mode="json"),

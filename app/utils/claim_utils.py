@@ -1,7 +1,7 @@
 """Utility functions for plant claim management"""
 
+from datetime import datetime, time, timedelta, timezone
 from typing import Optional
-from datetime import datetime, timezone, time, timedelta
 
 
 def is_claim_stale(claimed_at: Optional[datetime]) -> bool:
@@ -27,9 +27,7 @@ def is_claim_stale(claimed_at: Optional[datetime]) -> bool:
 
     # Calculate today's 3:00 AM Moscow time (00:00 UTC)
     # Moscow is UTC+3, so 3:00 AM Moscow = 00:00 UTC
-    today_3am_moscow_utc = datetime.combine(
-        now_utc.date(), time(0, 0), tzinfo=timezone.utc
-    )
+    today_3am_moscow_utc = datetime.combine(now_utc.date(), time(0, 0), tzinfo=timezone.utc)
 
     # Find the last 3:00 AM that has already passed
     last_3am = today_3am_moscow_utc

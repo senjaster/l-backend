@@ -1,9 +1,11 @@
 """Permission dependencies for FastAPI endpoints"""
 
-from uuid import UUID
 from typing import Callable, Optional
-from fastapi import Depends, HTTPException, status
+from uuid import UUID
+
 import asyncpg
+from fastapi import Depends, HTTPException, status
+
 from app.database import get_db_connection
 from app.dependencies.auth import get_current_user
 from app.models.inspector import Inspector

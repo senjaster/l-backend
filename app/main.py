@@ -1,38 +1,38 @@
 """FastAPI application entry point"""
 
-from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
+import logging
 from contextlib import asynccontextmanager
+
 import asyncpg
 import psycopg2
-from app.database import init_db_pool, close_db_pool
+from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+
+from app.config import settings
+from app.database import close_db_pool, init_db_pool
 from app.exceptions import (
     asyncpg_exception_handler,
     psycopg2_exception_handler,
     validation_exception_handler,
 )
-from app.middleware.auth import AuthMiddleware
 from app.logging_config import setup_logging
-from app.config import settings
-import logging
-
+from app.middleware.auth import AuthMiddleware
 from app.routers import (
     auth,
-    inspector,
-    image,
-    log,
-    plant_group,
-    sticker_type,
+    defect,
+    defect_type,
+    equipment,
     equipment_type,
     facility_template,
-    defect_type,
-    plant,
-    equipment,
+    image,
     inspection,
-    defect,
+    inspector,
+    log,
+    plant,
+    plant_group,
+    sticker_type,
     work_log,
 )
-
 
 # Initialize logging
 setup_logging(log_level=settings.log_level, enable_json=settings.log_json)
@@ -90,7 +90,10 @@ def custom_openapi():
             "type": "apiKey",
             "in": "header",
             "name": "X-Auth-Token",
-            "description": "Enter 'Bearer <token>' or just '<token>' (works in Yandex Cloud where Authorization header is stripped)",
+            "description": (
+                "Enter 'Bearer <token>' or just '<token>'"
+                " (works in Yandex Cloud where Authorization header is stripped)"
+            ),
         },
     }
 

@@ -1,9 +1,11 @@
 """Tests to verify access_level is not exposed in API responses and is in JWT scope"""
 
-import jwt
 from uuid import uuid4
-from app.services.auth import AuthService
+
+import jwt
+
 from app.config import settings
+from app.services.auth import AuthService
 
 
 def test_inspector_api_does_not_expose_access_level(client):
@@ -33,9 +35,7 @@ def test_jwt_token_contains_scope():
 
     # Create a token with MODIFY access level
     device_id = str(uuid4())
-    access_token = auth_service.create_access_token(
-        inspector_id=1, device_id=device_id, access_level="MODIFY"
-    )
+    access_token = auth_service.create_access_token(inspector_id=1, device_id=device_id, access_level="MODIFY")
 
     # Decode the token (without verification for testing)
     decoded = jwt.decode(
@@ -48,9 +48,7 @@ def test_jwt_token_contains_scope():
 
     # Verify scope field exists and contains the access level
     assert "scope" in decoded, "JWT token should contain 'scope' field"
-    assert decoded["scope"] == "MODIFY", (
-        f"Expected scope to be 'MODIFY', got '{decoded['scope']}'"
-    )
+    assert decoded["scope"] == "MODIFY", f"Expected scope to be 'MODIFY', got '{decoded['scope']}'"
 
     # Verify other expected fields
     assert "sub" in decoded
@@ -67,9 +65,7 @@ def test_jwt_token_scope_variations():
     device_id = str(uuid4())
 
     for access_level in ["READ", "INSPECT", "MODIFY"]:
-        access_token = auth_service.create_access_token(
-            inspector_id=1, device_id=device_id, access_level=access_level
-        )
+        access_token = auth_service.create_access_token(inspector_id=1, device_id=device_id, access_level=access_level)
 
         # Decode and verify
         decoded = jwt.decode(
@@ -80,6 +76,4 @@ def test_jwt_token_scope_variations():
             audience=settings.jwt_audience,
         )
 
-        assert decoded["scope"] == access_level, (
-            f"Expected scope to be '{access_level}', got '{decoded['scope']}'"
-        )
+        assert decoded["scope"] == access_level, f"Expected scope to be '{access_level}', got '{decoded['scope']}'"

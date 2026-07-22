@@ -1,15 +1,17 @@
 """Authentication dependencies for FastAPI"""
 
-from typing import Annotated, Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
-import asyncpg
-from app.models.inspector import Inspector
-from app.models.auth import TokenPayload
-from app.services.auth import AuthService
-from app.database import get_db_connection
-from app.config import settings
 from datetime import datetime, timezone
+from typing import Annotated, Optional
+
+import asyncpg
+from fastapi import Depends, HTTPException, status
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
+
+from app.config import settings
+from app.database import get_db_connection
+from app.models.auth import TokenPayload
+from app.models.inspector import Inspector
+from app.services.auth import AuthService
 
 # Support both Authorization header and X-Auth-Token header
 security = HTTPBearer(auto_error=False)
@@ -83,9 +85,7 @@ async def get_current_user(
                     from app.repositories.auth import AuthRepository
 
                     auth_repo = AuthRepository()
-                    inspector_with_password = await auth_repo.get_inspector_by_id(
-                        conn, payload.sub
-                    )
+                    inspector_with_password = await auth_repo.get_inspector_by_id(conn, payload.sub)
 
                     if inspector_with_password:
                         # Return the user from database (trusting expired/revoked token)

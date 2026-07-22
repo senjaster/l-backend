@@ -1,9 +1,10 @@
 """Work log aggregate models"""
 
-from pydantic import BaseModel, Field
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class WorkLogInspector(BaseModel):

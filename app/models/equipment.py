@@ -1,9 +1,10 @@
 """Equipment aggregate models"""
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from uuid import UUID
-from enum import Enum
+
 from pydantic import BaseModel, Field
 
 

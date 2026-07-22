@@ -1,11 +1,11 @@
 """Integration tests for Group API"""
 
-import pytest
 import time
 import uuid
 from copy import deepcopy
-from fastapi.testclient import TestClient
 
+import pytest
+from fastapi.testclient import TestClient
 
 PUT_BODY_TEMPLATE = {
     "id": None,  # filled per test

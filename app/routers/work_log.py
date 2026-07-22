@@ -1,24 +1,23 @@
 import logging
-
-from uuid import UUID
 from datetime import datetime
 from typing import List
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.database import get_db_connection
-from app.repositories.work_log import WorkLogRepository
+from app.dependencies.ownership import get_ownership_validator
+from app.dependencies.permissions import get_permission_service
+from app.exceptions import BusinessValidationError, ConcurrentModificationError
+from app.models.inspector import AccessLevel
 from app.models.work_log import (
     WorkLog,
     WorkLogListResponse,
 )
-from app.exceptions import ConcurrentModificationError, BusinessValidationError
-from app.dependencies.permissions import get_permission_service
-from app.dependencies.ownership import get_ownership_validator
-from app.services.permission_service import PermissionService
+from app.repositories.work_log import WorkLogRepository
 from app.services.ownership_validator import OwnershipValidator
-from app.models.inspector import AccessLevel
+from app.services.permission_service import PermissionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/work_log", tags=["Work Log"])
@@ -90,9 +89,7 @@ async def get_work_logs_by_plant_id(
     """
     await permission_service.require_plant_access(plant_id)
 
-    return await work_log_repo.get_by_plant_id(
-        conn, plant_id=plant_id, modified_since=modified_since
-    )
+    return await work_log_repo.get_by_plant_id(conn, plant_id=plant_id, modified_since=modified_since)
 
 
 @router.put("", response_model=WorkLog)
@@ -144,9 +141,7 @@ async def upsert_work_log(
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
-        raise HTTPException(
-            status_code=409, detail=e.conflict_error.model_dump(mode="json")
-        )
+        raise HTTPException(status_code=409, detail=e.conflict_error.model_dump(mode="json"))
     except ValueError as e:
         logger.warning(
             "Invalid work log data",

@@ -16,10 +16,7 @@ def test_get_all_equipment_types(client: TestClient):
     assert len(items) == 5
 
     # Verify structure of first item
-    assert all(
-        key in items[0]
-        for key in ["id", "name", "server_modified_at", "control_point_templates"]
-    )
+    assert all(key in items[0] for key in ["id", "name", "server_modified_at", "control_point_templates"])
 
 
 def test_equipment_type_with_templates(client: TestClient):
@@ -75,9 +72,7 @@ def test_equipment_type_template_values(client: TestClient):
     assert contact["default_sticker_id"] == 3
 
     # Check БКС template
-    bks = next(
-        (t for t in templates if t["name"] == "Болтовое контактное соединение"), None
-    )
+    bks = next((t for t in templates if t["name"] == "Болтовое контактное соединение"), None)
     assert bks is not None
     assert bks["short_name"] == "БКС"
     assert bks["default_sticker_id"] == 3

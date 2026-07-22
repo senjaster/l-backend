@@ -1,8 +1,10 @@
 """Tests for permission system - access levels and plant access control"""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 from fastapi.testclient import TestClient
+
 from app.services.auth import AuthService
 
 
@@ -96,9 +98,7 @@ def test_read_level_can_view_plants(client: TestClient, plant_data, auth_service
     assert response.status_code == 200
 
 
-def test_read_level_cannot_claim_plant(
-    client: TestClient, plant_data, plant_id, auth_service
-):
+def test_read_level_cannot_claim_plant(client: TestClient, plant_data, plant_id, auth_service):
     """Test that READ level users cannot claim plants"""
     # This test would require creating a user with READ level
     # For now, we verify that MODIFY level is required for claiming
@@ -106,9 +106,7 @@ def test_read_level_cannot_claim_plant(
     pass  # Covered by existing claim tests
 
 
-def test_modify_level_can_claim_plant(
-    client: TestClient, plant_data, plant_id, auth_service
-):
+def test_modify_level_can_claim_plant(client: TestClient, plant_data, plant_id, auth_service):
     """Test that MODIFY level users can claim plants"""
     # Create plant
     client.put("/plant", json=plant_data)
@@ -126,9 +124,7 @@ def test_modify_level_can_claim_plant(
     assert response.json()["claimed_by_user_id"] == user_id
 
 
-def test_modify_level_can_modify_plant(
-    client: TestClient, plant_data, plant_id, auth_service
-):
+def test_modify_level_can_modify_plant(client: TestClient, plant_data, plant_id, auth_service):
     """Test that MODIFY level users can modify plants"""
     # Create plant
     create_response = client.put("/plant", json=plant_data)
@@ -164,9 +160,7 @@ def test_modify_level_can_modify_plant(
 # ============================================================================
 
 
-def test_user_can_access_plant_they_created(
-    client: TestClient, plant_data, auth_service
-):
+def test_user_can_access_plant_they_created(client: TestClient, plant_data, auth_service):
     """Test that users automatically get access to plants they create"""
     device_id = uuid4()
     user_id = 1
@@ -188,9 +182,7 @@ def test_user_can_access_plant_they_created(
     assert response.status_code == 200
 
 
-def test_user_gets_access_when_claiming_plant(
-    client: TestClient, plant_data, plant_id, auth_service
-):
+def test_user_gets_access_when_claiming_plant(client: TestClient, plant_data, plant_id, auth_service):
     """Test that users get access to plants when they claim them"""
     # Create plant without auth
     client.put("/plant", json=plant_data)
@@ -297,9 +289,7 @@ def test_plant_list_filtered_by_access(client: TestClient, auth_service):
     )
 
     # User 1 should only see plant 1
-    response = client.get(
-        "/plant/all", headers={"Authorization": f"Bearer {access_token_1}"}
-    )
+    response = client.get("/plant/all", headers={"Authorization": f"Bearer {access_token_1}"})
     assert response.status_code == 200
     plant_ids = [p["id"] for p in response.json()["items"]]
     assert str(plant_id_1) in plant_ids
@@ -322,18 +312,14 @@ async def test_equipment_access_requires_plant_access(
 ):
     """Test that equipment operations require plant access"""
     # Create plant with facility
-    plant_data["facilities"] = [
-        {"id": str(facility_id), "name": "Facility 1", "is_deleted": False}
-    ]
+    plant_data["facilities"] = [{"id": str(facility_id), "name": "Facility 1", "is_deleted": False}]
     equipment_data["facility_id"] = str(facility_id)
     equipment_data["parent_id"] = str(facility_id)
 
     user_id_1 = 1
     access_token_1 = auth_service.create_access_token(user_id_1, uuid4(), "MODIFY")
 
-    client.put(
-        "/plant", json=plant_data, headers={"Authorization": f"Bearer {access_token_1}"}
-    )
+    client.put("/plant", json=plant_data, headers={"Authorization": f"Bearer {access_token_1}"})
     client.put(
         "/equipment",
         json=equipment_data,
@@ -405,9 +391,7 @@ def test_inspect_level_cannot_modify_equipment(client: TestClient):
 # ============================================================================
 
 
-def test_deleted_plant_access_still_enforced(
-    client: TestClient, plant_data, auth_service
-):
+def test_deleted_plant_access_still_enforced(client: TestClient, plant_data, auth_service):
     """Test that access control is enforced even for deleted plants"""
     # Create and delete a plant
     user_id_1 = 1
@@ -446,9 +430,7 @@ def test_deleted_plant_access_still_enforced(
     assert response.status_code == 403
 
 
-def test_release_plant_grants_access(
-    client: TestClient, plant_data, plant_id, auth_service
-):
+def test_release_plant_grants_access(client: TestClient, plant_data, plant_id, auth_service):
     """Test that releasing a plant grants access to the releaser"""
     # Create plant
     client.put("/plant", json=plant_data)

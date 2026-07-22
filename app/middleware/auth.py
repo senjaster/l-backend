@@ -3,9 +3,10 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.services.auth import AuthService
+
 from app.config import settings
 from app.database import get_db_connection
+from app.services.auth import AuthService
 
 
 def extract_token_from_header(header_value: str) -> str:
@@ -99,9 +100,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         from app.repositories.auth import AuthRepository
 
                         auth_repo = AuthRepository()
-                        inspector_with_password = await auth_repo.get_inspector_by_id(
-                            conn, payload.sub
-                        )
+                        inspector_with_password = await auth_repo.get_inspector_by_id(conn, payload.sub)
 
                         if inspector_with_password:
                             # Use the inspector from database (trusting expired/revoked token)

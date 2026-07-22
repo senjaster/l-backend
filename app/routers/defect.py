@@ -5,17 +5,19 @@ This is the key reason for separating defects from the equipment aggregate.
 However, users must still have access to the plant to view/modify defects.
 """
 
-from uuid import UUID
-from datetime import datetime
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Query
+from datetime import datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from app.constants import DEFAULT_MODIFIED_SINCE
-from app.models.defect import Defect, DefectListResponse
-from app.repositories.defect import DefectRepository, ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.permissions import get_permission_service
-from app.services.permission_service import PermissionService
+from app.models.defect import Defect, DefectListResponse
 from app.models.inspector import AccessLevel
+from app.repositories.defect import ConcurrentModificationError, DefectRepository
+from app.services.permission_service import PermissionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/defect", tags=["defect"])
@@ -77,9 +79,7 @@ async def get_defects_by_plant_id(
     # Check plant access
     await permission_service.require_plant_access(plant_id)
 
-    return await defect_repo.get_by_plant_id(
-        conn, plant_id, modified_since=modified_since
-    )
+    return await defect_repo.get_by_plant_id(conn, plant_id, modified_since=modified_since)
 
 
 @router.put("", response_model=Defect)
@@ -126,9 +126,7 @@ async def upsert_defect(
                 "conflict": e.conflict_error.model_dump(mode="json"),
             },
         )
-        raise HTTPException(
-            status_code=409, detail=e.conflict_error.model_dump(mode="json")
-        )
+        raise HTTPException(status_code=409, detail=e.conflict_error.model_dump(mode="json"))
     except ValueError as e:
         logger.warning(
             "Invalid defect data",
