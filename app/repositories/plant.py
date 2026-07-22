@@ -157,7 +157,6 @@ class PlantRepository:
             user_id=user_id,
             claimed_at=now,
             server_modified_at=now,
-            plant_group_id=current.plant_group_id,
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):

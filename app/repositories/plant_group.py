@@ -7,6 +7,8 @@ from uuid import UUID
 from datetime import datetime, timezone
 from typing import Optional
 
+from aiosql.queries import Queries
+
 from app.config import settings
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant_group import PlantGroup, PlantGroupListResponse
@@ -19,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/plant_group.sql", settings.db_driver)
-queries = AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+queries: Queries = (
+    AsyncWrapper(_queries) if settings.db_driver == "psycopg2" else _queries
+)  # type: ignore[assignment]
 
 
 class PlantGroupRepository:

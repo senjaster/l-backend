@@ -7,7 +7,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from app.constants import DEFAULT_MODIFIED_SINCE
 from app.models.plant import Plant, PlantListResponse
 from app.models.auth import TokenPayload
-from app.repositories.plant import PlantRepository, ConcurrentModificationError
+from app.repositories.plant import PlantRepository
+from app.exceptions import ConcurrentModificationError
 from app.database import get_db_connection
 from app.dependencies.ownership import get_ownership_validator
 from app.dependencies.auth import get_token_payload
