@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 120
 target-version = "py314"
-exclude = ["stubs"]
+exclude = ["stubs", "scripts"]
 
 [tool.ruff.lint]
 select = [
