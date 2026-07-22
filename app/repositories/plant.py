@@ -12,6 +12,7 @@ from app.models.plant import Plant, Facility, PlantListItem, PlantListResponse
 from app.models import ConflictError, ConflictDetail
 from app.exceptions import ConcurrentModificationError
 from app.utils.datetime_utils import truncate_to_milliseconds
+from app.utils.db_utils import OptimisticLockingValidator, CollectionConfig
 
 # Load queries from single file
 _queries = aiosql.from_path("app/queries/plant.sql", settings.db_driver)
@@ -29,7 +30,7 @@ class PlantRepository:
         plant_row = await queries.get_by_id(conn, id=plant_id)
         if not plant_row:
             return None
-
+        
         # Get facilities
         facility_rows = [
             row async for row in queries.get_facilities(conn, plant_id=plant_id)
@@ -84,67 +85,23 @@ class PlantRepository:
         new_server_modified_at = datetime.now(timezone.utc)
 
         if current and not (force or settings.disable_optimistic_locking):
-            # Validate server_modified_at for existing plants
-            if plant.server_modified_at is None:
-                raise ConcurrentModificationError(
-                    ConflictError(
-                        message="server_modified_at is required for updating existing plant",
-                        server_modified_at=current.server_modified_at,
-                        conflicts=[
-                            ConflictDetail(
-                                field="server_modified_at",
-                                message="Missing server_modified_at in request",
-                            )
-                        ],
+            OptimisticLockingValidator.validate_object(
+                server_obj=current,
+                client_obj=plant,
+                collection_configs=[
+                    CollectionConfig(
+                        server_collection=current.facilities,
+                        client_collection=plant.facilities,
+                        collection_name="facilities"
                     )
-                )
-
-            if truncate_to_milliseconds(
-                plant.server_modified_at
-            ) != truncate_to_milliseconds(current.server_modified_at):
-                raise ConcurrentModificationError(
-                    ConflictError(
-                        message="Plant was modified by another client",
-                        server_modified_at=current.server_modified_at,
-                        client_modified_at=plant.server_modified_at,
-                        conflicts=[
-                            ConflictDetail(
-                                field="server_modified_at",
-                                message="Timestamp mismatch",
-                                server_value=current.server_modified_at.isoformat(),
-                                client_value=plant.server_modified_at.isoformat(),
-                            )
-                        ],
-                    )
-                )
-
-            # Check for extra facilities on server
-            current_facility_ids = {
-                f.id for f in current.facilities if not f.is_deleted
-            }
-            incoming_facility_ids = {f.id for f in plant.facilities}
-            extra_facility_ids = current_facility_ids - incoming_facility_ids
-
-            if extra_facility_ids:
-                raise ConcurrentModificationError(
-                    ConflictError(
-                        message="Extra child facilities exist on server",
-                        server_modified_at=current.server_modified_at,
-                        client_modified_at=plant.server_modified_at,
-                        extra_child_ids=list(extra_facility_ids),
-                        conflicts=[
-                            ConflictDetail(
-                                field="facilities",
-                                message=f"Server has {len(extra_facility_ids)} extra facilities not in client request",
-                            )
-                        ],
-                    )
-                )
+                ]
+            )
 
         # Upsert plant (claim fields are managed separately via claim/release endpoints)
         await queries.upsert_plant(
             conn,
             id=plant_id,
+            plant_group_id=plant.plant_group_id,
             name=plant.name,
             is_deleted=plant.is_deleted,
             server_modified_at=new_server_modified_at,
@@ -203,6 +160,7 @@ class PlantRepository:
             user_id=user_id,
             claimed_at=now,
             server_modified_at=now,
+            plant_group_id=current.plant_group_id
         )
         # asyncpg returns string like "UPDATE 1", psycopg2 returns int (row count)
         if isinstance(result, int):
