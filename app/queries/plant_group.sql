@@ -1,0 +1,45 @@
+-- name: get_by_id(id)^
+-- Get group by ID
+SELECT id, name, parent_id, is_deleted, server_modified_at
+FROM lesiv.plant_group
+WHERE id = :id;
+
+-- name: get_all_groups(modified_since)
+-- Get all groups (lightweight list)
+-- :modified_since defaults to 1790-01-01 - only return groups modified after that timestamp
+SELECT id, name, parent_id, is_deleted, server_modified_at
+FROM lesiv.plant_group
+WHERE server_modified_at > :modified_since
+ORDER BY server_modified_at;
+
+-- name: check_cyclic_dependency(id, new_parent_id)^
+-- Check if moving a group would create a cyclic dependency.
+-- Traverses all ancestors of new_parent_id; if group appears among them,
+-- moving group under new_parent_id would create a cycle.
+WITH RECURSIVE ancestors AS (
+    SELECT 
+        id, parent_id
+    FROM 
+        lesiv.plant_group
+    WHERE 
+        id = :new_parent_id
+    UNION ALL
+    SELECT g.id, g.parent_id
+    FROM 
+        lesiv.plant_group g
+        INNER JOIN ancestors a ON g.id = a.parent_id
+)
+SELECT 1 AS would_create_cycle
+FROM ancestors
+WHERE id = :id;
+
+-- name: upsert_group(id, name, parent_id, is_deleted, server_modified_at)!
+-- Insert or update group
+INSERT INTO lesiv.plant_group (id, name, parent_id, is_deleted, server_modified_at)
+VALUES (:id, :name, :parent_id, :is_deleted, :server_modified_at)
+ON CONFLICT (id) DO
+UPDATE SET
+    name = EXCLUDED.name,
+    parent_id = EXCLUDED.parent_id,
+    is_deleted = EXCLUDED.is_deleted,
+    server_modified_at = EXCLUDED.server_modified_at;

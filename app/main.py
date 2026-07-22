@@ -21,6 +21,7 @@ from app.routers import (
     inspector,
     image,
     log,
+    plant_group,
     sticker_type,
     equipment_type,
     facility_template,
@@ -144,3 +145,4 @@ app.include_router(equipment.router)
 app.include_router(inspection.router)
 app.include_router(defect.router)
 app.include_router(work_log.router)
+app.include_router(plant_group.router)
