@@ -137,6 +137,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON lesiv.work_log_inspector TO l_app_role;
 
 
 -- ============================================================================
+-- Plant Group Aggregate
+-- ============================================================================
+
+-- plant_group: SELECT, INSERT, UPDATE
+GRANT SELECT, INSERT, UPDATE ON lesiv.plant_group TO l_app_role;
+
+-- ============================================================================
 -- Views
 -- ============================================================================
 
